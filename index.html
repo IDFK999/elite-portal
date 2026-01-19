@@ -35,6 +35,7 @@
             const [view, setView] = useState('log');
             const [user, setUser] = useState({ id: localStorage.getItem('eliteId'), ph: localStorage.getItem('elitePh') });
             const [targets, setTargets] = useState(null);
+            const [maxWeeks, setMaxWeeks] = useState(52); // Default fallback
 
             async function call(action, payload) {
                 try {
@@ -44,7 +45,15 @@
             }
 
             useEffect(() => {
-                if(user.id) call('getTargets', user).then(res => setTargets(res));
+                if(user.id) {
+                    call('getTargets', user).then(res => {
+                        setTargets(res);
+                        // If your sheet returns 'totalWeeks', the dropdown updates here
+                        if (res && res.totalWeeks) {
+                            setMaxWeeks(parseInt(res.totalWeeks));
+                        }
+                    });
+                }
             }, [user]);
 
             if (!user.id) return <Login onLogin={(u) => { localStorage.setItem('eliteId', u.id); localStorage.setItem('elitePh', u.ph); setUser(u); }} call={call} />;
@@ -53,7 +62,7 @@
                 <div className="container py-4">
                     <div className="d-flex justify-content-between align-items-center mb-3">
                         <h4 className="fw-bold m-0">Athlete: {targets?.name || '...'}</h4>
-                        <div className="badge bg-dark">Elite v2.0</div>
+                        <div className="badge bg-dark">Elite v2.1</div>
                     </div>
 
                     {targets && (
@@ -66,7 +75,7 @@
                     )}
 
                     {view === 'log' && <DailyLog user={user} call={call} />}
-                    {view === 'update' && <Metrics user={user} call={call} />}
+                    {view === 'update' && <Metrics user={user} call={call} maxWeeks={maxWeeks} />}
                     {view === 'stats' && <Stats user={user} call={call} />}
                     
                     <div className="nav-bottom">
@@ -118,7 +127,7 @@
             );
         }
 
-        function Metrics({ user, call }) {
+        function Metrics({ user, call, maxWeeks }) {
             const [f, setF] = useState({ weekNum:'', chest:'', waist:'', glute:'', larm:'', rarm:'', lthigh:'', rthigh:'', img1:'', img2:'' });
             const [loading, setLoading] = useState(false);
             const handleImg = (e, key) => {
@@ -136,10 +145,9 @@
             return (
                 <div className="card">
                     <h6 className="fw-bold mb-3 text-success">Weekly Update</h6>
-                    {/* UPDATED: Dynamic 52 Week Dropdown */}
                     <select className="form-select" value={f.weekNum} onChange={e=>setF({...f, weekNum:e.target.value})}>
-                        <option value="">Select Week (1-52)</option>
-                        {[...Array(52)].map((_, i) => (
+                        <option value="">Select Week (1 to {maxWeeks})</option>
+                        {[...Array(maxWeeks)].map((_, i) => (
                             <option key={i+1} value={i+1}>Week {i+1}</option>
                         ))}
                     </select>
