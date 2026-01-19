@@ -35,7 +35,7 @@
             const [view, setView] = useState('log');
             const [user, setUser] = useState({ id: localStorage.getItem('eliteId'), ph: localStorage.getItem('elitePh') });
             const [targets, setTargets] = useState(null);
-            const [maxWeeks, setMaxWeeks] = useState(52); // Default fallback
+            const [maxWeeks, setMaxWeeks] = useState(52);
 
             async function call(action, payload) {
                 try {
@@ -48,10 +48,7 @@
                 if(user.id) {
                     call('getTargets', user).then(res => {
                         setTargets(res);
-                        // If your sheet returns 'totalWeeks', the dropdown updates here
-                        if (res && res.totalWeeks) {
-                            setMaxWeeks(parseInt(res.totalWeeks));
-                        }
+                        if (res && res.totalWeeks) setMaxWeeks(parseInt(res.totalWeeks));
                     });
                 }
             }, [user]);
@@ -62,7 +59,7 @@
                 <div className="container py-4">
                     <div className="d-flex justify-content-between align-items-center mb-3">
                         <h4 className="fw-bold m-0">Athlete: {targets?.name || '...'}</h4>
-                        <div className="badge bg-dark">Elite v2.1</div>
+                        <div className="badge bg-dark">Elite v2.2</div>
                     </div>
 
                     {targets && (
@@ -130,11 +127,34 @@
         function Metrics({ user, call, maxWeeks }) {
             const [f, setF] = useState({ weekNum:'', chest:'', waist:'', glute:'', larm:'', rarm:'', lthigh:'', rthigh:'', img1:'', img2:'' });
             const [loading, setLoading] = useState(false);
+
+            // COMPRESSION LOGIC ADDED HERE
             const handleImg = (e, key) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                
                 const reader = new FileReader();
-                reader.onloadend = () => setF({...f, [key]: reader.result});
-                if(e.target.files[0]) reader.readAsDataURL(e.target.files[0]);
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const MAX_WIDTH = 800; // Shrink to 800px width
+                        const scaleSize = MAX_WIDTH / img.width;
+                        canvas.width = MAX_WIDTH;
+                        canvas.height = img.height * scaleSize;
+
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        
+                        // Convert to smaller JPG (0.7 quality)
+                        const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+                        setF(prev => ({...prev, [key]: dataUrl}));
+                    };
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
             };
+
             const submit = async () => {
                 if(!f.weekNum) return alert("Please select a Week Number");
                 setLoading(true);
@@ -142,6 +162,7 @@
                 alert(res || "Update Complete!");
                 setLoading(false);
             };
+
             return (
                 <div className="card">
                     <h6 className="fw-bold mb-3 text-success">Weekly Update</h6>
@@ -180,7 +201,7 @@
                         <input type="file" hidden accept="image/*" onChange={e=>handleImg(e, 'img2')} />
                     </label>
 
-                    <button className="btn btn-primary mt-2" onClick={submit} disabled={loading}>{loading ? "Uploading..." : "Submit Check-in"}</button>
+                    <button className="btn btn-primary mt-2" onClick={submit} disabled={loading}>{loading ? "Compressing & Uploading..." : "Submit Check-in"}</button>
                 </div>
             );
         }
@@ -194,9 +215,7 @@
                 call('getTrends', user).then(data => {
                     if(!data || data.length === 0) return;
                     setTrendData(data);
-                    
                     if (chartRef.current) chartRef.current.destroy();
-
                     chartRef.current = new Chart(canvasRef.current, {
                         type: 'line',
                         data: {
@@ -226,9 +245,6 @@
             const diff = (endW - startW).toFixed(2);
             const perc = startW !== 0 ? ((diff / startW) * 100).toFixed(2) : 0;
             const avgSteps = hasData ? Math.round(week.reduce((a,b)=>a + (Number(b.steps) || 0), 0) / week.length) : 0;
-            const avgP = hasData ? Math.round(week.reduce((a,b)=>a + (Number(b.p) || 0), 0) / week.length) : 0;
-            const avgC = hasData ? Math.round(week.reduce((a,b)=>a + (Number(b.c) || 0), 0) / week.length) : 0;
-            const avgF = hasData ? Math.round(week.reduce((a,b)=>a + (Number(b.f) || 0), 0) / week.length) : 0;
             const avgCal = hasData ? Math.round(week.reduce((a,b)=>a + (Number(b.cal) || 0), 0) / week.length) : 0;
 
             return (
@@ -244,8 +260,6 @@
                             <div className="stat-item"><span className="stat-val">{perc}%</span><span className="stat-label">Weight Change</span></div>
                             <div className="stat-item"><span className="stat-val">{avgSteps.toLocaleString()}</span><span className="stat-label">Avg Steps</span></div>
                             <div className="stat-item"><span className="stat-val">{avgCal}</span><span className="stat-label">Avg Calories</span></div>
-                            <div className="stat-item"><span className="stat-val">{avgP}g</span><span className="stat-label">Avg Protein</span></div>
-                            <div className="stat-item"><span className="stat-val">{avgC}g / {avgF}g</span><span className="stat-label">Avg Carb/Fat</span></div>
                         </div>
                     </div>
                 </div>
