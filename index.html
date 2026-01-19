@@ -136,6 +136,7 @@
             return (
                 <div className="card">
                     <h6 className="fw-bold mb-3 text-success">Weekly Update</h6>
+                    {/* UPDATED: Dynamic 52 Week Dropdown */}
                     <select className="form-select" value={f.weekNum} onChange={e=>setF({...f, weekNum:e.target.value})}>
                         <option value="">Select Week (1-52)</option>
                         {[...Array(52)].map((_, i) => (
