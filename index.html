@@ -19,6 +19,12 @@
         .btn-primary { background: #007AFF; border: none; border-radius: 12px; padding: 15px; font-weight: bold; width: 100%; }
         .target-pill { background: #1c1c1e; color: #fff; border-radius: 15px; padding: 12px; margin-bottom: 15px; font-size: 12px; }
         .photo-label { background: #fff; border: 2px dashed #007AFF; border-radius: 12px; padding: 10px; text-align: center; margin-bottom: 8px; display: block; cursor: pointer; color: #007AFF; font-size: 13px; font-weight: 600; }
+        
+        /* New Stats Styling */
+        .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .stat-item { background: #f8f9fa; padding: 10px; border-radius: 12px; text-align: center; border: 1px solid #eee; }
+        .stat-val { font-size: 16px; font-weight: 800; color: #007AFF; display: block; }
+        .stat-label { font-size: 9px; color: #8e8e93; font-weight: 700; text-transform: uppercase; }
     </style>
 </head>
 <body>
@@ -168,10 +174,13 @@
         }
 
         function Stats({ user, call }) {
+            const [trendData, setTrendData] = useState([]);
             const canvasRef = useRef(null);
+            
             useEffect(() => {
                 call('getTrends', user).then(data => {
                     if(!data || data.length === 0) return;
+                    setTrendData(data);
                     new Chart(canvasRef.current, {
                         type: 'line',
                         data: {
@@ -189,11 +198,58 @@
                     });
                 });
             }, []);
+
+            // Calculation Logic
+            const week = trendData.slice(-7);
+            const hasData = week.length > 0;
+            
+            const startW = hasData ? week[0].weight : 0;
+            const endW = hasData ? week[week.length-1].weight : 0;
+            const diff = (endW - startW).toFixed(2);
+            const perc = startW !== 0 ? ((diff / startW) * 100).toFixed(2) : 0;
+            
+            const avgSteps = hasData ? Math.round(week.reduce((a,b)=>a + (b.steps || 0), 0) / week.length) : 0;
+            const avgP = hasData ? Math.round(week.reduce((a,b)=>a + (b.p || 0), 0) / week.length) : 0;
+            const avgC = hasData ? Math.round(week.reduce((a,b)=>a + (b.c || 0), 0) / week.length) : 0;
+            const avgF = hasData ? Math.round(week.reduce((a,b)=>a + (b.f || 0), 0) / week.length) : 0;
+            const avgCal = hasData ? Math.round(week.reduce((a,b)=>a + (b.cal || 0), 0) / week.length) : 0;
+
             return (
-                <div className="card">
-                    <h6 className="fw-bold mb-3">Weight History</h6>
-                    <canvas ref={canvasRef}></canvas>
-                    <p className="small text-secondary mt-3 text-center">Charts show your last 14 entries.</p>
+                <div>
+                    <div className="card">
+                        <h6 className="fw-bold mb-3">Weight History</h6>
+                        <canvas ref={canvasRef}></canvas>
+                    </div>
+
+                    <div className="card">
+                        <h6 className="fw-bold mb-3">7-Day Analysis</h6>
+                        <div className="stat-grid">
+                            <div className="stat-item">
+                                <span className="stat-val">{diff > 0 ? `+${diff}` : diff}kg</span>
+                                <span className="stat-label">Total Loss/Gain</span>
+                            </div>
+                            <div className="stat-item">
+                                <span className="stat-val">{perc}%</span>
+                                <span className="stat-label">Weight Change</span>
+                            </div>
+                            <div className="stat-item">
+                                <span className="stat-val">{avgSteps.toLocaleString()}</span>
+                                <span className="stat-label">Avg Steps</span>
+                            </div>
+                            <div className="stat-item">
+                                <span className="stat-val">{avgCal}</span>
+                                <span className="stat-label">Avg Calories</span>
+                            </div>
+                            <div className="stat-item">
+                                <span className="stat-val">{avgP}g</span>
+                                <span className="stat-label">Avg Protein</span>
+                            </div>
+                            <div className="stat-item">
+                                <span className="stat-val">{avgC}g / {avgF}g</span>
+                                <span className="stat-label">Avg Carb/Fat</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             );
         }
