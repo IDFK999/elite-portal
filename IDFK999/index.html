@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
+    <title>Elite Portal</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { background: #f2f2f7; font-family: -apple-system, sans-serif; padding-bottom: 90px; }
+        .card { border-radius: 20px; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 15px; }
+        .target-card { background: #1c1c1e; color: white; border-radius: 25px; padding: 20px; }
+        .nav-bottom { position: fixed; bottom: 0; left:0; width: 100%; background: white; display: flex; justify-content: space-around; padding: 15px 0; border-top: 1px solid #ddd; z-index: 1000; }
+        .nav-item { color: #8e8e93; font-weight: 700; font-size: 11px; cursor: pointer; text-align: center; }
+        .nav-item.active { color: #007AFF; }
+        .form-control, .form-select { background: #e5e5ea; border: none; border-radius: 10px; padding: 12px; font-size: 16px; }
+        .btn-primary { background: #007AFF; border: none; border-radius: 12px; padding: 12px; font-weight: bold; }
+        #sync-badge { background: #34c759; color: white; font-size: 10px; border-radius: 20px; padding: 4px 12px; text-align: center; margin-bottom: 10px; display: none; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        
+        // ⚠️ PASTE YOUR DEPLOYED WEB APP URL HERE
+        const API_URL = "YOUR_APPS_SCRIPT_URL_HERE";
+
+        function App() {
+            const [view, setView] = useState('log');
+            const [user, setUser] = useState({ id: localStorage.getItem('eliteId'), ph: localStorage.getItem('elitePh') });
+            const [targets, setTargets] = useState({p:0, c:0, f:0, cal:0});
+            const [pending, setPending] = useState(0);
+
+            useEffect(() => {
+                if (user.id) {
+                    call('getTargets', user).then(res => res && setTargets(res));
+                    const q = JSON.parse(localStorage.getItem('offline_q') || "[]");
+                    setPending(q.length);
+                    if(q.length > 0 && navigator.onLine) syncQueue();
+                }
+            }, [user]);
+
+            async function call(action, payload, img1, img2) {
+                try {
+                    const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action, payload, img1, img2 }) });
+                    return await res.json();
+                } catch(e) { return null; }
+            }
+
+            async function syncQueue() {
+                const q = JSON.parse(localStorage.getItem('offline_q') || "[]");
+                for (let item of q) await call('saveLog', item);
+                localStorage.removeItem('offline_q');
+                setPending(0);
+            }
+
+            if (!user.id) return <Login onLogin={(u) => { localStorage.setItem('eliteId', u.id); localStorage.setItem('elitePh', u.ph); setUser(u); }} call={call} />;
+
+            return (
+                <div className="container py-4">
+                    {pending > 0 && <div id="sync-badge" style={{display:'block'}}>🔄 {pending} PENDING SYNC...</div>}
+                    
+                    <div className="target-card mb-4">
+                        <small className="text-primary fw-bold">DAILY TARGETS</small>
+                        <h3 className="fw-bold">{targets.cal} <span style={{fontSize:'16px', fontWeight:'normal'}}>kcal</span></h3>
+                        <div className="row text-center mt-3 g-0">
+                            <div className="col-4 border-end border-secondary"><small className="opacity-50">PROT</small><br/><b>{targets.p}g</b></div>
+                            <div className="col-4 border-end border-secondary"><small className="opacity-50">CARB</small><br/><b>{targets.c}g</b></div>
+                            <div className="col-4"><small className="opacity-50">FAT</small><br/><b>{targets.f}g</b></div>
+                        </div>
+                    </div>
+
+                    {view === 'log' && <DailyLog user={user} call={call} onSync={setPending} />}
+                    {view === 'metrics' && <Metrics user={user} call={call} />}
+                    {view === 'trends' && <Trends user={user} call={call} />}
+
+                    <div className="nav-bottom">
+                        <div className={`nav-item ${view === 'log' ? 'active' : ''}`} onClick={()=>setView('log')}>LOG</div>
+                        <div className={`nav-item ${view === 'metrics' ? 'active' : ''}`} onClick={()=>setView('metrics')}>METRICS</div>
+                        <div className={`nav-item ${view === 'trends' ? 'active' : ''}`} onClick={()=>setView('trends')}>TRENDS</div>
+                        <div className="nav-item text-danger" onClick={()=>{localStorage.clear(); location.reload();}}>EXIT</div>
+                    </div>
+                </div>
+            );
+        }
+
+        function DailyLog({ user, call, onSync }) {
+            const [f, setF] = useState({ 
+                date: new Date().toISOString().split('T')[0], 
+                weight:'', steps:'', p:'', c:'', f:'', water:'No', sleep:'No' 
+            });
+            const [loading, setLoading] = useState(false);
+
+            const save = async () => {
+                if(!f.date || !f.weight) return alert("Please enter Date and Weight.");
+                setLoading(true);
+                const data = { ...f, accessCode: user.id, phone: user.ph };
+                
+                if (!navigator.onLine) {
+                    const q = JSON.parse(localStorage.getItem('offline_q') || "[]");
+                    q.push(data); localStorage.setItem('offline_q', JSON.stringify(q));
+                    onSync(q.length); alert("Offline! Saved to phone.");
+                    setLoading(false); return;
+                }
+                
+                const res = await call('saveLog', data);
+                alert(res || "Saved!");
+                setLoading(false);
+            };
+
+            return (
+                <div className="card p-4">
+                    <h5 className="fw-bold mb-3">Daily Entry</h5>
+                    <label className="small fw-bold text-muted">Date</label>
+                    <input type="date" className="form-control mb-3" value={f.date} onChange={e=>setF({...f, date:e.target.value})} />
+                    
+                    <div className="row g-2 mb-3">
+                        <div className="col-6"><label className="small fw-bold text-muted">Weight (kg)</label><input type="number" className="form-control" placeholder="0.0" onChange={e=>setF({...f, weight:e.target.value})} /></div>
+                        <div className="col-6"><label className="small fw-bold text-muted">Steps</label><input type="number" className="form-control" placeholder="0" onChange={e=>setF({...f, steps:e.target.value})} /></div>
+                    </div>
+
+                    <div className="row g-2 mb-3">
+                        <div className="col-4"><label className="small fw-bold text-muted">Prot</label><input type="number" className="form-control" onChange={e=>setF({...f, p:e.target.value})} /></div>
+                        <div className="col-4"><label className="small fw-bold text-muted">Carb</label><input type="number" className="form-control" onChange={e=>setF({...f, c:e.target.value})} /></div>
+                        <div className="col-4"><label className="small fw-bold text-muted">Fat</label><input type="number" className="form-control" onChange={e=>setF({...f, f:e.target.value})} /></div>
+                    </div>
+
+                    <div className="row g-2 mb-4">
+                        <div className="col-6"><label className="small fw-bold text-muted">Water</label><select className="form-select" onChange={e=>setF({...f, water:e.target.value})}><option>No</option><option>Yes</option></select></div>
+                        <div className="col-6"><label className="small fw-bold text-muted">Sleep</label><select className="form-select" onChange={e=>setF({...f, sleep:e.target.value})}><option>No</option><option>Yes</option></select></div>
+                    </div>
+
+                    <button className="btn btn-primary w-100 py-3" onClick={save} disabled={loading}>{loading ? "Saving..." : "Save Daily Log"}</button>
+                </div>
+            );
+        }
+
+        function Metrics({ user, call }) {
+            const [weeks, setWeeks] = useState([]);
+            const [f, setF] = useState({ weekNum: '', chest:'', waist:'', glute:'', larm:'', rarm:'', lthigh:'', rthigh:'' });
+            const [loading, setLoading] = useState(false);
+
+            useEffect(() => { call('getWeeks', user).then(res => res && setWeeks(res)); }, []);
+            
+            const submit = async () => {
+                if(!f.weekNum) return alert("Select a week.");
+                setLoading(true);
+                const res = await call('saveMetrics', { ...f, accessCode: user.id, phone: user.ph });
+                alert(res || "Updated!");
+                setLoading(false);
+            };
+
+            return (
+                <div className="card p-4">
+                    <h5 className="fw-bold mb-3">Weekly Update</h5>
+                    <select className="form-select mb-3" onChange={e=>setF({...f, weekNum:e.target.value})}>
+                        <option value="">Select Week</option>
+                        {weeks.map(w => <option key={w} value={w}>Week {w}</option>)}
+                    </select>
+                    <div className="row g-2 mb-3">
+                        <div className="col-4"><input type="number" className="form-control" placeholder="Chest" onChange={e=>setF({...f, chest:e.target.value})} /></div>
+                        <div className="col-4"><input type="number" className="form-control" placeholder="Waist" onChange={e=>setF({...f, waist:e.target.value})} /></div>
+                        <div className="col-4"><input type="number" className="form-control" placeholder="Glute" onChange={e=>setF({...f, glute:e.target.value})} /></div>
+                    </div>
+                    <button className="btn btn-primary w-100" onClick={submit} disabled={loading}>{loading ? "Uploading..." : "Submit Metrics"}</button>
+                </div>
+            );
+        }
+
+        function Trends({ user, call }) {
+            const [stats, setStats] = useState({ avgW: 0, net: 0 });
+            
+            useEffect(() => {
+                call('getTrends', user).then(d => {
+                    if(!d || !d.length) return;
+                    const wts = d.map(x => x.weight);
+                    setStats({
+                        avgW: (wts.reduce((a,b)=>a+b,0)/wts.length).toFixed(1),
+                        net: (wts[wts.length-1] - wts[0]).toFixed(1)
+                    });
+                    const ctx = document.getElementById('chart').getContext('2d');
+                    new Chart(ctx, { 
+                        type: 'line', 
+                        data: { 
+                            labels: d.map(x=>x.date), 
+                            datasets: [{ label: 'Weight', data: wts, borderColor: '#007AFF', tension:0.3, fill: true, backgroundColor: 'rgba(0,122,255,0.1)' }] 
+                        },
+                        options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: false } } }
+                    });
+                });
+            }, []);
+
+            return (
+                <div>
+                    <div className="row g-2 mb-3">
+                        <div className="col-6"><div className="card p-3 text-center"><small className="text-muted">AVG WEIGHT</small><h4 className="fw-bold m-0">{stats.avgW}kg</h4></div></div>
+                        <div className="col-6"><div className="card p-3 text-center"><small className="text-muted">NET CHANGE</small><h4 className="fw-bold m-0">{stats.net}kg</h4></div></div>
+                    </div>
+                    <div className="card p-3">
+                        <h5 className="fw-bold mb-3">Weight Trend</h5>
+                        <div style={{height: '250px'}}><canvas id="chart"></canvas></div>
+                    </div>
+                </div>
+            );
+        }
+
+        function Login({ onLogin, call }) {
+            const [id, setId] = useState('');
+            const [ph, setPh] = useState('');
+            const [loading, setLoading] = useState(false);
+
+            const start = async () => {
+                if(!id || !ph) return alert("Enter credentials.");
+                setLoading(true);
+                const res = await call('validateUser', {id, ph});
+                if(res === true) onLogin({id, ph}); 
+                else alert(res || "Login Failed");
+                setLoading(false);
+            };
+
+            return (
+                <div className="container vh-100 d-flex align-items-center justify-content-center">
+                    <div className="card p-5 w-100 shadow-lg text-center" style={{maxWidth: '400px', borderRadius: '30px'}}>
+                        <h2 className="fw-bold mb-2">ELITE PORTAL</h2>
+                        <p className="text-muted mb-4">Client Access Only</p>
+                        <input className="form-control mb-3" placeholder="Access Code" onChange={e=>setId(e.target.value.toUpperCase())} />
+                        <input className="form-control mb-4" placeholder="Phone Number" onChange={e=>setPh(e.target.value)} />
+                        <button className="btn btn-primary w-100 py-3 shadow" onClick={start} disabled={loading}>
+                            {loading ? "Authenticating..." : "Sign In"}
+                        </button>
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    </script>
+</body>
+</html>
