@@ -4,153 +4,146 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover">
     <title>Elite Coaching Portal</title>
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body { background: #f2f2f7; font-family: -apple-system, sans-serif; padding-bottom: 100px; }
         .card { border-radius: 20px; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 15px; padding: 20px; }
         .nav-bottom { position: fixed; bottom: 0; left:0; width: 100%; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); display: flex; justify-content: space-around; padding: 15px 0 35px; border-top: 1px solid #ddd; z-index: 1000; }
-        .nav-item { color: #8e8e93; font-weight: 700; font-size: 11px; cursor: pointer; text-align: center; }
+        .nav-item { color: #8e8e93; font-weight: 700; font-size: 10px; cursor: pointer; text-align: center; }
         .nav-item.active { color: #007AFF; }
-        .form-control { background: #e5e5ea; border: none; border-radius: 12px; padding: 12px; margin-bottom: 10px; }
+        .form-control, .form-select { background: #e5e5ea; border: none; border-radius: 12px; padding: 12px; margin-bottom: 10px; }
         .btn-primary { background: #007AFF; border: none; border-radius: 12px; padding: 15px; font-weight: bold; width: 100%; }
-        .photo-label { background: #fff; border: 2px dashed #007AFF; border-radius: 12px; padding: 15px; text-align: center; margin-bottom: 10px; display: block; cursor: pointer; color: #007AFF; font-weight: 600; }
-        .target-box { background: #1c1c1e; color: white; border-radius: 20px; padding: 15px; margin-bottom: 20px; }
+        .target-pill { background: #1c1c1e; color: #fff; border-radius: 15px; padding: 10px; margin-bottom: 10px; font-size: 13px; }
     </style>
 </head>
 <body>
     <div id="root"></div>
     <script type="text/babel">
-        const { useState, useEffect } = React;
-        
-        // ✅ YOUR UPDATED API LINK
+        const { useState, useEffect, useRef } = React;
         const API_URL = "https://script.google.com/macros/s/AKfycbxGEQlixa0yjT5SRCk-95eUbGeWByhkAbsHOV5stKwbla_JyYXwMFaAiSIkeMTsyJ8pWg/exec";
 
         function App() {
             const [view, setView] = useState('log');
             const [user, setUser] = useState({ id: localStorage.getItem('eliteId'), ph: localStorage.getItem('elitePh') });
+            const [targets, setTargets] = useState(null);
 
             async function call(action, payload) {
                 try {
                     const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action, payload }) });
                     return await res.json();
-                } catch(e) { alert("Connection Error. Check if Google Script is deployed as 'Anyone'."); return null; }
+                } catch(e) { return null; }
             }
+
+            useEffect(() => {
+                if(user.id) call('getTargets', user).then(res => setTargets(res));
+            }, [user]);
 
             if (!user.id) return <Login onLogin={(u) => { localStorage.setItem('eliteId', u.id); localStorage.setItem('elitePh', u.ph); setUser(u); }} call={call} />;
 
             return (
                 <div className="container py-4">
-                    <div className="target-box text-center">
-                        <small className="text-secondary fw-bold">ACTIVE PORTAL</small>
-                        <h4 className="m-0 fw-bold">ELITE PERFORMANCE</h4>
+                    <div className="d-flex justify-content-between align-items-center mb-3">
+                        <h4 className="fw-bold m-0">Hello, {targets?.name || 'Athlete'}</h4>
+                        <div className="badge bg-primary">Active</div>
                     </div>
 
-                    {view === 'log' ? <DailyLog user={user} call={call} /> : <Metrics user={user} call={call} />}
+                    {targets && (
+                        <div className="target-pill d-flex justify-content-around text-center">
+                            <div><small>P</small><br/>{targets.p}g</div>
+                            <div><small>C</small><br/>{targets.c}g</div>
+                            <div><small>F</small><br/>{targets.f}g</div>
+                            <div><small>Kcal</small><br/>{targets.cal}</div>
+                        </div>
+                    )}
+
+                    {view === 'log' && <DailyLog user={user} call={call} />}
+                    {view === 'stats' && <Stats user={user} call={call} />}
+                    {view === 'metrics' && <Metrics user={user} call={call} />}
                     
                     <div className="nav-bottom">
-                        <div className={`nav-item ${view === 'log' ? 'active' : ''}`} onClick={()=>setView('log')}>📊 DAILY LOG</div>
-                        <div className={`nav-item ${view === 'metrics' ? 'active' : ''}`} onClick={()=>setView('metrics')}>📐 UPDATE</div>
-                        <div className="nav-item text-danger" onClick={()=>{localStorage.clear(); location.reload();}}>🚪 LOGOUT</div>
+                        <div className={`nav-item ${view === 'log' ? 'active' : ''}`} onClick={()=>setView('log')}>LOG</div>
+                        <div className={`nav-item ${view === 'stats' ? 'active' : ''}`} onClick={()=>setView('stats')}>STATS</div>
+                        <div className={`nav-item ${view === 'metrics' ? 'active' : ''}`} onClick={()=>setView('metrics')}>UPDATE</div>
+                        <div className="nav-item text-danger" onClick={()=>{localStorage.clear(); location.reload();}}>EXIT</div>
                     </div>
                 </div>
             );
         }
 
         function DailyLog({ user, call }) {
-            const [f, setF] = useState({ date: new Date().toISOString().split('T')[0], weight:'', steps:'', p:'', c:'', f:'', water:'No', sleep:'No' });
+            const [f, setF] = useState({ date: new Date().toISOString().split('T')[0], weight:'', steps:'', p:'', c:'', f:'', water:'1.0L', sleep:'6 Hours' });
             const [loading, setLoading] = useState(false);
-
             const save = async () => {
-                if(!f.weight) return alert("Enter weight");
                 setLoading(true);
                 const res = await call('saveLog', { ...f, accessCode: user.id, phone: user.ph });
-                alert(res || "Daily Log Saved!");
+                alert(res || "Logged!");
                 setLoading(false);
             };
-
             return (
                 <div className="card">
-                    <h5 className="fw-bold mb-3 text-primary">Daily Entry</h5>
-                    <label className="small text-secondary">Entry Date</label>
                     <input type="date" className="form-control" value={f.date} onChange={e=>setF({...f, date:e.target.value})} />
-                    
                     <div className="row g-2">
-                        <div className="col-6">
-                            <label className="small">Weight (kg)</label>
-                            <input type="number" step="0.1" className="form-control" placeholder="00.0" onChange={e=>setF({...f, weight:e.target.value})} />
-                        </div>
-                        <div className="col-6">
-                            <label className="small">Total Steps</label>
-                            <input type="number" className="form-control" placeholder="10000" onChange={e=>setF({...f, steps:e.target.value})} />
-                        </div>
+                        <div className="col-6"><input type="number" className="form-control" placeholder="Weight" onChange={e=>setF({...f, weight:e.target.value})} /></div>
+                        <div className="col-6"><input type="number" className="form-control" placeholder="Steps" onChange={e=>setF({...f, steps:e.target.value})} /></div>
                     </div>
-                    
-                    <label className="small mt-2">Macronutrients (Grams)</label>
                     <div className="row g-2">
                         <div className="col-4"><input type="number" className="form-control" placeholder="P" onChange={e=>setF({...f, p:e.target.value})} /></div>
                         <div className="col-4"><input type="number" className="form-control" placeholder="C" onChange={e=>setF({...f, c:e.target.value})} /></div>
                         <div className="col-4"><input type="number" className="form-control" placeholder="F" onChange={e=>setF({...f, f:e.target.value})} /></div>
                     </div>
-                    <button className="btn btn-primary mt-3" onClick={save} disabled={loading}>{loading ? "Saving..." : "Submit Daily Stats"}</button>
+                    <select className="form-select" onChange={e=>setF({...f, water:e.target.value})}>
+                        <option>1.0L Water</option><option>2.0L Water</option><option>3.0L+ Water</option>
+                    </select>
+                    <select className="form-select" onChange={e=>setF({...f, sleep:e.target.value})}>
+                        <option>4-5 Hours Sleep</option><option>6-7 Hours Sleep</option><option>8+ Hours Sleep</option>
+                    </select>
+                    <button className="btn btn-primary" onClick={save} disabled={loading}>{loading ? "Saving..." : "Log Daily Stats"}</button>
                 </div>
             );
         }
 
+        function Stats({ user, call }) {
+            const canvasRef = useRef(null);
+            useEffect(() => {
+                call('getTrends', user).then(data => {
+                    if(!data) return;
+                    new Chart(canvasRef.current, {
+                        type: 'line',
+                        data: {
+                            labels: data.map(d => d.date),
+                            datasets: [{ label: 'Weight', data: data.map(d => d.weight), borderColor: '#007AFF', tension: 0.3 }]
+                        }
+                    });
+                });
+            }, []);
+            return <div className="card"><canvas ref={canvasRef}></canvas></div>;
+        }
+
         function Metrics({ user, call }) {
             const [f, setF] = useState({ weekNum:'', chest:'', waist:'', glute:'', larm:'', rarm:'', lthigh:'', rthigh:'', img1:'', img2:'' });
-            const [loading, setLoading] = useState(false);
-
             const handleImg = (e, key) => {
                 const reader = new FileReader();
                 reader.onloadend = () => setF({...f, [key]: reader.result});
                 if(e.target.files[0]) reader.readAsDataURL(e.target.files[0]);
             };
-
-            const submit = async () => {
-                if(!f.weekNum) return alert("Which week is this for?");
-                setLoading(true);
-                const res = await call('saveMetrics', { ...f, accessCode: user.id, phone: user.ph });
-                alert(res || "Metrics & Photos Updated!");
-                setLoading(false);
-            };
-
             return (
                 <div className="card">
-                    <h5 className="fw-bold mb-3 text-success">Body Measurements</h5>
-                    <input type="number" className="form-control" placeholder="Week Number (e.g. 1)" onChange={e=>setF({...f, weekNum:e.target.value})} />
-                    
+                    <input type="number" className="form-control" placeholder="Week #" onChange={e=>setF({...f, weekNum:e.target.value})} />
                     <div className="row g-2">
-                        <div className="col-4"><input type="number" className="form-control" placeholder="Chest" onChange={e=>setF({...f, chest:e.target.value})} /></div>
-                        <div className="col-4"><input type="number" className="form-control" placeholder="Waist" onChange={e=>setF({...f, waist:e.target.value})} /></div>
-                        <div className="col-4"><input type="number" className="form-control" placeholder="Glute" onChange={e=>setF({...f, glute:e.target.value})} /></div>
+                        <div className="col-4"><input className="form-control" placeholder="Chest" onChange={e=>setF({...f, chest:e.target.value})} /></div>
+                        <div className="col-4"><input className="form-control" placeholder="Waist" onChange={e=>setF({...f, waist:e.target.value})} /></div>
+                        <div className="col-4"><input className="form-control" placeholder="Glute" onChange={e=>setF({...f, glute:e.target.value})} /></div>
                     </div>
-                    
-                    <div className="row g-2">
-                        <div className="col-6"><input type="number" className="form-control" placeholder="L-Arm" onChange={e=>setF({...f, larm:e.target.value})} /></div>
-                        <div className="col-6"><input type="number" className="form-control" placeholder="R-Arm" onChange={e=>setF({...f, rarm:e.target.value})} /></div>
-                    </div>
-
-                    <div className="row g-2 mb-3">
-                        <div className="col-6"><input type="number" className="form-control" placeholder="L-Thigh" onChange={e=>setF({...f, lthigh:e.target.value})} /></div>
-                        <div className="col-6"><input type="number" className="form-control" placeholder="R-Thigh" onChange={e=>setF({...f, rthigh:e.target.value})} /></div>
-                    </div>
-
-                    <label className="photo-label">
-                        {f.img1 ? "✅ Front Photo Ready" : "📸 Upload Front Photo"}
-                        <input type="file" hidden accept="image/*" onChange={e=>handleImg(e, 'img1')} />
-                    </label>
-
-                    <label className="photo-label">
-                        {f.img2 ? "✅ Side Photo Ready" : "📸 Upload Side Photo"}
-                        <input type="file" hidden accept="image/*" onChange={e=>handleImg(e, 'img2')} />
-                    </label>
-
-                    <button className="btn btn-primary mt-2" onClick={submit} disabled={loading}>{loading ? "Processing..." : "Submit Check-in"}</button>
+                    <label className="small">Upload Photos (Front & Side)</label>
+                    <input type="file" className="form-control" onChange={e=>handleImg(e, 'img1')} />
+                    <input type="file" className="form-control" onChange={e=>handleImg(e, 'img2')} />
+                    <button className="btn btn-primary" onClick={async ()=>{
+                        alert(await call('saveMetrics', {...f, accessCode:user.id, phone:user.ph}));
+                    }}>Submit Weekly Check-in</button>
                 </div>
             );
         }
@@ -158,25 +151,16 @@
         function Login({ onLogin, call }) {
             const [id, setId] = useState('');
             const [ph, setPh] = useState('');
-            const [l, setL] = useState(false);
-
-            const start = async () => {
-                if(!id || !ph) return alert("Fill in all fields");
-                setL(true);
-                const cleanId = id.trim().toUpperCase();
-                const cleanPh = ph.trim();
-                const res = await call('validateUser', {id: cleanId, ph: cleanPh});
-                if(res === true) onLogin({id: cleanId, ph: cleanPh});
-                else { alert(res || "Login Failed"); setL(false); }
-            };
-
             return (
-                <div className="container vh-100 d-flex align-items-center justify-content-center">
-                    <div className="card w-100 text-center" style={{maxWidth: '400px', border: '1px solid #ddd'}}>
-                        <h2 className="fw-bold mb-4">CLIENT LOGIN</h2>
-                        <input className="form-control" placeholder="Access Code" onChange={e=>setId(e.target.value)} />
-                        <input className="form-control" placeholder="Phone Number" onChange={e=>setPh(e.target.value)} />
-                        <button className="btn btn-primary" onClick={start} disabled={l}>{l ? "Verifying..." : "Sign In"}</button>
+                <div className="container vh-100 d-flex align-items-center">
+                    <div className="card w-100 text-center">
+                        <h2 className="fw-bold mb-4">ELITE PORTAL</h2>
+                        <input className="form-control" placeholder="ID (ID-XXXX)" onChange={e=>setId(e.target.value.toUpperCase().trim())} />
+                        <input className="form-control" placeholder="Phone" onChange={e=>setPh(e.target.value.trim())} />
+                        <button className="btn btn-primary" onClick={async () => {
+                            const res = await call('validateUser', {id, ph});
+                            if(res === true) onLogin({id, ph}); else alert(res);
+                        }}>Login</button>
                     </div>
                 </div>
             );
