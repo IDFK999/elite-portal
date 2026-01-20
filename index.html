@@ -28,7 +28,11 @@
         .table-sm th, .table-sm td { padding: 8px 2px; text-align: center; vertical-align: middle; }
         .log-date { font-weight: bold; color: #007AFF; }
         .kcal-col { font-weight: bold; color: #1c1c1e; }
-        .subscription-info { font-size: 11px; color: #8e8e93; font-weight: 600; text-transform: uppercase; margin-bottom: 10px; display: block; }
+        .subscription-info { font-size: 11px; color: #8e8e93; font-weight: 600; text-transform: uppercase; margin-bottom: 4px; display: block; }
+        
+        /* New Progress Bar Styles */
+        .prog-container { width: 100%; background: #e5e5ea; height: 8px; border-radius: 4px; margin-bottom: 15px; overflow: hidden; }
+        .prog-bar { height: 100%; background: #007AFF; transition: width 0.5s ease; }
     </style>
 </head>
 <body>
@@ -68,11 +72,20 @@
             }, [user]);
 
             const getDaysElapsed = (dateString) => {
-                if (!dateString) return "...";
+                if (!dateString) return 0;
                 const start = new Date(dateString);
                 const now = new Date();
-                const diffTime = Math.abs(now - start);
-                return Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                const diffTime = now - start;
+                const days = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                return days < 0 ? 0 : days;
+            };
+
+            const calculateProgress = () => {
+                if (!targets || !targets.subscriptionDate) return 0;
+                const elapsed = getDaysElapsed(targets.subscriptionDate);
+                const totalDays = maxWeeks * 7;
+                const pct = (elapsed / totalDays) * 100;
+                return Math.min(Math.max(pct, 0), 100).toFixed(1);
             };
 
             if (!user.id) return <Login onLogin={(u) => { localStorage.setItem('eliteId', u.id); localStorage.setItem('elitePh', u.ph); setUser(u); }} call={call} />;
@@ -81,12 +94,16 @@
                 <div className="container py-4">
                     <div className="d-flex justify-content-between align-items-center mb-1">
                         <h4 className="fw-bold m-0">Hello : {targets?.name || '...'}</h4>
-                        <div className="badge bg-dark">v3.8.9</div>
+                        <div className="badge bg-dark">v3.9.0</div>
                     </div>
                     
                     <span className="subscription-info">
-                        Day {targets ? getDaysElapsed(targets.subscriptionDate) : "..."} of Program | Started: {targets?.subscriptionDate ? new Date(targets.subscriptionDate).toLocaleDateString() : "..."}
+                        Day {targets ? getDaysElapsed(targets.subscriptionDate) : "..."} of Program | {calculateProgress()}% Complete
                     </span>
+
+                    <div className="prog-container">
+                        <div className="prog-bar" style={{ width: `${calculateProgress()}%` }}></div>
+                    </div>
 
                     {targets && (
                         <div className="target-pill d-flex justify-content-around text-center">
@@ -111,6 +128,7 @@
             );
         }
 
+        // ... Keep DailyLog, Metrics, Stats, and Login components exactly as they were ...
         function DailyLog({ user, call, onSave }) {
             const [f, setF] = useState({ 
                 date: new Date().toISOString().split('T')[0], 
