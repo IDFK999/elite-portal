@@ -26,6 +26,10 @@
         .table thead { background: #1c1c1e; color: #fff; }
         .table-sm th, .table-sm td { padding: 8px 2px; text-align: center; vertical-align: middle; }
         .log-date { font-weight: bold; color: #007AFF; }
+        .toggle-btn { border-radius: 12px; padding: 10px; font-weight: bold; font-size: 12px; border: 2px solid transparent; transition: 0.2s; }
+        .btn-yes { background: #34c759; color: #fff; border-color: #34c759; }
+        .btn-no { background: #ff3b30; color: #fff; border-color: #ff3b30; }
+        .btn-off { background: #e5e5ea; color: #8e8e93; border-color: #d1d1d6; }
     </style>
 </head>
 <body>
@@ -84,7 +88,7 @@
                 <div className="container py-4">
                     <div className="d-flex justify-content-between align-items-center mb-1">
                         <h4 className="fw-bold m-0">Hello : {targets?.name || '...'}</h4>
-                        <div className="badge bg-dark">v3.9.6</div>
+                        <div className="badge bg-dark">v3.9.7</div>
                     </div>
                     
                     <span className="subscription-info">
@@ -119,7 +123,11 @@
         }
 
         function DailyLog({ user, call, onSave }) {
-            const [f, setF] = useState({ date: new Date().toISOString().split('T')[0], weight:'', steps:'', p:'', c:'', f:'', water:'', sleep:'' });
+            const [f, setF] = useState({ 
+                date: new Date().toISOString().split('T')[0], 
+                weight:'', steps:'', p:'', c:'', f:'', 
+                water:'YES', sleep:'YES' 
+            });
             const [loading, setLoading] = useState(false);
 
             const save = async () => {
@@ -128,6 +136,10 @@
                 alert(res || "Daily Log Updated");
                 onSave();
                 setLoading(false);
+            };
+
+            const toggle = (field) => {
+                setF(prev => ({ ...prev, [field]: prev[field] === 'YES' ? 'NO' : 'YES' }));
             };
 
             return (
@@ -143,11 +155,27 @@
                         <div className="col-4"><input type="number" className="form-control" placeholder="C" value={f.c} onChange={e=>setF({...f, c:e.target.value})} /></div>
                         <div className="col-4"><input type="number" className="form-control" placeholder="F" value={f.f} onChange={e=>setF({...f, f:e.target.value})} /></div>
                     </div>
-                    <div className="row g-2">
-                        <div className="col-6"><input type="number" step="0.1" className="form-control" placeholder="Water (L)" value={f.water} onChange={e=>setF({...f, water:e.target.value})} /></div>
-                        <div className="col-6"><input type="number" step="0.1" className="form-control" placeholder="Sleep (Hrs)" value={f.sleep} onChange={e=>setF({...f, sleep:e.target.value})} /></div>
+                    <div className="row g-2 mt-1">
+                        <div className="col-6">
+                            <small className="d-block text-secondary mb-1 fw-bold">WATER GOAL</small>
+                            <button 
+                                className={`btn w-100 toggle-btn ${f.water === 'YES' ? 'btn-yes' : 'btn-no'}`}
+                                onClick={() => toggle('water')}
+                            >
+                                {f.water}
+                            </button>
+                        </div>
+                        <div className="col-6">
+                            <small className="d-block text-secondary mb-1 fw-bold">SLEEP GOAL</small>
+                            <button 
+                                className={`btn w-100 toggle-btn ${f.sleep === 'YES' ? 'btn-yes' : 'btn-no'}`}
+                                onClick={() => toggle('sleep')}
+                            >
+                                {f.sleep}
+                            </button>
+                        </div>
                     </div>
-                    <button className="btn btn-primary mt-2" onClick={save} disabled={loading}>{loading ? "Saving..." : "Submit Log"}</button>
+                    <button className="btn btn-primary mt-3" onClick={save} disabled={loading}>{loading ? "Saving..." : "Submit Log"}</button>
                 </div>
             );
         }
@@ -261,13 +289,20 @@
                         <h6 className="fw-bold mb-3">Detailed Log History</h6>
                         <div className="table-responsive">
                             <table className="table table-sm table-striped m-0">
-                                <thead><tr><th>Date</th><th>Wt</th><th>Kcal</th><th>Stps</th></tr></thead>
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Wt</th>
+                                        <th>P/C/F</th>
+                                        <th>Steps</th>
+                                    </tr>
+                                </thead>
                                 <tbody>
                                     {filteredDaily.map((day, i) => (
                                         <tr key={i}>
                                             <td className="log-date">{day.date.split('-').slice(1).join('/')}</td>
                                             <td>{day.weight}</td>
-                                            <td className="kcal-col">{Math.round(day.cal)}</td>
+                                            <td>{day.p}/{day.c}/{day.f}</td>
                                             <td>{day.steps}</td>
                                         </tr>
                                     ))}
