@@ -224,8 +224,8 @@
         }
 
         function Stats({ user, call }) {
-            const [allData, setAllData] = useState([]);
-            const [filteredData, setFilteredData] = useState([]);
+            const [dailyLogs, setDailyLogs] = useState([]);
+            const [measurements, setMeasurements] = useState([]);
             const [range, setRange] = useState({ start: '', end: '' });
             const canvasRef = useRef(null);
             const chartRef = useRef(null);
@@ -233,11 +233,16 @@
             useEffect(() => {
                 call('getTrends', user).then(data => { 
                     if(data && Array.isArray(data)) {
-                        const sorted = data.sort((a,b) => a.date.localeCompare(b.date));
-                        setAllData(sorted); 
-                        if(sorted.length > 0) {
-                            const lastEntryDate = sorted[sorted.length - 1].date;
-                            const firstEntryDate = sorted[Math.max(0, sorted.length - 7)].date;
+                        // Split data into Logs and Measurements
+                        const logs = data.filter(d => !d.isSummary).sort((a,b) => a.date.localeCompare(b.date));
+                        const metrics = data.filter(d => d.isSummary);
+                        
+                        setDailyLogs(logs);
+                        setMeasurements(metrics);
+
+                        if(logs.length > 0) {
+                            const lastEntryDate = logs[logs.length - 1].date;
+                            const firstEntryDate = logs[Math.max(0, logs.length - 7)].date;
                             setRange({ start: firstEntryDate, end: lastEntryDate });
                         }
                     }
@@ -245,8 +250,8 @@
             }, []);
 
             useEffect(() => {
-                const filtered = allData.filter(d => d.date >= range.start && d.date <= range.end);
-                setFilteredData(filtered);
+                const filtered = dailyLogs.filter(d => d.date >= range.start && d.date <= range.end);
+                
                 if (canvasRef.current && filtered.length > 0) {
                     if (chartRef.current) chartRef.current.destroy();
                     chartRef.current = new Chart(canvasRef.current, {
@@ -258,17 +263,15 @@
                         options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
                     });
                 }
-            }, [allData, range]);
+            }, [dailyLogs, range]);
 
-            const hasData = filteredData.length > 0;
-            const startW = hasData ? filteredData[0].weight : 0;
-            const endW = hasData ? filteredData[filteredData.length-1].weight : 0;
+            const activeRangeLogs = dailyLogs.filter(d => d.date >= range.start && d.date <= range.end);
+            const hasData = activeRangeLogs.length > 0;
+            const startW = hasData ? activeRangeLogs[0].weight : 0;
+            const endW = hasData ? activeRangeLogs[activeRangeLogs.length-1].weight : 0;
             const diff = (endW - startW).toFixed(2);
-            const avgSteps = hasData ? Math.round(filteredData.reduce((a,b)=>a+(Number(b.steps)||0),0)/filteredData.length) : 0;
-            const avgCal = hasData ? Math.round(filteredData.reduce((a,b)=>a+(Number(b.cal)||0),0)/filteredData.length) : 0;
-
-            // Logic to identify rows with measurements
-            const measurementLogs = allData.filter(d => d.weekNum || d.chest || d.waist || d.Chest || d.Waist);
+            const avgSteps = hasData ? Math.round(activeRangeLogs.reduce((a,b)=>a+(Number(b.steps)||0),0)/activeRangeLogs.length) : 0;
+            const avgCal = hasData ? Math.round(activeRangeLogs.reduce((a,b)=>a+(Number(b.cal)||0),0)/activeRangeLogs.length) : 0;
 
             return (
                 <div>
@@ -288,11 +291,10 @@
                             <div className="stat-item"><span className="stat-val" style={{color: diff <= 0 ? '#28a745' : '#dc3545'}}>{diff > 0 ? `+${diff}` : diff}kg</span><span className="stat-label">Net Change</span></div>
                             <div className="stat-item"><span className="stat-val">{avgSteps.toLocaleString()}</span><span className="stat-label">Avg Steps</span></div>
                             <div className="stat-item"><span className="stat-val">{avgCal}</span><span className="stat-label">Avg Kcal</span></div>
-                            <div className="stat-item"><span className="stat-val">{filteredData.length}</span><span className="stat-label">Days Shown</span></div>
+                            <div className="stat-item"><span className="stat-val">{activeRangeLogs.length}</span><span className="stat-label">Days Shown</span></div>
                         </div>
                     </div>
 
-                    {/* LOG HISTORY TABLE FIRST */}
                     <div className="card mt-3">
                         <h6 className="fw-bold mb-3">Detailed Log History</h6>
                         <div className="table-responsive">
@@ -301,7 +303,7 @@
                                     <tr><th>Date</th><th>Wt</th><th>P/C/F</th><th>Kcal</th><th>Stps</th><th>H2O</th><th>Slp</th></tr>
                                 </thead>
                                 <tbody>
-                                    {filteredData.length > 0 ? [...filteredData].reverse().map((day, i) => (
+                                    {activeRangeLogs.length > 0 ? [...activeRangeLogs].reverse().map((day, i) => (
                                         <tr key={i}>
                                             <td className="log-date">{day.date.split('-').slice(1).join('/')}</td>
                                             <td>{day.weight}</td>
@@ -317,7 +319,6 @@
                         </div>
                     </div>
 
-                    {/* MEASUREMENTS TABLE UNDER LOG HISTORY */}
                     <div className="card mt-3">
                         <h6 className="fw-bold mb-3 text-success">Body Measurements History (cm)</h6>
                         <div className="table-responsive">
@@ -326,14 +327,14 @@
                                     <tr><th>Wk</th><th>Chest</th><th>Waist</th><th>Glute</th><th>Arms</th><th>Thighs</th></tr>
                                 </thead>
                                 <tbody>
-                                    {measurementLogs.length > 0 ? [...measurementLogs].reverse().map((m, i) => (
+                                    {measurements.length > 0 ? [...measurements].reverse().map((m, i) => (
                                         <tr key={i}>
-                                            <td className="fw-bold text-success">{m.weekNum || m.Week || '-'}</td>
-                                            <td>{m.chest || m.Chest || '-'}</td>
-                                            <td>{m.waist || m.Waist || '-'}</td>
-                                            <td>{m.glute || m.Glutes || '-'}</td>
-                                            <td>{(m.larm || m.LArm || '0')}/{(m.rarm || m.RArm || '0')}</td>
-                                            <td>{(m.lthigh || m.LThigh || '0')}/{(m.rthigh || m.RThigh || '0')}</td>
+                                            <td className="fw-bold text-success">{m.weekNum || '-'}</td>
+                                            <td>{m.chest || '-'}</td>
+                                            <td>{m.waist || '-'}</td>
+                                            <td>{m.glute || '-'}</td>
+                                            <td>{m.larm}/{m.rarm}</td>
+                                            <td>{m.lthigh}/{m.rthigh}</td>
                                         </tr>
                                     )) : <tr><td colSpan="6" className="text-center py-3">No measurement updates found</td></tr>}
                                 </tbody>
