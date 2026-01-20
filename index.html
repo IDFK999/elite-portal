@@ -23,6 +23,12 @@
         .stat-item { background: #f8f9fa; padding: 10px; border-radius: 12px; text-align: center; border: 1px solid #eee; }
         .stat-val { font-size: 16px; font-weight: 800; color: #007AFF; display: block; }
         .stat-label { font-size: 9px; color: #8e8e93; font-weight: 700; text-transform: uppercase; }
+        
+        /* Table Styling */
+        .table-responsive { border-radius: 15px; overflow: hidden; font-size: 11px; }
+        .table thead { background: #1c1c1e; color: #fff; }
+        .table-sm th, .table-sm td { padding: 8px 4px; text-align: center; vertical-align: middle; }
+        .log-date { font-weight: bold; color: #007AFF; }
     </style>
 </head>
 <body>
@@ -44,7 +50,6 @@
                 } catch(e) { return null; }
             }
 
-            // REFRESH DATA FUNCTION
             const refreshData = () => {
                 if(user.id) {
                     call('getTargets', user).then(res => {
@@ -56,7 +61,6 @@
 
             useEffect(() => {
                 refreshData();
-                // AUTO-REFRESH every 5 minutes
                 const timer = setInterval(refreshData, 300000);
                 return () => clearInterval(timer);
             }, [user]);
@@ -67,7 +71,7 @@
                 <div className="container py-4">
                     <div className="d-flex justify-content-between align-items-center mb-3">
                         <h4 className="fw-bold m-0">Athlete: {targets?.name || '...'}</h4>
-                        <div className="badge bg-dark">Elite v3.0</div>
+                        <div className="badge bg-dark">Elite v3.1</div>
                     </div>
 
                     {targets && (
@@ -100,7 +104,7 @@
                 setLoading(true);
                 const res = await call('saveLog', { ...f, accessCode: user.id, phone: user.ph });
                 alert(res || "Daily Log Updated!");
-                onSave(); // Refresh dashboard
+                onSave();
                 setLoading(false);
             };
             return (
@@ -171,7 +175,7 @@
                 <div className="card">
                     <h6 className="fw-bold mb-3 text-success">Weekly Update</h6>
                     <select className="form-select" value={f.weekNum} onChange={e=>setF({...f, weekNum:e.target.value})}>
-                        <option value="">Select Week (1 to {maxWeeks})</option>
+                        <option value="">Select Week</option>
                         {[...Array(maxWeeks)].map((_, i) => (
                             <option key={i+1} value={i+1}>Week {i+1}</option>
                         ))}
@@ -221,7 +225,13 @@
             const chartRef = useRef(null);
 
             useEffect(() => {
-                call('getTrends', user).then(data => { if(data) setAllData(data); });
+                call('getTrends', user).then(data => { 
+                    if(data) {
+                        // Ensure data is sorted by date ascending
+                        const sorted = data.sort((a,b) => new Date(a.date) - new Date(b.date));
+                        setAllData(sorted); 
+                    }
+                });
             }, []);
 
             useEffect(() => {
@@ -241,6 +251,7 @@
             }, [allData, range]);
 
             const hasData = filteredData.length > 0;
+            // FIXED NET CHANGE: compares end weight to start weight within the range
             const startW = hasData ? filteredData[0].weight : 0;
             const endW = hasData ? filteredData[filteredData.length-1].weight : 0;
             const diff = (endW - startW).toFixed(2);
@@ -259,7 +270,9 @@
                             <div className="col-6"><label className="small fw-bold text-secondary">TO</label><input type="date" className="form-control" value={range.end} onChange={e=>setRange({...range, end:e.target.value})} /></div>
                         </div>
                     </div>
+
                     <div className="card"><h6 className="fw-bold mb-3">Weight History</h6><canvas ref={canvasRef}></canvas></div>
+                    
                     <div className="card mt-3">
                         <h6 className="fw-bold mb-3">Calculated Averages</h6>
                         <div className="stat-grid">
@@ -267,6 +280,37 @@
                             <div className="stat-item"><span className="stat-val">{avgSteps.toLocaleString()}</span><span className="stat-label">Avg Steps</span></div>
                             <div className="stat-item"><span className="stat-val">{avgCal}</span><span className="stat-label">Avg Calories</span></div>
                             <div className="stat-item"><span className="stat-val">{filteredData.length}</span><span className="stat-label">Days Logged</span></div>
+                        </div>
+                    </div>
+
+                    {/* NEW: LOG OVERVIEW TABLE */}
+                    <div className="card mt-3">
+                        <h6 className="fw-bold mb-3">Detailed Log History</h6>
+                        <div className="table-responsive">
+                            <table className="table table-sm table-striped m-0">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Wt</th>
+                                        <th>P/C/F</th>
+                                        <th>Stps</th>
+                                        <th>H2O</th>
+                                        <th>Slp</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {filteredData.length > 0 ? [...filteredData].reverse().map((day, i) => (
+                                        <tr key={i}>
+                                            <td className="log-date">{day.date.split('-').slice(1).join('/')}</td>
+                                            <td>{day.weight}</td>
+                                            <td>{day.p || 0}/{day.c || 0}/{day.f || 0}</td>
+                                            <td>{day.steps || 0}</td>
+                                            <td>{day.water || '-'}</td>
+                                            <td>{day.sleep || '-'}</td>
+                                        </tr>
+                                    )) : <tr><td colSpan="6" className="text-center py-3">No logs in this range</td></tr>}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
