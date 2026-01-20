@@ -34,7 +34,7 @@
 <body>
     <div id="root"></div>
     <script type="text/babel">
-        const { useState, useEffect, useRef } = React;
+        const { useState, useEffect, useRef, useMemo } = React;
         
         const API_URL = "https://script.google.com/macros/s/AKfycbwzU_RqXR70WYFGIPQHnxu3JmTSvacTCiB1pGvf-Pkb0uiXduvXVQwjUNvFie9WKzKdiw/exec";
 
@@ -51,17 +51,13 @@
                 } catch(e) { return null; }
             }
 
-            const refreshData = () => {
+            useEffect(() => {
                 if(user.id) {
                     call('getTargets', user).then(res => {
                         setTargets(res);
                         if (res && res.totalWeeks) setMaxWeeks(parseInt(res.totalWeeks));
                     });
                 }
-            };
-
-            useEffect(() => {
-                refreshData();
             }, [user]);
 
             const getDaysElapsed = (dateString) => {
@@ -78,7 +74,7 @@
                 <div className="container py-4">
                     <div className="d-flex justify-content-between align-items-center mb-1">
                         <h4 className="fw-bold m-0">Athlete: {targets?.name || '...'}</h4>
-                        <div className="badge bg-dark">Elite v3.6</div>
+                        <div className="badge bg-dark">Elite v3.7</div>
                     </div>
                     
                     <span className="subscription-info">
@@ -94,7 +90,7 @@
                         </div>
                     )}
 
-                    {view === 'log' && <DailyLog user={user} call={call} onSave={refreshData} />}
+                    {view === 'log' && <DailyLog user={user} call={call} />}
                     {view === 'update' && <Metrics user={user} call={call} maxWeeks={maxWeeks} startDate={targets?.subscriptionDate} />}
                     {view === 'stats' && <Stats user={user} call={call} />}
                     
@@ -108,21 +104,16 @@
             );
         }
 
-        function DailyLog({ user, call, onSave }) {
-            const [f, setF] = useState({ 
-                date: new Date().toISOString().split('T')[0], 
-                weight:'', steps:'', p:'', c:'', f:'', water:'YES', sleep:'YES' 
-            });
+        // DailyLog and Metrics components remain essentially the same but with loading safety
+        function DailyLog({ user, call }) {
+            const [f, setF] = useState({ date: new Date().toISOString().split('T')[0], weight:'', steps:'', p:'', c:'', f:'', water:'YES', sleep:'YES' });
             const [loading, setLoading] = useState(false);
-
             const save = async () => {
                 setLoading(true);
                 const res = await call('saveLog', { ...f, accessCode: user.id, phone: user.ph });
                 alert(res || "Daily Log Updated");
-                onSave();
                 setLoading(false);
             };
-
             return (
                 <div className="card">
                     <h6 className="fw-bold mb-3 text-primary">Daily Entry</h6>
@@ -139,17 +130,11 @@
                     <div className="row g-2">
                         <div className="col-6">
                             <label className="small fw-bold text-secondary mb-1">DRANK ENOUGH?</label>
-                            <select className="form-select" value={f.water} onChange={e=>setF({...f, water:e.target.value})}>
-                                <option value="YES">YES</option>
-                                <option value="NO">NO</option>
-                            </select>
+                            <select className="form-select" value={f.water} onChange={e=>setF({...f, water:e.target.value})}><option value="YES">YES</option><option value="NO">NO</option></select>
                         </div>
                         <div className="col-6">
                             <label className="small fw-bold text-secondary mb-1">SLEPT ENOUGH?</label>
-                            <select className="form-select" value={f.sleep} onChange={e=>setF({...f, sleep:e.target.value})}>
-                                <option value="YES">YES</option>
-                                <option value="NO">NO</option>
-                            </select>
+                            <select className="form-select" value={f.sleep} onChange={e=>setF({...f, sleep:e.target.value})}><option value="YES">YES</option><option value="NO">NO</option></select>
                         </div>
                     </div>
                     <button className="btn btn-primary mt-2" onClick={save} disabled={loading}>{loading ? "Saving..." : "Submit Log"}</button>
@@ -160,161 +145,143 @@
         function Metrics({ user, call, maxWeeks, startDate }) {
             const [f, setF] = useState({ weekNum:'', chest:'', waist:'', glute:'', larm:'', rarm:'', lthigh:'', rthigh:'', img1:'', img2:'' });
             const [loading, setLoading] = useState(false);
-
-            const formatDate = (date) => {
-                return (date.getMonth() + 1).toString().padStart(2, '0') + '/' + date.getDate().toString().padStart(2, '0');
-            };
-
-            const handleImg = (e, key) => {
-                const file = e.target.files[0];
-                if (!file) return;
-                const reader = new FileReader();
-                reader.onload = (event) => {
+            const handleImg = (e, k) => {
+                const file = e.target.files[0]; if (!file) return;
+                const r = new FileReader();
+                r.onload = (ev) => {
                     const img = new Image();
                     img.onload = () => {
-                        const canvas = document.createElement('canvas');
-                        const MAX_WIDTH = 800;
-                        const scaleSize = MAX_WIDTH / img.width;
-                        canvas.width = MAX_WIDTH;
-                        canvas.height = img.height * scaleSize;
-                        const ctx = canvas.getContext('2d');
-                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                        const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
-                        setF(prev => ({...prev, [key]: dataUrl}));
+                        const canvas = document.createElement('canvas'); const MAX = 800; const scale = MAX / img.width;
+                        canvas.width = MAX; canvas.height = img.height * scale;
+                        const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        setF(prev => ({...prev, [k]: canvas.toDataURL('image/jpeg', 0.7)}));
                     };
-                    img.src = event.target.result;
+                    img.src = ev.target.result;
                 };
-                reader.readAsDataURL(file);
+                r.readAsDataURL(file);
             };
-
             const submit = async () => {
-                if(!f.weekNum) return alert("Please select a Week Number");
+                if(!f.weekNum) return alert("Select Week");
                 setLoading(true);
                 const res = await call('saveMetrics', { ...f, accessCode: user.id, phone: user.ph });
                 alert(res || "Update Complete");
                 setLoading(false);
             };
-
             return (
                 <div className="card">
                     <h6 className="fw-bold mb-3 text-success">Weekly Update</h6>
                     <select className="form-select" value={f.weekNum} onChange={e=>setF({...f, weekNum:e.target.value})}>
                         <option value="">Select Week</option>
-                        {[...Array(maxWeeks)].map((_, i) => {
-                            if (!startDate) return <option key={i+1} value={i+1}>Week {i+1}</option>;
-                            const start = new Date(startDate);
-                            start.setDate(start.getDate() + (i * 7));
-                            const end = new Date(start);
-                            end.setDate(start.getDate() + 6);
-                            return <option key={i+1} value={i+1}>Week {i+1} ({formatDate(start)} - {formatDate(end)})</option>;
-                        })}
+                        {[...Array(maxWeeks)].map((_, i) => <option key={i+1} value={i+1}>Week {i+1}</option>)}
                     </select>
-                    <label className="small text-secondary fw-bold">Main (cm)</label>
-                    <div className="row g-2">
+                    <div className="row g-2 mb-2">
                         <div className="col-4"><input className="form-control" placeholder="Chest" onChange={e=>setF({...f, chest:e.target.value})} /></div>
                         <div className="col-4"><input className="form-control" placeholder="Waist" onChange={e=>setF({...f, waist:e.target.value})} /></div>
                         <div className="col-4"><input className="form-control" placeholder="Glutes" onChange={e=>setF({...f, glute:e.target.value})} /></div>
                     </div>
-                    <label className="small text-secondary fw-bold">Arms (cm)</label>
-                    <div className="row g-2">
-                        <div className="col-6"><input className="form-control" placeholder="Left Arm" onChange={e=>setF({...f, larm:e.target.value})} /></div>
-                        <div className="col-6"><input className="form-control" placeholder="Right Arm" onChange={e=>setF({...f, rarm:e.target.value})} /></div>
+                    <div className="row g-2 mb-2">
+                        <div className="col-6"><input className="form-control" placeholder="L-Arm" onChange={e=>setF({...f, larm:e.target.value})} /></div>
+                        <div className="col-6"><input className="form-control" placeholder="R-Arm" onChange={e=>setF({...f, rarm:e.target.value})} /></div>
                     </div>
-                    <label className="small text-secondary fw-bold">Thighs (cm)</label>
                     <div className="row g-2 mb-3">
-                        <div className="col-6"><input className="form-control" placeholder="Left Thigh" onChange={e=>setF({...f, lthigh:e.target.value})} /></div>
-                        <div className="col-6"><input className="form-control" placeholder="Right Thigh" onChange={e=>setF({...f, rthigh:e.target.value})} /></div>
+                        <div className="col-6"><input className="form-control" placeholder="L-Thigh" onChange={e=>setF({...f, lthigh:e.target.value})} /></div>
+                        <div className="col-6"><input className="form-control" placeholder="R-Thigh" onChange={e=>setF({...f, rthigh:e.target.value})} /></div>
                     </div>
-                    <label className="photo-label">{f.img1 ? "READY" : "ADD FRONT PHOTO"}<input type="file" hidden accept="image/*" onChange={e=>handleImg(e, 'img1')} /></label>
-                    <label className="photo-label">{f.img2 ? "READY" : "ADD SIDE PHOTO"}<input type="file" hidden accept="image/*" onChange={e=>handleImg(e, 'img2')} /></label>
-                    <button className="btn btn-primary mt-2" onClick={submit} disabled={loading}>{loading ? "Compressing & Uploading..." : "Submit Check-in"}</button>
+                    <label className="photo-label">{f.img1 ? "PHOTO 1 READY" : "FRONT PHOTO"}<input type="file" hidden accept="image/*" onChange={e=>handleImg(e, 'img1')} /></label>
+                    <label className="photo-label">{f.img2 ? "PHOTO 2 READY" : "SIDE PHOTO"}<input type="file" hidden accept="image/*" onChange={e=>handleImg(e, 'img2')} /></label>
+                    <button className="btn btn-primary mt-2" onClick={submit} disabled={loading}>{loading ? "Uploading..." : "Submit Check-in"}</button>
                 </div>
             );
         }
 
         function Stats({ user, call }) {
             const [allData, setAllData] = useState([]);
-            const [filteredData, setFilteredData] = useState([]);
             const [metricsHistory, setMetricsHistory] = useState([]);
             const [range, setRange] = useState({ start: '', end: '' });
             const canvasRef = useRef(null);
-            const chartRef = useRef(null);
+            const chartInstance = useRef(null);
 
+            // Fetch once on mount
             useEffect(() => {
                 call('getTrends', user).then(data => { 
                     if(data && data.length > 0) {
                         const sorted = data.sort((a,b) => a.date.localeCompare(b.date));
                         setAllData(sorted); 
-                        const lastEntryDate = sorted[sorted.length - 1].date;
-                        const firstEntryDate = sorted[Math.max(0, sorted.length - 7)].date;
-                        setRange({ start: firstEntryDate, end: lastEntryDate });
+                        setRange({ start: sorted[Math.max(0, sorted.length - 7)].date, end: sorted[sorted.length - 1].date });
                     }
                 });
                 call('getMetricsHistory', user).then(data => { if (data) setMetricsHistory(data); });
             }, []);
 
-            useEffect(() => {
-                const filtered = allData.filter(d => d.date >= range.start && d.date <= range.end);
-                setFilteredData(filtered);
+            const filtered = useMemo(() => {
+                return allData.filter(d => d.date >= range.start && d.date <= range.end);
             }, [allData, range]);
 
-            // Clean Chart Lifecycle
+            // Chart Render - Defensive approach
             useEffect(() => {
-                if (canvasRef.current && filteredData.length > 0) {
-                    if (chartRef.current) chartRef.current.destroy();
-                    chartRef.current = new Chart(canvasRef.current, {
-                        type: 'line',
-                        data: {
-                            labels: filteredData.map(d => d.date.split('-').slice(1).join('/')),
-                            datasets: [{ 
-                                label: 'Weight', 
-                                data: filteredData.map(d => d.weight), 
-                                borderColor: '#007AFF', 
-                                backgroundColor: 'rgba(0,122,255,0.1)', 
-                                fill: true, 
-                                tension: 0.3, 
-                                pointRadius: 4 
-                            }]
-                        },
-                        options: { 
-                            responsive: true, 
-                            maintainAspectRatio: false, 
-                            plugins: { legend: { display: false } } 
-                        }
-                    });
-                }
-                return () => { if(chartRef.current) chartRef.current.destroy(); };
-            }, [filteredData]);
+                const timer = setTimeout(() => {
+                    if (!canvasRef.current || filtered.length === 0) return;
+                    
+                    try {
+                        if (chartInstance.current) chartInstance.current.destroy();
+                        
+                        const ctx = canvasRef.current.getContext('2d');
+                        chartInstance.current = new Chart(ctx, {
+                            type: 'line',
+                            data: {
+                                labels: filtered.map(d => d.date.split('-').slice(1).join('/')),
+                                datasets: [{ 
+                                    data: filtered.map(d => d.weight), 
+                                    borderColor: '#007AFF', 
+                                    backgroundColor: 'rgba(0,122,255,0.1)', 
+                                    fill: true, tension: 0.3, pointRadius: 4 
+                                }]
+                            },
+                            options: { 
+                                responsive: true, 
+                                maintainAspectRatio: false, 
+                                animation: { duration: 500 },
+                                plugins: { legend: { display: false } } 
+                            }
+                        });
+                    } catch (err) {
+                        console.error("Chart Error:", err);
+                    }
+                }, 150); // Small delay to prevent render loop race condition
 
-            const hasData = filteredData.length > 0;
-            const diff = hasData ? (filteredData[filteredData.length-1].weight - filteredData[0].weight).toFixed(2) : 0;
-            const avgSteps = hasData ? Math.round(filteredData.reduce((a,b)=>a+(Number(b.steps)||0),0)/filteredData.length) : 0;
-            const avgCal = hasData ? Math.round(filteredData.reduce((a,b)=>a+(Number(b.cal)||0),0)/filteredData.length) : 0;
+                return () => {
+                    clearTimeout(timer);
+                    if (chartInstance.current) chartInstance.current.destroy();
+                };
+            }, [filtered]);
+
+            const hasData = filtered.length > 0;
+            const diff = hasData ? (filtered[filtered.length-1].weight - filtered[0].weight).toFixed(2) : 0;
+            const avgSteps = hasData ? Math.round(filtered.reduce((a,b)=>a+(Number(b.steps)||0),0)/filtered.length) : 0;
+            const avgCal = hasData ? Math.round(filtered.reduce((a,b)=>a+(Number(b.cal)||0),0)/filtered.length) : 0;
 
             return (
                 <div>
                     <div className="card mb-3">
                         <h6 className="fw-bold mb-3 text-primary">Range Selector</h6>
                         <div className="row g-2">
-                            <div className="col-6"><label className="small fw-bold text-secondary">FROM</label><input type="date" className="form-control" value={range.start} onChange={e=>setRange({...range, start:e.target.value})} /></div>
-                            <div className="col-6"><label className="small fw-bold text-secondary">TO</label><input type="date" className="form-control" value={range.end} onChange={e=>setRange({...range, end:e.target.value})} /></div>
+                            <div className="col-6"><input type="date" className="form-control" value={range.start} onChange={e=>setRange(r=>({...r, start:e.target.value}))} /></div>
+                            <div className="col-6"><input type="date" className="form-control" value={range.end} onChange={e=>setRange(r=>({...r, end:e.target.value}))} /></div>
                         </div>
                     </div>
                     
-                    <div className="card" style={{height: '250px'}}>
-                        <h6 className="fw-bold mb-3">Weight History</h6>
-                        <div style={{flex: 1, position: 'relative'}}>
-                            <canvas ref={canvasRef}></canvas>
-                        </div>
+                    <div className="card" style={{height: '220px', position: 'relative'}}>
+                        <h6 className="fw-bold mb-2">Weight Trend</h6>
+                        <canvas ref={canvasRef}></canvas>
                     </div>
 
                     <div className="card mt-3">
-                        <h6 className="fw-bold mb-3">Calculated Averages</h6>
+                        <h6 className="fw-bold mb-3">Period Summary</h6>
                         <div className="stat-grid">
                             <div className="stat-item"><span className="stat-val" style={{color: diff <= 0 ? '#28a745' : '#dc3545'}}>{diff > 0 ? `+${diff}` : diff}kg</span><span className="stat-label">Net Change</span></div>
                             <div className="stat-item"><span className="stat-val">{avgSteps.toLocaleString()}</span><span className="stat-label">Avg Steps</span></div>
                             <div className="stat-item"><span className="stat-val">{avgCal}</span><span className="stat-label">Avg Kcal</span></div>
-                            <div className="stat-item"><span className="stat-val">{filteredData.length}</span><span className="stat-label">Days Shown</span></div>
+                            <div className="stat-item"><span className="stat-val">{filtered.length}</span><span className="stat-label">Days</span></div>
                         </div>
                     </div>
 
@@ -322,25 +289,35 @@
                         <h6 className="fw-bold mb-3">Detailed Daily Log</h6>
                         <div className="table-responsive">
                             <table className="table table-sm table-striped m-0">
-                                <thead><tr><th>Date</th><th>Wt</th><th>P/C/F</th><th>Kcal</th><th>Stps</th><th>H2O</th><th>Slp</th></tr></thead>
+                                <thead><tr><th>Date</th><th>Wt</th><th>P/C/F</th><th>Kcal</th><th>Stps</th></tr></thead>
                                 <tbody>
-                                    {filteredData.length > 0 ? [...filteredData].reverse().map((day, i) => (
-                                        <tr key={i}><td className="log-date">{day.date.split('-').slice(1).join('/')}</td><td>{day.weight}</td><td>{day.p||0}/{day.c||0}/{day.f||0}</td><td className="kcal-col">{Math.round(day.cal)||0}</td><td>{day.steps||0}</td><td>{day.water||'-'}</td><td>{day.sleep||'-'}</td></tr>
-                                    )) : <tr><td colSpan="7" className="text-center py-3">No logs found</td></tr>}
+                                    {[...filtered].reverse().map((day, i) => (
+                                        <tr key={i}>
+                                            <td className="log-date">{day.date.split('-').slice(1).join('/')}</td>
+                                            <td>{day.weight}</td>
+                                            <td>{day.p||0}/{day.c||0}/{day.f||0}</td>
+                                            <td className="kcal-col">{Math.round(day.cal)||0}</td>
+                                            <td>{day.steps||0}</td>
+                                        </tr>
+                                    ))}
                                 </tbody>
                             </table>
                         </div>
                     </div>
 
                     <div className="card mt-3">
-                        <h6 className="fw-bold mb-3 text-success">Weekly Measurement History</h6>
+                        <h6 className="fw-bold mb-3 text-success">Measurement History</h6>
                         <div className="table-responsive">
                             <table className="table table-sm table-striped m-0">
-                                <thead><tr><th>Wk</th><th>Chst</th><th>Wst</th><th>Glt</th><th>Arm(L/R)</th><th>Thigh(L/R)</th></tr></thead>
+                                <thead><tr><th>Wk</th><th>Chst</th><th>Wst</th><th>Glt</th><th>Arms</th><th>Thighs</th></tr></thead>
                                 <tbody>
-                                    {metricsHistory.length > 0 ? metricsHistory.map((h, i) => (
-                                        <tr key={i}><td className="fw-bold text-primary">{h.weekNum}</td><td>{h.chest}</td><td>{h.waist}</td><td>{h.glute}</td><td>{h.larm}/{h.rarm}</td><td>{h.lthigh}/{h.rthigh}</td></tr>
-                                    )) : <tr><td colSpan="6" className="py-3">No weekly metrics found</td></tr>}
+                                    {metricsHistory.map((h, i) => (
+                                        <tr key={i}>
+                                            <td className="fw-bold text-primary">{h.weekNum}</td>
+                                            <td>{h.chest}</td><td>{h.waist}</td><td>{h.glute}</td>
+                                            <td>{h.larm}/{h.rarm}</td><td>{h.lthigh}/{h.rthigh}</td>
+                                        </tr>
+                                    ))}
                                 </tbody>
                             </table>
                         </div>
