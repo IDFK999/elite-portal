@@ -23,10 +23,11 @@
         .stat-item { background: #f8f9fa; padding: 10px; border-radius: 12px; text-align: center; border: 1px solid #eee; }
         .stat-val { font-size: 16px; font-weight: 800; color: #007AFF; display: block; }
         .stat-label { font-size: 9px; color: #8e8e93; font-weight: 700; text-transform: uppercase; }
-        .table-responsive { border-radius: 15px; overflow: hidden; font-size: 11px; }
+        .table-responsive { border-radius: 15px; overflow: hidden; font-size: 10px; } /* Slightly smaller for fit */
         .table thead { background: #1c1c1e; color: #fff; }
-        .table-sm th, .table-sm td { padding: 8px 4px; text-align: center; vertical-align: middle; }
+        .table-sm th, .table-sm td { padding: 8px 2px; text-align: center; vertical-align: middle; }
         .log-date { font-weight: bold; color: #007AFF; }
+        .kcal-col { font-weight: bold; color: #1c1c1e; }
     </style>
 </head>
 <body>
@@ -34,7 +35,6 @@
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
         
-        // REPLACE THIS URL AFTER DEPLOYING APPS SCRIPT
         const API_URL = "https://script.google.com/macros/s/AKfycbzOC1MORPJqxKoH9sZKN9ayPcfy7Ryhx33ChEufrWJQVI7KvFgpn-jlBqhlxiNX4VqFMg/exec";
 
         function App() {
@@ -302,6 +302,7 @@
                                         <th>Date</th>
                                         <th>Wt</th>
                                         <th>P/C/F</th>
+                                        <th>Kcal</th>
                                         <th>Stps</th>
                                         <th>H2O</th>
                                         <th>Slp</th>
@@ -313,11 +314,12 @@
                                             <td className="log-date">{day.date.split('-').slice(1).join('/')}</td>
                                             <td>{day.weight}</td>
                                             <td>{day.p || 0}/{day.c || 0}/{day.f || 0}</td>
+                                            <td className="kcal-col">{Math.round(day.cal) || 0}</td>
                                             <td>{day.steps || 0}</td>
                                             <td>{day.water || '-'}</td>
                                             <td>{day.sleep || '-'}</td>
                                         </tr>
-                                    )) : <tr><td colSpan="6" className="text-center py-3">No logs in this range</td></tr>}
+                                    )) : <tr><td colSpan="7" className="text-center py-3">No logs in this range</td></tr>}
                                 </tbody>
                             </table>
                         </div>
