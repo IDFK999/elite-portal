@@ -28,6 +28,7 @@
         .table-sm th, .table-sm td { padding: 8px 2px; text-align: center; vertical-align: middle; }
         .log-date { font-weight: bold; color: #007AFF; }
         .kcal-col { font-weight: bold; color: #1c1c1e; }
+        .subscription-info { font-size: 11px; color: #8e8e93; font-weight: 600; text-transform: uppercase; margin-bottom: 10px; display: block; }
     </style>
 </head>
 <body>
@@ -35,7 +36,7 @@
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
         
-        const API_URL = "https://script.google.com/macros/s/AKfycbzOC1MORPJqxKoH9sZKN9ayPcfy7Ryhx33ChEufrWJQVI7KvFgpn-jlBqhlxiNX4VqFMg/exec";
+        const API_URL = "https://script.google.com/macros/s/AKfycbwzU_RqXR70WYFGIPQHnxu3JmTSvacTCiB1pGvf-Pkb0uiXduvXVQwjUNvFie9WKzKdiw/exec";
 
         function App() {
             const [view, setView] = useState('log');
@@ -65,14 +66,26 @@
                 return () => clearInterval(timer);
             }, [user]);
 
+            const getDaysElapsed = (dateString) => {
+                if (!dateString) return "...";
+                const start = new Date(dateString);
+                const now = new Date();
+                const diffTime = Math.abs(now - start);
+                return Math.floor(diffTime / (1000 * 60 * 60 * 24));
+            };
+
             if (!user.id) return <Login onLogin={(u) => { localStorage.setItem('eliteId', u.id); localStorage.setItem('elitePh', u.ph); setUser(u); }} call={call} />;
 
             return (
                 <div className="container py-4">
-                    <div className="d-flex justify-content-between align-items-center mb-3">
+                    <div className="d-flex justify-content-between align-items-center mb-1">
                         <h4 className="fw-bold m-0">Athlete: {targets?.name || '...'}</h4>
-                        <div className="badge bg-dark">Elite v3.5</div>
+                        <div className="badge bg-dark">Elite v3.6</div>
                     </div>
+                    
+                    <span className="subscription-info">
+                        Day {targets ? getDaysElapsed(targets.subscriptionDate) : "..."} of Program | Started: {targets?.subscriptionDate ? new Date(targets.subscriptionDate).toLocaleDateString() : "..."}
+                    </span>
 
                     {targets && (
                         <div className="target-pill d-flex justify-content-around text-center">
@@ -113,7 +126,7 @@
             const save = async () => {
                 setLoading(true);
                 const res = await call('saveLog', { ...f, accessCode: user.id, phone: user.ph });
-                alert(res || "Daily Log Updated!");
+                alert(res || "Daily Log Updated");
                 onSave();
                 setLoading(false);
             };
@@ -188,7 +201,7 @@
                 if(!f.weekNum) return alert("Please select a Week Number");
                 setLoading(true);
                 const res = await call('saveMetrics', { ...f, accessCode: user.id, phone: user.ph });
-                alert(res || "Update Complete!");
+                alert(res || "Update Complete");
                 setLoading(false);
             };
 
