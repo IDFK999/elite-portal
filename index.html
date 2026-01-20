@@ -113,7 +113,13 @@
         function DailyLog({ user, call, onSave }) {
             const [f, setF] = useState({ 
                 date: new Date().toISOString().split('T')[0], 
-                weight:'', steps:'', p:'', c:'', f:'', water:'YES', sleep:'YES' 
+                weight:'', 
+                steps:'', 
+                p:'', 
+                c:'', 
+                f:'', 
+                water:'YES', 
+                sleep:'YES' 
             });
             const [loading, setLoading] = useState(false);
 
@@ -129,15 +135,18 @@
                 <div className="card">
                     <h6 className="fw-bold mb-3 text-primary">Daily Entry</h6>
                     <input type="date" className="form-control" value={f.date} onChange={e=>setF({...f, date:e.target.value})} />
+                    
                     <div className="row g-2">
                         <div className="col-6"><input type="number" step="0.1" className="form-control" placeholder="Weight (kg)" value={f.weight} onChange={e=>setF({...f, weight:e.target.value})} /></div>
                         <div className="col-6"><input type="number" className="form-control" placeholder="Steps" value={f.steps} onChange={e=>setF({...f, steps:e.target.value})} /></div>
                     </div>
+
                     <div className="row g-2">
                         <div className="col-4"><input type="number" className="form-control" placeholder="P" value={f.p} onChange={e=>setF({...f, p:e.target.value})} /></div>
                         <div className="col-4"><input type="number" className="form-control" placeholder="C" value={f.c} onChange={e=>setF({...f, c:e.target.value})} /></div>
                         <div className="col-4"><input type="number" className="form-control" placeholder="F" value={f.f} onChange={e=>setF({...f, f:e.target.value})} /></div>
                     </div>
+
                     <div className="row g-2">
                         <div className="col-6">
                             <label className="small fw-bold text-secondary mb-1">DRANK ENOUGH?</label>
@@ -154,17 +163,28 @@
                             </select>
                         </div>
                     </div>
-                    <button className="btn btn-primary mt-2" onClick={save} disabled={loading}>{loading ? "Saving..." : "Submit Log"}</button>
+
+                    <button className="btn btn-primary mt-2" onClick={save} disabled={loading}>
+                        {loading ? "Saving..." : "Submit Log"}
+                    </button>
                 </div>
             );
         }
 
         function Metrics({ user, call, maxWeeks, startDate }) {
             const [f, setF] = useState({ weekNum:'', chest:'', waist:'', glute:'', larm:'', rarm:'', lthigh:'', rthigh:'', img1:'', img2:'' });
+            const [history, setHistory] = useState([]);
             const [loading, setLoading] = useState(false);
 
+            useEffect(() => {
+                call('getMetricsHistory', user).then(data => {
+                    if (data) setHistory(data);
+                });
+            }, []);
+
             const formatDate = (date) => {
-                return (date.getMonth() + 1).toString().padStart(2, '0') + '/' + date.getDate().toString().padStart(2, '0');
+                return (date.getMonth() + 1).toString().padStart(2, '0') + '/' + 
+                       date.getDate().toString().padStart(2, '0');
             };
 
             const handleImg = (e, key) => {
@@ -198,38 +218,85 @@
             };
 
             return (
-                <div className="card">
-                    <h6 className="fw-bold mb-3 text-success">Weekly Update</h6>
-                    <select className="form-select" value={f.weekNum} onChange={e=>setF({...f, weekNum:e.target.value})}>
-                        <option value="">Select Week</option>
-                        {[...Array(maxWeeks)].map((_, i) => {
-                            if (!startDate) return <option key={i+1} value={i+1}>Week {i+1}</option>;
-                            const start = new Date(startDate);
-                            start.setDate(start.getDate() + (i * 7));
-                            const end = new Date(start);
-                            end.setDate(start.getDate() + 6);
-                            return <option key={i+1} value={i+1}>Week {i+1} ({formatDate(start)} - {formatDate(end)})</option>;
-                        })}
-                    </select>
-                    <label className="small text-secondary fw-bold">Main (cm)</label>
-                    <div className="row g-2">
-                        <div className="col-4"><input className="form-control" placeholder="Chest" onChange={e=>setF({...f, chest:e.target.value})} /></div>
-                        <div className="col-4"><input className="form-control" placeholder="Waist" onChange={e=>setF({...f, waist:e.target.value})} /></div>
-                        <div className="col-4"><input className="form-control" placeholder="Glutes" onChange={e=>setF({...f, glute:e.target.value})} /></div>
+                <div>
+                    <div className="card">
+                        <h6 className="fw-bold mb-3 text-success">Weekly Update</h6>
+                        <select className="form-select" value={f.weekNum} onChange={e=>setF({...f, weekNum:e.target.value})}>
+                            <option value="">Select Week</option>
+                            {[...Array(maxWeeks)].map((_, i) => {
+                                if (!startDate) return <option key={i+1} value={i+1}>Week {i+1}</option>;
+                                const start = new Date(startDate);
+                                start.setDate(start.getDate() + (i * 7));
+                                const end = new Date(start);
+                                end.setDate(start.getDate() + 6);
+                                return (
+                                    <option key={i+1} value={i+1}>
+                                        Week {i+1} ({formatDate(start)} - {formatDate(end)})
+                                    </option>
+                                );
+                            })}
+                        </select>
+                        
+                        <label className="small text-secondary fw-bold">Main (cm)</label>
+                        <div className="row g-2">
+                            <div className="col-4"><input className="form-control" placeholder="Chest" onChange={e=>setF({...f, chest:e.target.value})} /></div>
+                            <div className="col-4"><input className="form-control" placeholder="Waist" onChange={e=>setF({...f, waist:e.target.value})} /></div>
+                            <div className="col-4"><input className="form-control" placeholder="Glutes" onChange={e=>setF({...f, glute:e.target.value})} /></div>
+                        </div>
+
+                        <label className="small text-secondary fw-bold">Arms (cm)</label>
+                        <div className="row g-2">
+                            <div className="col-6"><input className="form-control" placeholder="Left Arm" onChange={e=>setF({...f, larm:e.target.value})} /></div>
+                            <div className="col-6"><input className="form-control" placeholder="Right Arm" onChange={e=>setF({...f, rarm:e.target.value})} /></div>
+                        </div>
+
+                        <label className="small text-secondary fw-bold">Thighs (cm)</label>
+                        <div className="row g-2 mb-3">
+                            <div className="col-6"><input className="form-control" placeholder="Left Thigh" onChange={e=>setF({...f, lthigh:e.target.value})} /></div>
+                            <div className="col-6"><input className="form-control" placeholder="Right Thigh" onChange={e=>setF({...f, rthigh:e.target.value})} /></div>
+                        </div>
+
+                        <label className="photo-label">
+                            {f.img1 ? "READY" : "ADD FRONT PHOTO"}
+                            <input type="file" hidden accept="image/*" onChange={e=>handleImg(e, 'img1')} />
+                        </label>
+                        <label className="photo-label">
+                            {f.img2 ? "READY" : "ADD SIDE PHOTO"}
+                            <input type="file" hidden accept="image/*" onChange={e=>handleImg(e, 'img2')} />
+                        </label>
+
+                        <button className="btn btn-primary mt-2" onClick={submit} disabled={loading}>{loading ? "Compressing & Uploading..." : "Submit Check-in"}</button>
                     </div>
-                    <label className="small text-secondary fw-bold">Arms (cm)</label>
-                    <div className="row g-2">
-                        <div className="col-6"><input className="form-control" placeholder="Left Arm" onChange={e=>setF({...f, larm:e.target.value})} /></div>
-                        <div className="col-6"><input className="form-control" placeholder="Right Arm" onChange={e=>setF({...f, rarm:e.target.value})} /></div>
+
+                    <div className="card mt-3">
+                        <h6 className="fw-bold mb-3">Measurement History</h6>
+                        <div className="table-responsive">
+                            <table className="table table-sm table-striped m-0">
+                                <thead>
+                                    <tr>
+                                        <th>Wk</th>
+                                        <th>Chst</th>
+                                        <th>Wst</th>
+                                        <th>Glt</th>
+                                        <th>Arm(L/R)</th>
+                                        <th>Thigh(L/R)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {history.length > 0 ? history.map((h, i) => (
+                                        <tr key={i}>
+                                            <td className="fw-bold text-primary">{h.weekNum}</td>
+                                            <td>{h.chest}</td>
+                                            <td>{h.waist}</td>
+                                            <td>{h.glute}</td>
+                                            <td>{h.larm}/{h.rarm}</td>
+                                            <td>{h.lthigh}/{h.rthigh}</td>
+                                        </tr>
+                                    )) : <tr><td colSpan="6" className="py-3">No history found</td></tr>}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-                    <label className="small text-secondary fw-bold">Thighs (cm)</label>
-                    <div className="row g-2 mb-3">
-                        <div className="col-6"><input className="form-control" placeholder="Left Thigh" onChange={e=>setF({...f, lthigh:e.target.value})} /></div>
-                        <div className="col-6"><input className="form-control" placeholder="Right Thigh" onChange={e=>setF({...f, rthigh:e.target.value})} /></div>
-                    </div>
-                    <label className="photo-label">{f.img1 ? "READY" : "ADD FRONT PHOTO"}<input type="file" hidden accept="image/*" onChange={e=>handleImg(e, 'img1')} /></label>
-                    <label className="photo-label">{f.img2 ? "READY" : "ADD SIDE PHOTO"}<input type="file" hidden accept="image/*" onChange={e=>handleImg(e, 'img2')} /></label>
-                    <button className="btn btn-primary mt-2" onClick={submit} disabled={loading}>{loading ? "Compressing & Uploading..." : "Submit Check-in"}</button>
                 </div>
             );
         }
@@ -237,8 +304,8 @@
         function Stats({ user, call }) {
             const [allData, setAllData] = useState([]);
             const [filteredData, setFilteredData] = useState([]);
-            const [metricsHistory, setMetricsHistory] = useState([]);
             const [range, setRange] = useState({ start: '', end: '' });
+
             const canvasRef = useRef(null);
             const chartRef = useRef(null);
 
@@ -252,40 +319,57 @@
                         setRange({ start: firstEntryDate, end: lastEntryDate });
                     }
                 });
-                call('getMetricsHistory', user).then(data => { if (data) setMetricsHistory(data); });
             }, []);
 
             useEffect(() => {
                 const filtered = allData.filter(d => d.date >= range.start && d.date <= range.end);
                 setFilteredData(filtered);
+                
                 if (canvasRef.current && filtered.length > 0) {
                     if (chartRef.current) chartRef.current.destroy();
                     chartRef.current = new Chart(canvasRef.current, {
                         type: 'line',
                         data: {
                             labels: filtered.map(d => d.date.split('-').slice(1).join('/')),
-                            datasets: [{ label: 'Weight', data: filtered.map(d => d.weight), borderColor: '#007AFF', backgroundColor: 'rgba(0,122,255,0.1)', fill: true, tension: 0.3, pointRadius: 4 }]
+                            datasets: [{ 
+                                label: 'Weight', 
+                                data: filtered.map(d => d.weight), 
+                                borderColor: '#007AFF', 
+                                backgroundColor: 'rgba(0,122,255,0.1)', 
+                                fill: true, 
+                                tension: 0.3,
+                                pointRadius: 4
+                            }]
                         },
-                        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+                        options: { 
+                            responsive: true, 
+                            maintainAspectRatio: false,
+                            plugins: { legend: { display: false } } 
+                        }
                     });
                 }
             }, [allData, range]);
 
             const hasData = filteredData.length > 0;
-            const diff = hasData ? (filteredData[filteredData.length-1].weight - filteredData[0].weight).toFixed(2) : 0;
+            const startW = hasData ? filteredData[0].weight : 0;
+            const endW = hasData ? filteredData[filteredData.length-1].weight : 0;
+            const diff = (endW - startW).toFixed(2);
+            
             const avgSteps = hasData ? Math.round(filteredData.reduce((a,b)=>a+(Number(b.steps)||0),0)/filteredData.length) : 0;
             const avgCal = hasData ? Math.round(filteredData.reduce((a,b)=>a+(Number(b.cal)||0),0)/filteredData.length) : 0;
 
             return (
                 <div>
                     <div className="card mb-3">
-                        <h6 className="fw-bold mb-3 text-primary">Range Selector</h6>
+                        <h6 className="fw-bold mb-3 text-primary">Range (Synced to Sheet)</h6>
                         <div className="row g-2">
                             <div className="col-6"><label className="small fw-bold text-secondary">FROM</label><input type="date" className="form-control" value={range.start} onChange={e=>setRange({...range, start:e.target.value})} /></div>
                             <div className="col-6"><label className="small fw-bold text-secondary">TO</label><input type="date" className="form-control" value={range.end} onChange={e=>setRange({...range, end:e.target.value})} /></div>
                         </div>
                     </div>
+
                     <div className="card" style={{height: '250px'}}><h6 className="fw-bold mb-3">Weight History</h6><canvas ref={canvasRef}></canvas></div>
+                    
                     <div className="card mt-3">
                         <h6 className="fw-bold mb-3">Calculated Averages</h6>
                         <div className="stat-grid">
@@ -297,28 +381,32 @@
                     </div>
 
                     <div className="card mt-3">
-                        <h6 className="fw-bold mb-3 text-success">Weekly Measurement History</h6>
+                        <h6 className="fw-bold mb-3">Detailed Log History</h6>
                         <div className="table-responsive">
                             <table className="table table-sm table-striped m-0">
-                                <thead><tr><th>Wk</th><th>Chst</th><th>Wst</th><th>Glt</th><th>Arm(L/R)</th><th>Thigh(L/R)</th></tr></thead>
-                                <tbody>
-                                    {metricsHistory.length > 0 ? metricsHistory.map((h, i) => (
-                                        <tr key={i}><td className="fw-bold text-primary">{h.weekNum}</td><td>{h.chest}</td><td>{h.waist}</td><td>{h.glute}</td><td>{h.larm}/{h.rarm}</td><td>{h.lthigh}/{h.rthigh}</td></tr>
-                                    )) : <tr><td colSpan="6" className="py-3">No weekly metrics found</td></tr>}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <div className="card mt-3">
-                        <h6 className="fw-bold mb-3">Detailed Daily Log</h6>
-                        <div className="table-responsive">
-                            <table className="table table-sm table-striped m-0">
-                                <thead><tr><th>Date</th><th>Wt</th><th>P/C/F</th><th>Kcal</th><th>Stps</th><th>H2O</th><th>Slp</th></tr></thead>
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Wt</th>
+                                        <th>P/C/F</th>
+                                        <th>Kcal</th>
+                                        <th>Stps</th>
+                                        <th>H2O</th>
+                                        <th>Slp</th>
+                                    </tr>
+                                </thead>
                                 <tbody>
                                     {filteredData.length > 0 ? [...filteredData].reverse().map((day, i) => (
-                                        <tr key={i}><td className="log-date">{day.date.split('-').slice(1).join('/')}</td><td>{day.weight}</td><td>{day.p||0}/{day.c||0}/{day.f||0}</td><td className="kcal-col">{Math.round(day.cal)||0}</td><td>{day.steps||0}</td><td>{day.water||'-'}</td><td>{day.sleep||'-'}</td></tr>
-                                    )) : <tr><td colSpan="7" className="text-center py-3">No logs found</td></tr>}
+                                        <tr key={i}>
+                                            <td className="log-date">{day.date.split('-').slice(1).join('/')}</td>
+                                            <td>{day.weight}</td>
+                                            <td>{day.p || 0}/{day.c || 0}/{day.f || 0}</td>
+                                            <td className="kcal-col">{Math.round(day.cal) || 0}</td>
+                                            <td>{day.steps || 0}</td>
+                                            <td>{day.water || '-'}</td>
+                                            <td>{day.sleep || '-'}</td>
+                                        </tr>
+                                    )) : <tr><td colSpan="7" className="text-center py-3">No logs in this range</td></tr>}
                                 </tbody>
                             </table>
                         </div>
@@ -328,7 +416,9 @@
         }
 
         function Login({ onLogin, call }) {
-            const [id, setId] = useState(''); const [ph, setPh] = useState(''); const [l, setL] = useState(false);
+            const [id, setId] = useState('');
+            const [ph, setPh] = useState('');
+            const [l, setL] = useState(false);
             const start = async () => {
                 setL(true);
                 const res = await call('validateUser', {id: id.trim().toUpperCase(), ph: ph.trim()});
@@ -336,10 +426,14 @@
                 else { alert(res); setL(false); }
             };
             return (
-                <div className="container vh-100 d-flex align-items-center"><div className="card w-100 text-center py-5"><h2 className="fw-bold mb-4">ELITE COACHING</h2>
-                <input className="form-control" placeholder="Access Code" onChange={e=>setId(e.target.value)} />
-                <input className="form-control" placeholder="Phone Number" onChange={e=>setPh(e.target.value)} />
-                <button className="btn btn-primary mt-3" onClick={start} disabled={l}>{l ? "Checking..." : "Sign In"}</button></div></div>
+                <div className="container vh-100 d-flex align-items-center">
+                    <div className="card w-100 text-center py-5">
+                        <h2 className="fw-bold mb-4">ELITE COACHING</h2>
+                        <input className="form-control" placeholder="Access Code" onChange={e=>setId(e.target.value)} />
+                        <input className="form-control" placeholder="Phone Number" onChange={e=>setPh(e.target.value)} />
+                        <button className="btn btn-primary mt-3" onClick={start} disabled={l}>{l ? "Checking..." : "Sign In"}</button>
+                    </div>
+                </div>
             );
         }
 
