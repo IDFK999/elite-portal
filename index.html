@@ -29,8 +29,6 @@
         .log-date { font-weight: bold; color: #007AFF; }
         .kcal-col { font-weight: bold; color: #1c1c1e; }
         .subscription-info { font-size: 11px; color: #8e8e93; font-weight: 600; text-transform: uppercase; margin-bottom: 4px; display: block; }
-        
-        /* New Progress Bar Styles */
         .prog-container { width: 100%; background: #e5e5ea; height: 8px; border-radius: 4px; margin-bottom: 15px; overflow: hidden; }
         .prog-bar { height: 100%; background: #007AFF; transition: width 0.5s ease; }
     </style>
@@ -40,7 +38,6 @@
 
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
-        
         const API_URL = "https://script.google.com/macros/s/AKfycbz12cPJv63FuhDz5DY7PE9BicF0y4zUdYANsJ9xYU2nOaGUQlR7Nowear_RuRuQPN1i9Q/exec";
 
         function App() {
@@ -75,8 +72,7 @@
                 if (!dateString) return 0;
                 const start = new Date(dateString);
                 const now = new Date();
-                const diffTime = now - start;
-                const days = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                const days = Math.floor((now - start) / (1000 * 60 * 60 * 24));
                 return days < 0 ? 0 : days;
             };
 
@@ -84,8 +80,7 @@
                 if (!targets || !targets.subscriptionDate) return 0;
                 const elapsed = getDaysElapsed(targets.subscriptionDate);
                 const totalDays = maxWeeks * 7;
-                const pct = (elapsed / totalDays) * 100;
-                return Math.min(Math.max(pct, 0), 100).toFixed(1);
+                return Math.min(Math.max((elapsed / totalDays) * 100, 0), 100).toFixed(1);
             };
 
             if (!user.id) return <Login onLogin={(u) => { localStorage.setItem('eliteId', u.id); localStorage.setItem('elitePh', u.ph); setUser(u); }} call={call} />;
@@ -94,7 +89,7 @@
                 <div className="container py-4">
                     <div className="d-flex justify-content-between align-items-center mb-1">
                         <h4 className="fw-bold m-0">Hello : {targets?.name || '...'}</h4>
-                        <div className="badge bg-dark">v3.9.0</div>
+                        <div className="badge bg-dark">v3.9.5</div>
                     </div>
                     
                     <span className="subscription-info">
@@ -116,7 +111,7 @@
 
                     {view === 'log' && <DailyLog user={user} call={call} onSave={refreshData} />}
                     {view === 'update' && <Metrics user={user} call={call} maxWeeks={maxWeeks} startDate={targets?.subscriptionDate} />}
-                    {view === 'stats' && <Stats user={user} call={call} />}
+                    {view === 'stats' && <Stats user={user} call={call} maxWeeks={maxWeeks} />}
                     
                     <div className="nav-bottom">
                         <div className={`nav-item ${view === 'log' ? 'active' : ''}`} onClick={()=>setView('log')}>Dashboard<br/>LOG</div>
@@ -128,12 +123,8 @@
             );
         }
 
-        // ... Keep DailyLog, Metrics, Stats, and Login components exactly as they were ...
         function DailyLog({ user, call, onSave }) {
-            const [f, setF] = useState({ 
-                date: new Date().toISOString().split('T')[0], 
-                weight:'', steps:'', p:'', c:'', f:'', water:'YES', sleep:'YES' 
-            });
+            const [f, setF] = useState({ date: new Date().toISOString().split('T')[0], weight:'', steps:'', p:'', c:'', f:'', water:'YES', sleep:'YES' });
             const [loading, setLoading] = useState(false);
             const save = async () => {
                 setLoading(true);
@@ -155,20 +146,6 @@
                         <div className="col-4"><input type="number" className="form-control" placeholder="C" value={f.c} onChange={e=>setF({...f, c:e.target.value})} /></div>
                         <div className="col-4"><input type="number" className="form-control" placeholder="F" value={f.f} onChange={e=>setF({...f, f:e.target.value})} /></div>
                     </div>
-                    <div className="row g-2">
-                        <div className="col-6">
-                            <label className="small fw-bold text-secondary mb-1">DRANK ENOUGH?</label>
-                            <select className="form-select" value={f.water} onChange={e=>setF({...f, water:e.target.value})}>
-                                <option value="YES">YES</option><option value="NO">NO</option>
-                            </select>
-                        </div>
-                        <div className="col-6">
-                            <label className="small fw-bold text-secondary mb-1">SLEPT ENOUGH?</label>
-                            <select className="form-select" value={f.sleep} onChange={e=>setF({...f, sleep:e.target.value})}>
-                                <option value="YES">YES</option><option value="NO">NO</option>
-                            </select>
-                        </div>
-                    </div>
                     <button className="btn btn-primary mt-2" onClick={save} disabled={loading}>{loading ? "Saving..." : "Submit Log"}</button>
                 </div>
             );
@@ -178,7 +155,7 @@
             const [f, setF] = useState({ weekNum:'', chest:'', waist:'', glute:'', larm:'', rarm:'', lthigh:'', rthigh:'', img1:'', img2:'' });
             const [loading, setLoading] = useState(false);
             const formatDate = (date) => (date.getMonth() + 1).toString().padStart(2, '0') + '/' + date.getDate().toString().padStart(2, '0');
-            
+
             const handleImg = (e, key) => {
                 const file = e.target.files[0];
                 if (!file) return;
@@ -193,20 +170,11 @@
                         canvas.height = img.height * scaleSize;
                         const ctx = canvas.getContext('2d');
                         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                        const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
-                        setF(prev => ({...prev, [key]: dataUrl}));
+                        setF(prev => ({...prev, [key]: canvas.toDataURL('image/jpeg', 0.7)}));
                     };
                     img.src = event.target.result;
                 };
                 reader.readAsDataURL(file);
-            };
-
-            const submit = async () => {
-                if(!f.weekNum) return alert("Please select a Week Number");
-                setLoading(true);
-                const res = await call('saveMetrics', { ...f, accessCode: user.id, phone: user.ph });
-                alert(res || "Update Complete");
-                setLoading(false);
             };
 
             return (
@@ -217,38 +185,27 @@
                         {[...Array(maxWeeks)].map((_, i) => {
                             const start = new Date(startDate);
                             start.setDate(start.getDate() + (i * 7));
-                            const end = new Date(start);
-                            end.setDate(start.getDate() + 6);
-                            return <option key={i+1} value={i+1}>Week {i+1} ({formatDate(start)} - {formatDate(end)})</option>
+                            return <option key={i+1} value={i+1}>Week {i+1} ({formatDate(start)})</option>
                         })}
                     </select>
-                    <label className="small text-secondary fw-bold">Main (cm)</label>
                     <div className="row g-2">
                         <div className="col-4"><input className="form-control" placeholder="Chest" onChange={e=>setF({...f, chest:e.target.value})} /></div>
                         <div className="col-4"><input className="form-control" placeholder="Waist" onChange={e=>setF({...f, waist:e.target.value})} /></div>
                         <div className="col-4"><input className="form-control" placeholder="Glutes" onChange={e=>setF({...f, glute:e.target.value})} /></div>
                     </div>
-                    <label className="small text-secondary fw-bold">Arms (cm)</label>
-                    <div className="row g-2">
-                        <div className="col-6"><input className="form-control" placeholder="Left Arm" onChange={e=>setF({...f, larm:e.target.value})} /></div>
-                        <div className="col-6"><input className="form-control" placeholder="Right Arm" onChange={e=>setF({...f, rarm:e.target.value})} /></div>
-                    </div>
-                    <label className="small text-secondary fw-bold">Thighs (cm)</label>
-                    <div className="row g-2 mb-3">
-                        <div className="col-6"><input className="form-control" placeholder="Left Thigh" onChange={e=>setF({...f, lthigh:e.target.value})} /></div>
-                        <div className="col-6"><input className="form-control" placeholder="Right Thigh" onChange={e=>setF({...f, rthigh:e.target.value})} /></div>
-                    </div>
                     <label className="photo-label">{f.img1 ? "READY" : "ADD FRONT PHOTO"}<input type="file" hidden accept="image/*" onChange={e=>handleImg(e, 'img1')} /></label>
                     <label className="photo-label">{f.img2 ? "READY" : "ADD SIDE PHOTO"}<input type="file" hidden accept="image/*" onChange={e=>handleImg(e, 'img2')} /></label>
-                    <button className="btn btn-primary mt-2" onClick={submit} disabled={loading}>{loading ? "Compressing & Uploading..." : "Submit Check-in"}</button>
+                    <button className="btn btn-primary mt-2" onClick={async () => { setLoading(true); await call('saveMetrics', { ...f, accessCode: user.id, phone: user.ph }); alert("Done"); setLoading(false); }} disabled={loading}>Submit Check-in</button>
                 </div>
             );
         }
 
-        function Stats({ user, call }) {
+        function Stats({ user, call, maxWeeks }) {
             const [dailyLogs, setDailyLogs] = useState([]);
             const [measurements, setMeasurements] = useState([]);
-            const [range, setRange] = useState({ start: '', end: '' });
+            const [dateRange, setDateRange] = useState({ start: '', end: '' });
+            const [wkFilter, setWkFilter] = useState({ start: 1, end: 12 });
+            
             const canvasRef = useRef(null);
             const chartRef = useRef(null);
 
@@ -257,106 +214,87 @@
                     if(data && Array.isArray(data)) {
                         const logs = data.filter(d => !d.isSummary).sort((a,b) => a.date.localeCompare(b.date));
                         const metrics = data.filter(d => d.isSummary).sort((a,b) => (Number(a.weekNum) || 0) - (Number(b.weekNum) || 0));
-                        
                         setDailyLogs(logs);
                         setMeasurements(metrics);
-
-                        if(logs.length > 0) {
-                            const lastEntryDate = logs[logs.length - 1].date;
-                            const firstEntryDate = logs[Math.max(0, logs.length - 7)].date;
-                            setRange({ start: firstEntryDate, end: lastEntryDate });
-                        }
+                        if(logs.length > 0) setDateRange({ start: logs[Math.max(0, logs.length - 7)].date, end: logs[logs.length - 1].date });
                     }
                 });
             }, []);
 
             useEffect(() => {
-                const filtered = dailyLogs.filter(d => d.date >= range.start && d.date <= range.end);
+                const filtered = dailyLogs.filter(d => d.date >= dateRange.start && d.date <= dateRange.end);
                 if (canvasRef.current && filtered.length > 0) {
                     if (chartRef.current) chartRef.current.destroy();
                     chartRef.current = new Chart(canvasRef.current, {
                         type: 'line',
                         data: {
                             labels: filtered.map(d => d.date.split('-').slice(1).join('/')),
-                            datasets: [{ label: 'Weight', data: filtered.map(d => d.weight), borderColor: '#007AFF', backgroundColor: 'rgba(0,122,255,0.1)', fill: true, tension: 0.3, pointRadius: 4 }]
+                            datasets: [{ label: 'Weight', data: filtered.map(d => d.weight), borderColor: '#007AFF', backgroundColor: 'rgba(0,122,255,0.1)', fill: true, tension: 0.3 }]
                         },
-                        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+                        options: { responsive: true, maintainAspectRatio: false }
                     });
                 }
-            }, [dailyLogs, range]);
+            }, [dailyLogs, dateRange]);
 
-            const activeRangeLogs = dailyLogs.filter(d => d.date >= range.start && d.date <= range.end);
-            const hasData = activeRangeLogs.length > 0;
-            const startW = hasData ? activeRangeLogs[0].weight : 0;
-            const endW = hasData ? activeRangeLogs[activeRangeLogs.length-1].weight : 0;
-            const diff = (endW - startW).toFixed(2);
-            const avgSteps = hasData ? Math.round(activeRangeLogs.reduce((a,b)=>a+(Number(b.steps)||0),0)/activeRangeLogs.length) : 0;
-            const avgCal = hasData ? Math.round(activeRangeLogs.reduce((a,b)=>a+(Number(b.cal)||0),0)/activeRangeLogs.length) : 0;
+            const filteredDaily = dailyLogs.filter(d => d.date >= dateRange.start && d.date <= dateRange.end);
+            const filteredMetrics = measurements.filter(m => Number(m.weekNum) >= wkFilter.start && Number(m.weekNum) <= wkFilter.end);
 
             return (
                 <div>
+                    {/* DAILY TRACKING SECTION */}
                     <div className="card mb-3">
-                        <h6 className="fw-bold mb-3 text-primary">Range (Synced to Sheet)</h6>
+                        <h6 className="fw-bold mb-3 text-primary">Weight Range (Daily)</h6>
                         <div className="row g-2">
-                            <div className="col-6"><label className="small fw-bold text-secondary">FROM</label><input type="date" className="form-control" value={range.start} onChange={e=>setRange({...range, start:e.target.value})} /></div>
-                            <div className="col-6"><label className="small fw-bold text-secondary">TO</label><input type="date" className="form-control" value={range.end} onChange={e=>setRange({...range, end:e.target.value})} /></div>
+                            <div className="col-6"><input type="date" className="form-control" value={dateRange.start} onChange={e=>setDateRange({...dateRange, start:e.target.value})} /></div>
+                            <div className="col-6"><input type="date" className="form-control" value={dateRange.end} onChange={e=>setDateRange({...dateRange, end:e.target.value})} /></div>
                         </div>
                     </div>
-
-                    <div className="card" style={{height: '250px'}}><h6 className="fw-bold mb-3">Weight History</h6><canvas ref={canvasRef}></canvas></div>
-                    
-                    <div className="card mt-3">
-                        <h6 className="fw-bold mb-3">Calculated Averages</h6>
-                        <div className="stat-grid">
-                            <div className="stat-item"><span className="stat-val" style={{color: diff <= 0 ? '#28a745' : '#dc3545'}}>{diff > 0 ? `+${diff}` : diff}kg</span><span className="stat-label">Net Change</span></div>
-                            <div className="stat-item"><span className="stat-val">{avgSteps.toLocaleString()}</span><span className="stat-label">Avg Steps</span></div>
-                            <div className="stat-item"><span className="stat-val">{avgCal}</span><span className="stat-label">Avg Kcal</span></div>
-                            <div className="stat-item"><span className="stat-val">{activeRangeLogs.length}</span><span className="stat-label">Days Shown</span></div>
-                        </div>
-                    </div>
-
+                    <div className="card" style={{height: '200px'}}><canvas ref={canvasRef}></canvas></div>
                     <div className="card mt-3">
                         <h6 className="fw-bold mb-3">Detailed Log History</h6>
                         <div className="table-responsive">
                             <table className="table table-sm table-striped m-0">
-                                <thead>
-                                    <tr><th>Date</th><th>Wt</th><th>P/C/F</th><th>Kcal</th><th>Stps</th><th>H2O</th><th>Slp</th></tr>
-                                </thead>
+                                <thead><tr><th>Date</th><th>Wt</th><th>Kcal</th><th>Stps</th></tr></thead>
                                 <tbody>
-                                    {activeRangeLogs.length > 0 ? activeRangeLogs.map((day, i) => (
+                                    {filteredDaily.map((day, i) => (
                                         <tr key={i}>
                                             <td className="log-date">{day.date.split('-').slice(1).join('/')}</td>
                                             <td>{day.weight}</td>
-                                            <td>{day.p || 0}/{day.c || 0}/{day.f || 0}</td>
-                                            <td className="kcal-col">{Math.round(day.cal) || 0}</td>
-                                            <td>{day.steps || 0}</td>
-                                            <td>{day.water || '-'}</td>
-                                            <td>{day.sleep || '-'}</td>
+                                            <td className="kcal-col">{Math.round(day.cal)}</td>
+                                            <td>{day.steps}</td>
                                         </tr>
-                                    )) : <tr><td colSpan="7" className="text-center py-3">No logs in this range</td></tr>}
+                                    ))}
                                 </tbody>
                             </table>
                         </div>
                     </div>
 
-                    <div className="card mt-3">
-                        <h6 className="fw-bold mb-3 text-success">Body Measurements History (cm)</h6>
+                    <hr className="my-4" />
+
+                    {/* BODY MEASUREMENTS SECTION */}
+                    <div className="card">
+                        <div className="d-flex justify-content-between align-items-center mb-3">
+                            <h6 className="fw-bold m-0 text-success">Body Table</h6>
+                            <div className="d-flex gap-1" style={{maxWidth: '160px'}}>
+                                <select className="form-select form-select-sm m-0" value={wkFilter.start} onChange={e=>setWkFilter({...wkFilter, start: Number(e.target.value)})}>
+                                    {[...Array(maxWeeks)].map((_, i) => <option key={i+1} value={i+1}>W{i+1}</option>)}
+                                </select>
+                                <select className="form-select form-select-sm m-0" value={wkFilter.end} onChange={e=>setWkFilter({...wkFilter, end: Number(e.target.value)})}>
+                                    {[...Array(maxWeeks)].map((_, i) => <option key={i+1} value={i+1}>W{i+1}</option>)}
+                                </select>
+                            </div>
+                        </div>
                         <div className="table-responsive">
                             <table className="table table-sm table-striped m-0">
-                                <thead>
-                                    <tr><th>Wk</th><th>Chest</th><th>Waist</th><th>Glute</th><th>Arms</th><th>Thighs</th></tr>
-                                </thead>
+                                <thead><tr><th>Wk</th><th>Chest</th><th>Waist</th><th>Glute</th><th>Arms</th></tr></thead>
                                 <tbody>
-                                    {measurements.length > 0 ? measurements.map((m, i) => (
+                                    {filteredMetrics.map((m, i) => (
                                         <tr key={i}>
-                                            <td className="fw-bold text-success">W{m.weekNum || '-'}</td>
-                                            <td>{m.chest || '-'}</td>
-                                            <td>{m.waist || '-'}</td>
-                                            <td>{m.glute || '-'}</td>
+                                            <td className="fw-bold text-success">W{m.weekNum}</td>
+                                            <td>{m.chest}</td><td>{m.waist}</td><td>{m.glute}</td>
                                             <td>{m.larm}/{m.rarm}</td>
-                                            <td>{m.lthigh}/{m.rthigh}</td>
                                         </tr>
-                                    )) : <tr><td colSpan="6" className="text-center py-3">No measurement updates found</td></tr>}
+                                    ))}
                                 </tbody>
                             </table>
                         </div>
@@ -369,26 +307,19 @@
             const [id, setId] = useState('');
             const [ph, setPh] = useState('');
             const [l, setL] = useState(false);
-            const start = async () => {
-                setL(true);
-                const res = await call('validateUser', {id: id.trim().toUpperCase(), ph: ph.trim()});
-                if(res === true) onLogin({id: id.trim().toUpperCase(), ph: ph.trim()}); 
-                else { alert(res); setL(false); }
-            };
             return (
                 <div className="container vh-100 d-flex align-items-center">
                     <div className="card w-100 text-center py-5">
                         <h2 className="fw-bold mb-4">ELITE COACHING</h2>
                         <input className="form-control" placeholder="Access Code" onChange={e=>setId(e.target.value)} />
                         <input className="form-control" placeholder="Phone Number" onChange={e=>setPh(e.target.value)} />
-                        <button className="btn btn-primary mt-3" onClick={start} disabled={l}>{l ? "Checking..." : "Sign In"}</button>
+                        <button className="btn btn-primary mt-3" onClick={async () => { setL(true); const res = await call('validateUser', {id: id.toUpperCase(), ph}); if(res === true) onLogin({id: id.toUpperCase(), ph}); else { alert(res); setL(false); } }} disabled={l}>Sign In</button>
                     </div>
                 </div>
             );
         }
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
     </script>
 </body>
 </html>
