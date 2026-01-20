@@ -233,9 +233,7 @@
             useEffect(() => {
                 call('getTrends', user).then(data => { 
                     if(data && Array.isArray(data)) {
-                        // Keep logs sorted chronologically for the graph and table (A-Z)
                         const logs = data.filter(d => !d.isSummary).sort((a,b) => a.date.localeCompare(b.date));
-                        // Sort metrics by week number ascending (1, 2, 3...)
                         const metrics = data.filter(d => d.isSummary).sort((a,b) => (Number(a.weekNum) || 0) - (Number(b.weekNum) || 0));
                         
                         setDailyLogs(logs);
