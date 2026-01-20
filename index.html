@@ -34,7 +34,6 @@
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
         
-        // PASTE YOUR GOOGLE DEPLOYMENT URL BELOW
         const API_URL = "https://script.google.com/macros/s/AKfycbwGRyzJ4Ss_AKy_5KUpkavzf7Mk3J5gOEInG9ewRrCyED0PxYk5YaqaL3V9BFfQ22Uh4Q/exec";
 
         function App() {
@@ -217,26 +216,19 @@
         function Stats({ user, call }) {
             const [allData, setAllData] = useState([]);
             const [filteredData, setFilteredData] = useState([]);
-            
-            const getInitialStart = () => {
-                const d = new Date();
-                d.setDate(d.getDate() - 6);
-                return d.toISOString().split('T')[0];
-            };
-
-            const [range, setRange] = useState({
-                start: getInitialStart(),
-                end: new Date().toISOString().split('T')[0]
-            });
+            const [range, setRange] = useState({ start: '', end: '' });
 
             const canvasRef = useRef(null);
             const chartRef = useRef(null);
 
             useEffect(() => {
                 call('getTrends', user).then(data => { 
-                    if(data) {
+                    if(data && data.length > 0) {
                         const sorted = data.sort((a,b) => a.date.localeCompare(b.date));
                         setAllData(sorted); 
+                        const lastEntryDate = sorted[sorted.length - 1].date;
+                        const firstEntryDate = sorted[Math.max(0, sorted.length - 7)].date;
+                        setRange({ start: firstEntryDate, end: lastEntryDate });
                     }
                 });
             }, []);
@@ -275,15 +267,13 @@
             const endW = hasData ? filteredData[filteredData.length-1].weight : 0;
             const diff = (endW - startW).toFixed(2);
             
-            const validSteps = filteredData.filter(d => d.steps > 0);
-            const validCals = filteredData.filter(d => d.cal > 0);
-            const avgSteps = validSteps.length > 0 ? Math.round(validSteps.reduce((a,b)=>a+b.steps,0)/validSteps.length) : 0;
-            const avgCal = validCals.length > 0 ? Math.round(validCals.reduce((a,b)=>a+b.cal,0)/validCals.length) : 0;
+            const avgSteps = hasData ? Math.round(filteredData.reduce((a,b)=>a+(Number(b.steps)||0),0)/filteredData.length) : 0;
+            const avgCal = hasData ? Math.round(filteredData.reduce((a,b)=>a+(Number(b.cal)||0),0)/filteredData.length) : 0;
 
             return (
                 <div>
                     <div className="card mb-3">
-                        <h6 className="fw-bold mb-3 text-primary">Range Selector</h6>
+                        <h6 className="fw-bold mb-3 text-primary">Range (Synced to Sheet)</h6>
                         <div className="row g-2">
                             <div className="col-6"><label className="small fw-bold text-secondary">FROM</label><input type="date" className="form-control" value={range.start} onChange={e=>setRange({...range, start:e.target.value})} /></div>
                             <div className="col-6"><label className="small fw-bold text-secondary">TO</label><input type="date" className="form-control" value={range.end} onChange={e=>setRange({...range, end:e.target.value})} /></div>
@@ -297,8 +287,8 @@
                         <div className="stat-grid">
                             <div className="stat-item"><span className="stat-val" style={{color: diff <= 0 ? '#28a745' : '#dc3545'}}>{diff > 0 ? `+${diff}` : diff}kg</span><span className="stat-label">Net Change</span></div>
                             <div className="stat-item"><span className="stat-val">{avgSteps.toLocaleString()}</span><span className="stat-label">Avg Steps</span></div>
-                            <div className="stat-item"><span className="stat-val">{avgCal}</span><span className="stat-label">Avg Calories</span></div>
-                            <div className="stat-item"><span className="stat-val">{filteredData.length}</span><span className="stat-label">Days Logged</span></div>
+                            <div className="stat-item"><span className="stat-val">{avgCal}</span><span className="stat-label">Avg Kcal</span></div>
+                            <div className="stat-item"><span className="stat-val">{filteredData.length}</span><span className="stat-label">Days Shown</span></div>
                         </div>
                     </div>
 
