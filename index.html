@@ -138,15 +138,15 @@
                         <div className="col-6">
                             <label className="small fw-bold text-secondary mb-1">DRANK ENOUGH?</label>
                             <select className="form-select" value={f.water} onChange={e=>setF({...f, water:e.target.value})}>
-                                <option value="YES">✅ YES</option>
-                                <option value="NO">❌ NO</option>
+                                <option value="YES">YES</option>
+                                <option value="NO">NO</option>
                             </select>
                         </div>
                         <div className="col-6">
                             <label className="small fw-bold text-secondary mb-1">SLEPT ENOUGH?</label>
                             <select className="form-select" value={f.sleep} onChange={e=>setF({...f, sleep:e.target.value})}>
-                                <option value="YES">✅ YES</option>
-                                <option value="NO">❌ NO</option>
+                                <option value="YES">YES</option>
+                                <option value="NO">NO</option>
                             </select>
                         </div>
                     </div>
@@ -222,11 +222,11 @@
                     </div>
 
                     <label className="photo-label">
-                        {f.img1 ? "✅ FRONT READY" : "📸 ADD FRONT PHOTO"}
+                        {f.img1 ? "READY" : "ADD FRONT PHOTO"}
                         <input type="file" hidden accept="image/*" onChange={e=>handleImg(e, 'img1')} />
                     </label>
                     <label className="photo-label">
-                        {f.img2 ? "✅ SIDE READY" : "📸 ADD SIDE PHOTO"}
+                        {f.img2 ? "READY" : "ADD SIDE PHOTO"}
                         <input type="file" hidden accept="image/*" onChange={e=>handleImg(e, 'img2')} />
                     </label>
 
@@ -292,13 +292,6 @@
             const avgSteps = hasData ? Math.round(filteredData.reduce((a,b)=>a+(Number(b.steps)||0),0)/filteredData.length) : 0;
             const avgCal = hasData ? Math.round(filteredData.reduce((a,b)=>a+(Number(b.cal)||0),0)/filteredData.length) : 0;
 
-            // Helper to render icons in the table
-            const renderStatus = (val) => {
-                if (val === "YES") return "✅";
-                if (val === "NO") return "❌";
-                return val || '-';
-            };
-
             return (
                 <div>
                     <div className="card mb-3">
@@ -344,8 +337,8 @@
                                             <td>{day.p || 0}/{day.c || 0}/{day.f || 0}</td>
                                             <td className="kcal-col">{Math.round(day.cal) || 0}</td>
                                             <td>{day.steps || 0}</td>
-                                            <td>{renderStatus(day.water)}</td>
-                                            <td>{renderStatus(day.sleep)}</td>
+                                            <td>{day.water || '-'}</td>
+                                            <td>{day.sleep || '-'}</td>
                                         </tr>
                                     )) : <tr><td colSpan="7" className="text-center py-3">No logs in this range</td></tr>}
                                 </tbody>
