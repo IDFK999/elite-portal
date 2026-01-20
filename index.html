@@ -26,9 +26,6 @@
         .table thead { background: #1c1c1e; color: #fff; }
         .table-sm th, .table-sm td { padding: 8px 2px; text-align: center; vertical-align: middle; }
         .log-date { font-weight: bold; color: #007AFF; }
-        .toggle-btn { border-radius: 12px; padding: 10px; font-weight: bold; font-size: 12px; border: 2px solid transparent; transition: 0.2s; }
-        .btn-yes { background: #34c759; color: #fff; border-color: #34c759; }
-        .btn-no { background: #ff3b30; color: #fff; border-color: #ff3b30; }
     </style>
 </head>
 <body>
@@ -87,7 +84,7 @@
                 <div className="container py-4">
                     <div className="d-flex justify-content-between align-items-center mb-1">
                         <h4 className="fw-bold m-0">Hello : {targets?.name || '...'}</h4>
-                        <div className="badge bg-dark">v3.9.8</div>
+                        <div className="badge bg-dark">v3.9.9</div>
                     </div>
                     
                     <span className="subscription-info">
@@ -137,10 +134,6 @@
                 setLoading(false);
             };
 
-            const toggle = (field) => {
-                setF(prev => ({ ...prev, [field]: prev[field] === 'YES' ? 'NO' : 'YES' }));
-            };
-
             return (
                 <div className="card">
                     <h6 className="fw-bold mb-3 text-primary">Daily Entry</h6>
@@ -156,12 +149,18 @@
                     </div>
                     <div className="row g-2 mt-1">
                         <div className="col-6">
-                            <small className="d-block text-secondary mb-1 fw-bold">WATER GOAL</small>
-                            <button className={`btn w-100 toggle-btn ${f.water === 'YES' ? 'btn-yes' : 'btn-no'}`} onClick={() => toggle('water')}>{f.water}</button>
+                            <small className="d-block text-secondary mb-1 fw-bold text-uppercase" style={{fontSize: '10px'}}>Water Goal</small>
+                            <select className="form-select" value={f.water} onChange={e=>setF({...f, water: e.target.value})}>
+                                <option value="YES">YES</option>
+                                <option value="NO">NO</option>
+                            </select>
                         </div>
                         <div className="col-6">
-                            <small className="d-block text-secondary mb-1 fw-bold">SLEEP GOAL</small>
-                            <button className={`btn w-100 toggle-btn ${f.sleep === 'YES' ? 'btn-yes' : 'btn-no'}`} onClick={() => toggle('sleep')}>{f.sleep}</button>
+                            <small className="d-block text-secondary mb-1 fw-bold text-uppercase" style={{fontSize: '10px'}}>Sleep Goal</small>
+                            <select className="form-select" value={f.sleep} onChange={e=>setF({...f, sleep: e.target.value})}>
+                                <option value="YES">YES</option>
+                                <option value="NO">NO</option>
+                            </select>
                         </div>
                     </div>
                     <button className="btn btn-primary mt-3" onClick={save} disabled={loading}>{loading ? "Saving..." : "Submit Log"}</button>
@@ -292,7 +291,7 @@
                                         <tr key={i}>
                                             <td className="log-date">{day.date.split('-').slice(1).join('/')}</td>
                                             <td>{day.weight}</td>
-                                            <td>{day.p}/{day.c}/{day.f}</td>
+                                            <td>{day.p || 0}/{day.c || 0}/{day.f || 0}</td>
                                             <td className="fw-bold">
                                                 <span className={day.water === 'YES' ? 'text-success' : 'text-danger'}>{day.water === 'YES' ? 'W' : '-'}</span> / 
                                                 <span className={day.sleep === 'YES' ? 'text-success' : 'text-danger'}> {day.sleep === 'YES' ? 'S' : '-'}</span>
