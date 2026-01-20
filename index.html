@@ -173,9 +173,15 @@
 
         function Metrics({ user, call, maxWeeks, startDate }) {
             const [f, setF] = useState({ weekNum:'', chest:'', waist:'', glute:'', larm:'', rarm:'', lthigh:'', rthigh:'', img1:'', img2:'' });
+            const [history, setHistory] = useState([]);
             const [loading, setLoading] = useState(false);
 
-            // Function to format Date to MM/DD
+            useEffect(() => {
+                call('getMetricsHistory', user).then(data => {
+                    if (data) setHistory(data);
+                });
+            }, []);
+
             const formatDate = (date) => {
                 return (date.getMonth() + 1).toString().padStart(2, '0') + '/' + 
                        date.getDate().toString().padStart(2, '0');
@@ -212,56 +218,85 @@
             };
 
             return (
-                <div className="card">
-                    <h6 className="fw-bold mb-3 text-success">Weekly Update</h6>
-                    <select className="form-select" value={f.weekNum} onChange={e=>setF({...f, weekNum:e.target.value})}>
-                        <option value="">Select Week</option>
-                        {[...Array(maxWeeks)].map((_, i) => {
-                            if (!startDate) return <option key={i+1} value={i+1}>Week {i+1}</option>;
-                            
-                            const start = new Date(startDate);
-                            start.setDate(start.getDate() + (i * 7));
-                            
-                            const end = new Date(start);
-                            end.setDate(start.getDate() + 6);
-                            
-                            return (
-                                <option key={i+1} value={i+1}>
-                                    Week {i+1} ({formatDate(start)} - {formatDate(end)})
-                                </option>
-                            );
-                        })}
-                    </select>
-                    
-                    <label className="small text-secondary fw-bold">Main (cm)</label>
-                    <div className="row g-2">
-                        <div className="col-4"><input className="form-control" placeholder="Chest" onChange={e=>setF({...f, chest:e.target.value})} /></div>
-                        <div className="col-4"><input className="form-control" placeholder="Waist" onChange={e=>setF({...f, waist:e.target.value})} /></div>
-                        <div className="col-4"><input className="form-control" placeholder="Glutes" onChange={e=>setF({...f, glute:e.target.value})} /></div>
+                <div>
+                    <div className="card">
+                        <h6 className="fw-bold mb-3 text-success">Weekly Update</h6>
+                        <select className="form-select" value={f.weekNum} onChange={e=>setF({...f, weekNum:e.target.value})}>
+                            <option value="">Select Week</option>
+                            {[...Array(maxWeeks)].map((_, i) => {
+                                if (!startDate) return <option key={i+1} value={i+1}>Week {i+1}</option>;
+                                const start = new Date(startDate);
+                                start.setDate(start.getDate() + (i * 7));
+                                const end = new Date(start);
+                                end.setDate(start.getDate() + 6);
+                                return (
+                                    <option key={i+1} value={i+1}>
+                                        Week {i+1} ({formatDate(start)} - {formatDate(end)})
+                                    </option>
+                                );
+                            })}
+                        </select>
+                        
+                        <label className="small text-secondary fw-bold">Main (cm)</label>
+                        <div className="row g-2">
+                            <div className="col-4"><input className="form-control" placeholder="Chest" onChange={e=>setF({...f, chest:e.target.value})} /></div>
+                            <div className="col-4"><input className="form-control" placeholder="Waist" onChange={e=>setF({...f, waist:e.target.value})} /></div>
+                            <div className="col-4"><input className="form-control" placeholder="Glutes" onChange={e=>setF({...f, glute:e.target.value})} /></div>
+                        </div>
+
+                        <label className="small text-secondary fw-bold">Arms (cm)</label>
+                        <div className="row g-2">
+                            <div className="col-6"><input className="form-control" placeholder="Left Arm" onChange={e=>setF({...f, larm:e.target.value})} /></div>
+                            <div className="col-6"><input className="form-control" placeholder="Right Arm" onChange={e=>setF({...f, rarm:e.target.value})} /></div>
+                        </div>
+
+                        <label className="small text-secondary fw-bold">Thighs (cm)</label>
+                        <div className="row g-2 mb-3">
+                            <div className="col-6"><input className="form-control" placeholder="Left Thigh" onChange={e=>setF({...f, lthigh:e.target.value})} /></div>
+                            <div className="col-6"><input className="form-control" placeholder="Right Thigh" onChange={e=>setF({...f, rthigh:e.target.value})} /></div>
+                        </div>
+
+                        <label className="photo-label">
+                            {f.img1 ? "READY" : "ADD FRONT PHOTO"}
+                            <input type="file" hidden accept="image/*" onChange={e=>handleImg(e, 'img1')} />
+                        </label>
+                        <label className="photo-label">
+                            {f.img2 ? "READY" : "ADD SIDE PHOTO"}
+                            <input type="file" hidden accept="image/*" onChange={e=>handleImg(e, 'img2')} />
+                        </label>
+
+                        <button className="btn btn-primary mt-2" onClick={submit} disabled={loading}>{loading ? "Compressing & Uploading..." : "Submit Check-in"}</button>
                     </div>
 
-                    <label className="small text-secondary fw-bold">Arms (cm)</label>
-                    <div className="row g-2">
-                        <div className="col-6"><input className="form-control" placeholder="Left Arm" onChange={e=>setF({...f, larm:e.target.value})} /></div>
-                        <div className="col-6"><input className="form-control" placeholder="Right Arm" onChange={e=>setF({...f, rarm:e.target.value})} /></div>
+                    <div className="card mt-3">
+                        <h6 className="fw-bold mb-3">Measurement History</h6>
+                        <div className="table-responsive">
+                            <table className="table table-sm table-striped m-0">
+                                <thead>
+                                    <tr>
+                                        <th>Wk</th>
+                                        <th>Chst</th>
+                                        <th>Wst</th>
+                                        <th>Glt</th>
+                                        <th>Arm(L/R)</th>
+                                        <th>Thigh(L/R)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {history.length > 0 ? history.map((h, i) => (
+                                        <tr key={i}>
+                                            <td className="fw-bold text-primary">{h.weekNum}</td>
+                                            <td>{h.chest}</td>
+                                            <td>{h.waist}</td>
+                                            <td>{h.glute}</td>
+                                            <td>{h.larm}/{h.rarm}</td>
+                                            <td>{h.lthigh}/{h.rthigh}</td>
+                                        </tr>
+                                    )) : <tr><td colSpan="6" className="py-3">No history found</td></tr>}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-
-                    <label className="small text-secondary fw-bold">Thighs (cm)</label>
-                    <div className="row g-2 mb-3">
-                        <div className="col-6"><input className="form-control" placeholder="Left Thigh" onChange={e=>setF({...f, lthigh:e.target.value})} /></div>
-                        <div className="col-6"><input className="form-control" placeholder="Right Thigh" onChange={e=>setF({...f, rthigh:e.target.value})} /></div>
-                    </div>
-
-                    <label className="photo-label">
-                        {f.img1 ? "READY" : "ADD FRONT PHOTO"}
-                        <input type="file" hidden accept="image/*" onChange={e=>handleImg(e, 'img1')} />
-                    </label>
-                    <label className="photo-label">
-                        {f.img2 ? "READY" : "ADD SIDE PHOTO"}
-                        <input type="file" hidden accept="image/*" onChange={e=>handleImg(e, 'img2')} />
-                    </label>
-
-                    <button className="btn btn-primary mt-2" onClick={submit} disabled={loading}>{loading ? "Compressing & Uploading..." : "Submit Check-in"}</button>
                 </div>
             );
         }
