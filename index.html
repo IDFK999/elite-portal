@@ -233,8 +233,10 @@
             useEffect(() => {
                 call('getTrends', user).then(data => { 
                     if(data && Array.isArray(data)) {
+                        // Keep logs sorted chronologically for the graph and table (A-Z)
                         const logs = data.filter(d => !d.isSummary).sort((a,b) => a.date.localeCompare(b.date));
-                        const metrics = data.filter(d => d.isSummary);
+                        // Sort metrics by week number ascending (1, 2, 3...)
+                        const metrics = data.filter(d => d.isSummary).sort((a,b) => (Number(a.weekNum) || 0) - (Number(b.weekNum) || 0));
                         
                         setDailyLogs(logs);
                         setMeasurements(metrics);
@@ -302,7 +304,7 @@
                                     <tr><th>Date</th><th>Wt</th><th>P/C/F</th><th>Kcal</th><th>Stps</th><th>H2O</th><th>Slp</th></tr>
                                 </thead>
                                 <tbody>
-                                    {activeRangeLogs.length > 0 ? [...activeRangeLogs].reverse().map((day, i) => (
+                                    {activeRangeLogs.length > 0 ? activeRangeLogs.map((day, i) => (
                                         <tr key={i}>
                                             <td className="log-date">{day.date.split('-').slice(1).join('/')}</td>
                                             <td>{day.weight}</td>
@@ -326,9 +328,9 @@
                                     <tr><th>Wk</th><th>Chest</th><th>Waist</th><th>Glute</th><th>Arms</th><th>Thighs</th></tr>
                                 </thead>
                                 <tbody>
-                                    {measurements.length > 0 ? [...measurements].reverse().map((m, i) => (
+                                    {measurements.length > 0 ? measurements.map((m, i) => (
                                         <tr key={i}>
-                                            <td className="fw-bold text-success">{m.weekNum || '-'}</td>
+                                            <td className="fw-bold text-success">W{m.weekNum || '-'}</td>
                                             <td>{m.chest || '-'}</td>
                                             <td>{m.waist || '-'}</td>
                                             <td>{m.glute || '-'}</td>
