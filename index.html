@@ -62,8 +62,6 @@
 
             useEffect(() => {
                 refreshData();
-                const timer = setInterval(refreshData, 300000);
-                return () => clearInterval(timer);
             }, [user]);
 
             const getDaysElapsed = (dateString) => {
@@ -258,18 +256,35 @@
             useEffect(() => {
                 const filtered = allData.filter(d => d.date >= range.start && d.date <= range.end);
                 setFilteredData(filtered);
-                if (canvasRef.current && filtered.length > 0) {
+            }, [allData, range]);
+
+            // Clean Chart Lifecycle
+            useEffect(() => {
+                if (canvasRef.current && filteredData.length > 0) {
                     if (chartRef.current) chartRef.current.destroy();
                     chartRef.current = new Chart(canvasRef.current, {
                         type: 'line',
                         data: {
-                            labels: filtered.map(d => d.date.split('-').slice(1).join('/')),
-                            datasets: [{ label: 'Weight', data: filtered.map(d => d.weight), borderColor: '#007AFF', backgroundColor: 'rgba(0,122,255,0.1)', fill: true, tension: 0.3, pointRadius: 4 }]
+                            labels: filteredData.map(d => d.date.split('-').slice(1).join('/')),
+                            datasets: [{ 
+                                label: 'Weight', 
+                                data: filteredData.map(d => d.weight), 
+                                borderColor: '#007AFF', 
+                                backgroundColor: 'rgba(0,122,255,0.1)', 
+                                fill: true, 
+                                tension: 0.3, 
+                                pointRadius: 4 
+                            }]
                         },
-                        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+                        options: { 
+                            responsive: true, 
+                            maintainAspectRatio: false, 
+                            plugins: { legend: { display: false } } 
+                        }
                     });
                 }
-            }, [allData, range]);
+                return () => { if(chartRef.current) chartRef.current.destroy(); };
+            }, [filteredData]);
 
             const hasData = filteredData.length > 0;
             const diff = hasData ? (filteredData[filteredData.length-1].weight - filteredData[0].weight).toFixed(2) : 0;
@@ -285,7 +300,14 @@
                             <div className="col-6"><label className="small fw-bold text-secondary">TO</label><input type="date" className="form-control" value={range.end} onChange={e=>setRange({...range, end:e.target.value})} /></div>
                         </div>
                     </div>
-                    <div className="card" style={{height: '250px'}}><h6 className="fw-bold mb-3">Weight History</h6><canvas ref={canvasRef}></canvas></div>
+                    
+                    <div className="card" style={{height: '250px'}}>
+                        <h6 className="fw-bold mb-3">Weight History</h6>
+                        <div style={{flex: 1, position: 'relative'}}>
+                            <canvas ref={canvasRef}></canvas>
+                        </div>
+                    </div>
+
                     <div className="card mt-3">
                         <h6 className="fw-bold mb-3">Calculated Averages</h6>
                         <div className="stat-grid">
