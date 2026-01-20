@@ -297,20 +297,6 @@
                     </div>
 
                     <div className="card mt-3">
-                        <h6 className="fw-bold mb-3 text-success">Weekly Measurement History</h6>
-                        <div className="table-responsive">
-                            <table className="table table-sm table-striped m-0">
-                                <thead><tr><th>Wk</th><th>Chst</th><th>Wst</th><th>Glt</th><th>Arm(L/R)</th><th>Thigh(L/R)</th></tr></thead>
-                                <tbody>
-                                    {metricsHistory.length > 0 ? metricsHistory.map((h, i) => (
-                                        <tr key={i}><td className="fw-bold text-primary">{h.weekNum}</td><td>{h.chest}</td><td>{h.waist}</td><td>{h.glute}</td><td>{h.larm}/{h.rarm}</td><td>{h.lthigh}/{h.rthigh}</td></tr>
-                                    )) : <tr><td colSpan="6" className="py-3">No weekly metrics found</td></tr>}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <div className="card mt-3">
                         <h6 className="fw-bold mb-3">Detailed Daily Log</h6>
                         <div className="table-responsive">
                             <table className="table table-sm table-striped m-0">
@@ -319,6 +305,20 @@
                                     {filteredData.length > 0 ? [...filteredData].reverse().map((day, i) => (
                                         <tr key={i}><td className="log-date">{day.date.split('-').slice(1).join('/')}</td><td>{day.weight}</td><td>{day.p||0}/{day.c||0}/{day.f||0}</td><td className="kcal-col">{Math.round(day.cal)||0}</td><td>{day.steps||0}</td><td>{day.water||'-'}</td><td>{day.sleep||'-'}</td></tr>
                                     )) : <tr><td colSpan="7" className="text-center py-3">No logs found</td></tr>}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div className="card mt-3">
+                        <h6 className="fw-bold mb-3 text-success">Weekly Measurement History</h6>
+                        <div className="table-responsive">
+                            <table className="table table-sm table-striped m-0">
+                                <thead><tr><th>Wk</th><th>Chst</th><th>Wst</th><th>Glt</th><th>Arm(L/R)</th><th>Thigh(L/R)</th></tr></thead>
+                                <tbody>
+                                    {metricsHistory.length > 0 ? metricsHistory.map((h, i) => (
+                                        <tr key={i}><td className="fw-bold text-primary">{h.weekNum}</td><td>{h.chest}</td><td>{h.waist}</td><td>{h.glute}</td><td>{h.larm}/{h.rarm}</td><td>{h.lthigh}/{h.rthigh}</td></tr>
+                                    )) : <tr><td colSpan="6" className="py-3">No weekly metrics found</td></tr>}
                                 </tbody>
                             </table>
                         </div>
