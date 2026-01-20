@@ -34,7 +34,8 @@
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
         
-        const API_URL = "https://script.google.com/macros/s/AKfycbwGRyzJ4Ss_AKy_5KUpkavzf7Mk3J5gOEInG9ewRrCyED0PxYk5YaqaL3V9BFfQ22Uh4Q/exec";
+        // REPLACE THIS URL AFTER DEPLOYING APPS SCRIPT
+        const API_URL = "https://script.google.com/macros/s/AKfycbwi32NYwudKkD0kiGUI5JYTihk6O1hWaGcwjQ_UBhP_YrMbry8esNg8dZCKKH1VRscHUg/exec";
 
         function App() {
             const [view, setView] = useState('log');
@@ -70,7 +71,7 @@
                 <div className="container py-4">
                     <div className="d-flex justify-content-between align-items-center mb-3">
                         <h4 className="fw-bold m-0">Athlete: {targets?.name || '...'}</h4>
-                        <div className="badge bg-dark">Elite v3.2</div>
+                        <div className="badge bg-dark">Elite v3.5</div>
                     </div>
 
                     {targets && (
