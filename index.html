@@ -11,7 +11,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body { background: #f2f2f7; font-family: -apple-system, sans-serif; padding-bottom: 110px; }
-        .card { border-radius: 20px; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 15px; padding: 20px; }
+        .card { border-radius: 20px; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 15px; padding: 20px; background: white; }
         .nav-bottom { position: fixed; bottom: 0; left:0; width: 100%; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); display: flex; justify-content: space-around; padding: 15px 0 35px; border-top: 1px solid #ddd; z-index: 1000; }
         .nav-item { color: #8e8e93; font-weight: 700; font-size: 10px; cursor: pointer; text-align: center; text-transform: uppercase; }
         .nav-item.active { color: #007AFF; }
@@ -34,15 +34,13 @@
 <body>
     <div id="root"></div>
     <script type="text/babel">
-        const { useState, useEffect, useRef, useMemo } = React;
-        
+        const { useState, useEffect, useRef } = React;
         const API_URL = "https://script.google.com/macros/s/AKfycbwzU_RqXR70WYFGIPQHnxu3JmTSvacTCiB1pGvf-Pkb0uiXduvXVQwjUNvFie9WKzKdiw/exec";
 
         function App() {
             const [view, setView] = useState('log');
             const [user, setUser] = useState({ id: localStorage.getItem('eliteId'), ph: localStorage.getItem('elitePh') });
             const [targets, setTargets] = useState(null);
-            const [history, setHistory] = useState([]);
             const [maxWeeks, setMaxWeeks] = useState(52);
 
             async function call(action, payload) {
@@ -52,20 +50,19 @@
                 } catch(e) { return null; }
             }
 
-            const loadBaseData = () => {
+            const refreshData = () => {
                 if(user.id) {
                     call('getTargets', user).then(res => {
                         setTargets(res);
                         if (res && res.totalWeeks) setMaxWeeks(parseInt(res.totalWeeks));
                     });
-                    call('getMetricsHistory', user).then(data => {
-                        if (data) setHistory(data);
-                    });
                 }
             };
 
             useEffect(() => {
-                loadBaseData();
+                refreshData();
+                const timer = setInterval(refreshData, 300000);
+                return () => clearInterval(timer);
             }, [user.id]);
 
             const getDaysElapsed = (dateString) => {
@@ -82,7 +79,7 @@
                 <div className="container py-4">
                     <div className="d-flex justify-content-between align-items-center mb-1">
                         <h4 className="fw-bold m-0">Athlete: {targets?.name || '...'}</h4>
-                        <div className="badge bg-dark">Elite v3.8</div>
+                        <div className="badge bg-dark">Elite v3.9</div>
                     </div>
                     
                     <span className="subscription-info">
@@ -98,9 +95,11 @@
                         </div>
                     )}
 
-                    {view === 'log' && <DailyLog user={user} call={call} onSave={loadBaseData} />}
-                    {view === 'update' && <Metrics user={user} call={call} maxWeeks={maxWeeks} startDate={targets?.subscriptionDate} history={history} />}
-                    {view === 'stats' && <Stats user={user} call={call} history={history} />}
+                    <div style={{minHeight: '60vh'}}>
+                        {view === 'log' && <DailyLog user={user} call={call} onSave={refreshData} />}
+                        {view === 'update' && <Metrics user={user} call={call} maxWeeks={maxWeeks} startDate={targets?.subscriptionDate} />}
+                        {view === 'stats' && <Stats user={user} call={call} />}
+                    </div>
                     
                     <div className="nav-bottom">
                         <div className={`nav-item ${view === 'log' ? 'active' : ''}`} onClick={()=>setView('log')}>Dashboard<br/>LOG</div>
@@ -113,7 +112,10 @@
         }
 
         function DailyLog({ user, call, onSave }) {
-            const [f, setF] = useState({ date: new Date().toISOString().split('T')[0], weight:'', steps:'', p:'', c:'', f:'', water:'YES', sleep:'YES' });
+            const [f, setF] = useState({ 
+                date: new Date().toISOString().split('T')[0], 
+                weight:'', steps:'', p:'', c:'', f:'', water:'YES', sleep:'YES' 
+            });
             const [loading, setLoading] = useState(false);
 
             const save = async () => {
@@ -140,11 +142,17 @@
                     <div className="row g-2">
                         <div className="col-6">
                             <label className="small fw-bold text-secondary mb-1">DRANK ENOUGH?</label>
-                            <select className="form-select" value={f.water} onChange={e=>setF({...f, water:e.target.value})}><option value="YES">YES</option><option value="NO">NO</option></select>
+                            <select className="form-select" value={f.water} onChange={e=>setF({...f, water:e.target.value})}>
+                                <option value="YES">YES</option>
+                                <option value="NO">NO</option>
+                            </select>
                         </div>
                         <div className="col-6">
                             <label className="small fw-bold text-secondary mb-1">SLEPT ENOUGH?</label>
-                            <select className="form-select" value={f.sleep} onChange={e=>setF({...f, sleep:e.target.value})}><option value="YES">YES</option><option value="NO">NO</option></select>
+                            <select className="form-select" value={f.sleep} onChange={e=>setF({...f, sleep:e.target.value})}>
+                                <option value="YES">YES</option>
+                                <option value="NO">NO</option>
+                            </select>
                         </div>
                     </div>
                     <button className="btn btn-primary mt-2" onClick={save} disabled={loading}>{loading ? "Saving..." : "Submit Log"}</button>
@@ -152,9 +160,14 @@
             );
         }
 
-        function Metrics({ user, call, maxWeeks, startDate, history }) {
+        function Metrics({ user, call, maxWeeks, startDate }) {
             const [f, setF] = useState({ weekNum:'', chest:'', waist:'', glute:'', larm:'', rarm:'', lthigh:'', rthigh:'', img1:'', img2:'' });
             const [loading, setLoading] = useState(false);
+            const [history, setHistory] = useState([]);
+
+            useEffect(() => {
+                call('getMetricsHistory', user).then(data => data && setHistory(data));
+            }, []);
 
             const formatDate = (date) => (date.getMonth() + 1).toString().padStart(2, '0') + '/' + date.getDate().toString().padStart(2, '0');
 
@@ -180,7 +193,7 @@
             };
 
             const submit = async () => {
-                if(!f.weekNum) return alert("Select a Week Number");
+                if(!f.weekNum) return alert("Select Week");
                 setLoading(true);
                 const res = await call('saveMetrics', { ...f, accessCode: user.id, phone: user.ph });
                 alert(res || "Update Complete");
@@ -188,62 +201,32 @@
             };
 
             return (
-                <div>
-                    <div className="card">
-                        <h6 className="fw-bold mb-3 text-success">Weekly Update</h6>
-                        <select className="form-select" value={f.weekNum} onChange={e=>setF({...f, weekNum:e.target.value})}>
-                            <option value="">Select Week</option>
-                            {[...Array(maxWeeks)].map((_, i) => {
-                                if (!startDate) return <option key={i+1} value={i+1}>Week {i+1}</option>;
-                                const start = new Date(startDate);
-                                start.setDate(start.getDate() + (i * 7));
-                                const end = new Date(start);
-                                end.setDate(start.getDate() + 6);
-                                return <option key={i+1} value={i+1}>Week {i+1} ({formatDate(start)} - {formatDate(end)})</option>;
-                            })}
-                        </select>
-                        <div className="row g-2 mb-2">
-                            <div className="col-4"><input className="form-control" placeholder="Chest" onChange={e=>setF({...f, chest:e.target.value})} /></div>
-                            <div className="col-4"><input className="form-control" placeholder="Waist" onChange={e=>setF({...f, waist:e.target.value})} /></div>
-                            <div className="col-4"><input className="form-control" placeholder="Glutes" onChange={e=>setF({...f, glute:e.target.value})} /></div>
-                        </div>
-                        <div className="row g-2 mb-2">
-                            <div className="col-6"><input className="form-control" placeholder="L Arm" onChange={e=>setF({...f, larm:e.target.value})} /></div>
-                            <div className="col-6"><input className="form-control" placeholder="R Arm" onChange={e=>setF({...f, rarm:e.target.value})} /></div>
-                        </div>
-                        <div className="row g-2 mb-3">
-                            <div className="col-6"><input className="form-control" placeholder="L Thigh" onChange={e=>setF({...f, lthigh:e.target.value})} /></div>
-                            <div className="col-6"><input className="form-control" placeholder="R Thigh" onChange={e=>setF({...f, rthigh:e.target.value})} /></div>
-                        </div>
-                        <label className="photo-label">{f.img1 ? "PHOTO 1 READY" : "ADD FRONT PHOTO"}<input type="file" hidden accept="image/*" onChange={e=>handleImg(e, 'img1')} /></label>
-                        <label className="photo-label">{f.img2 ? "PHOTO 2 READY" : "ADD SIDE PHOTO"}<input type="file" hidden accept="image/*" onChange={e=>handleImg(e, 'img2')} /></label>
-                        <button className="btn btn-primary mt-2" onClick={submit} disabled={loading}>{loading ? "Uploading..." : "Submit Check-in"}</button>
+                <div className="card">
+                    <h6 className="fw-bold mb-3 text-success">Weekly Update</h6>
+                    <select className="form-select" value={f.weekNum} onChange={e=>setF({...f, weekNum:e.target.value})}>
+                        <option value="">Select Week</option>
+                        {[...Array(maxWeeks)].map((_, i) => {
+                            const start = new Date(startDate);
+                            start.setDate(start.getDate() + (i * 7));
+                            return <option key={i+1} value={i+1}>Week {i+1} ({formatDate(start)})</option>;
+                        })}
+                    </select>
+                    <div className="row g-2">
+                        <div className="col-4"><input className="form-control" placeholder="Chest" onChange={e=>setF({...f, chest:e.target.value})} /></div>
+                        <div className="col-4"><input className="form-control" placeholder="Waist" onChange={e=>setF({...f, waist:e.target.value})} /></div>
+                        <div className="col-4"><input className="form-control" placeholder="Glute" onChange={e=>setF({...f, glute:e.target.value})} /></div>
                     </div>
-
-                    <div className="card mt-3">
-                        <h6 className="fw-bold mb-3">Measurement History</h6>
-                        <div className="table-responsive">
-                            <table className="table table-sm table-striped m-0">
-                                <thead><tr><th>Wk</th><th>Chst</th><th>Wst</th><th>Glt</th><th>Arms</th><th>Thighs</th></tr></thead>
-                                <tbody>
-                                    {history.length > 0 ? history.map((h, i) => (
-                                        <tr key={i}>
-                                            <td className="fw-bold text-primary">{h.weekNum}</td>
-                                            <td>{h.chest}</td><td>{h.waist}</td><td>{h.glute}</td>
-                                            <td>{h.larm}/{h.rarm}</td><td>{h.lthigh}/{h.rthigh}</td>
-                                        </tr>
-                                    )) : <tr><td colSpan="6" className="py-3">No history found</td></tr>}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+                    <label className="photo-label">{f.img1 ? "PHOTO 1 READY" : "ADD FRONT PHOTO"}<input type="file" hidden accept="image/*" onChange={e=>handleImg(e, 'img1')} /></label>
+                    <label className="photo-label">{f.img2 ? "PHOTO 2 READY" : "ADD SIDE PHOTO"}<input type="file" hidden accept="image/*" onChange={e=>handleImg(e, 'img2')} /></label>
+                    <button className="btn btn-primary mt-2" onClick={submit} disabled={loading}>{loading ? "Uploading..." : "Submit Check-in"}</button>
                 </div>
             );
         }
 
-        function Stats({ user, call, history }) {
+        function Stats({ user, call }) {
             const [allData, setAllData] = useState([]);
             const [range, setRange] = useState({ start: '', end: '' });
+            const [metricsHistory, setMetricsHistory] = useState([]);
             const canvasRef = useRef(null);
             const chartRef = useRef(null);
 
@@ -251,84 +234,52 @@
                 call('getTrends', user).then(data => { 
                     if(data && data.length > 0) {
                         const sorted = data.sort((a,b) => a.date.localeCompare(b.date));
-                        setAllData(sorted); 
-                        setRange({ 
-                            start: sorted[Math.max(0, sorted.length - 7)].date, 
-                            end: sorted[sorted.length - 1].date 
-                        });
+                        setAllData(sorted);
+                        setRange({ start: sorted[Math.max(0, sorted.length - 7)].date, end: sorted[sorted.length - 1].date });
                     }
                 });
+                call('getMetricsHistory', user).then(data => data && setMetricsHistory(data));
+                return () => { if (chartRef.current) chartRef.current.destroy(); };
             }, []);
 
-            const filteredData = useMemo(() => {
-                return allData.filter(d => d.date >= range.start && d.date <= range.end);
-            }, [allData, range]);
-
             useEffect(() => {
-                if (canvasRef.current && filteredData.length > 0) {
+                const filtered = allData.filter(d => d.date >= range.start && d.date <= range.end);
+                if (canvasRef.current && filtered.length > 0) {
                     if (chartRef.current) chartRef.current.destroy();
                     chartRef.current = new Chart(canvasRef.current, {
                         type: 'line',
                         data: {
-                            labels: filteredData.map(d => d.date.split('-').slice(1).join('/')),
-                            datasets: [{ 
-                                data: filteredData.map(d => d.weight), 
-                                borderColor: '#007AFF', 
-                                backgroundColor: 'rgba(0,122,255,0.1)', 
-                                fill: true, tension: 0.3, pointRadius: 4 
-                            }]
+                            labels: filtered.map(d => d.date.split('-').slice(1).join('/')),
+                            datasets: [{ data: filtered.map(d => d.weight), borderColor: '#007AFF', fill: true, tension: 0.3 }]
                         },
-                        options: { 
-                            responsive: true, maintainAspectRatio: false, 
-                            plugins: { legend: { display: false } } 
-                        }
+                        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
                     });
                 }
-            }, [filteredData]);
+            }, [allData, range]);
 
-            const hasData = filteredData.length > 0;
-            const diff = hasData ? (filteredData[filteredData.length-1].weight - filteredData[0].weight).toFixed(2) : 0;
-            const avgSteps = hasData ? Math.round(filteredData.reduce((a,b)=>a+(Number(b.steps)||0),0)/filteredData.length) : 0;
-            const avgCal = hasData ? Math.round(filteredData.reduce((a,b)=>a+(Number(b.cal)||0),0)/filteredData.length) : 0;
+            const filtered = allData.filter(d => d.date >= range.start && d.date <= range.end);
+            const diff = filtered.length > 0 ? (filtered[filtered.length-1].weight - filtered[0].weight).toFixed(2) : 0;
 
             return (
                 <div>
-                    <div className="card mb-3">
-                        <h6 className="fw-bold mb-3 text-primary">Range Selector</h6>
-                        <div className="row g-2">
+                    <div className="card">
+                        <h6 className="fw-bold mb-3">Weight Trend</h6>
+                        <div className="row g-1 mb-3">
                             <div className="col-6"><input type="date" className="form-control" value={range.start} onChange={e=>setRange({...range, start:e.target.value})} /></div>
                             <div className="col-6"><input type="date" className="form-control" value={range.end} onChange={e=>setRange({...range, end:e.target.value})} /></div>
                         </div>
-                    </div>
-
-                    <div className="card" style={{height: '250px'}}><h6 className="fw-bold mb-3">Weight History</h6><canvas ref={canvasRef}></canvas></div>
-                    
-                    <div className="card mt-3">
-                        <h6 className="fw-bold mb-3">Calculated Averages</h6>
-                        <div className="stat-grid">
-                            <div className="stat-item"><span className="stat-val" style={{color: diff <= 0 ? '#28a745' : '#dc3545'}}>{diff > 0 ? `+${diff}` : diff}kg</span><span className="stat-label">Net Change</span></div>
-                            <div className="stat-item"><span className="stat-val">{avgSteps.toLocaleString()}</span><span className="stat-label">Avg Steps</span></div>
-                            <div className="stat-item"><span className="stat-val">{avgCal}</span><span className="stat-label">Avg Kcal</span></div>
-                            <div className="stat-item"><span className="stat-val">{filteredData.length}</span><span className="stat-label">Days</span></div>
+                        <div style={{height:'200px'}}><canvas ref={canvasRef}></canvas></div>
+                        <div className="stat-grid mt-3">
+                            <div className="stat-item"><span className="stat-val">{diff}kg</span><span className="stat-label">Net Change</span></div>
+                            <div className="stat-item"><span className="stat-val">{filtered.length}</span><span className="stat-label">Days</span></div>
                         </div>
                     </div>
-
                     <div className="card mt-3">
-                        <h6 className="fw-bold mb-3">Detailed Log History</h6>
+                        <h6 className="fw-bold mb-3">Weekly Metrics</h6>
                         <div className="table-responsive">
-                            <table className="table table-sm table-striped m-0">
-                                <thead><tr><th>Date</th><th>Wt</th><th>P/C/F</th><th>Kcal</th><th>Stps</th></tr></thead>
-                                <tbody>
-                                    {[...filteredData].reverse().map((day, i) => (
-                                        <tr key={i}>
-                                            <td className="log-date">{day.date.split('-').slice(1).join('/')}</td>
-                                            <td>{day.weight}</td>
-                                            <td>{day.p||0}/{day.c||0}/{day.f||0}</td>
-                                            <td className="kcal-col">{Math.round(day.cal)||0}</td>
-                                            <td>{day.steps||0}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
+                            <table className="table table-sm table-striped">
+                                <thead><tr><th>Wk</th><th>Chest</th><th>Waist</th><th>Glute</th></tr></thead>
+                                <tbody>{metricsHistory.map((h,i)=>(<tr key={i}><td>{h.weekNum}</td><td>{h.chest}</td><td>{h.waist}</td><td>{h.glute}</td></tr>))}</tbody>
                             </table>
                         </div>
                     </div>
@@ -345,15 +296,18 @@
                 else { alert(res); setL(false); }
             };
             return (
-                <div className="container vh-100 d-flex align-items-center"><div className="card w-100 text-center py-5"><h2 className="fw-bold mb-4">ELITE COACHING</h2>
-                <input className="form-control" placeholder="Access Code" onChange={e=>setId(e.target.value)} />
-                <input className="form-control" placeholder="Phone Number" onChange={e=>setPh(e.target.value)} />
-                <button className="btn btn-primary mt-3" onClick={start} disabled={l}>{l ? "Checking..." : "Sign In"}</button></div></div>
+                <div className="container vh-100 d-flex align-items-center">
+                    <div className="card w-100 text-center py-5">
+                        <h2 className="fw-bold mb-4">ELITE COACHING</h2>
+                        <input className="form-control" placeholder="Access Code" onChange={e=>setId(e.target.value)} />
+                        <input className="form-control" placeholder="Phone Number" onChange={e=>setPh(e.target.value)} />
+                        <button className="btn btn-primary mt-3" onClick={start} disabled={l}>{l ? "Checking..." : "Sign In"}</button>
+                    </div>
+                </div>
             );
         }
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
     </script>
 </body>
 </html>
