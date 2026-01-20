@@ -29,7 +29,6 @@
         .toggle-btn { border-radius: 12px; padding: 10px; font-weight: bold; font-size: 12px; border: 2px solid transparent; transition: 0.2s; }
         .btn-yes { background: #34c759; color: #fff; border-color: #34c759; }
         .btn-no { background: #ff3b30; color: #fff; border-color: #ff3b30; }
-        .btn-off { background: #e5e5ea; color: #8e8e93; border-color: #d1d1d6; }
     </style>
 </head>
 <body>
@@ -88,7 +87,7 @@
                 <div className="container py-4">
                     <div className="d-flex justify-content-between align-items-center mb-1">
                         <h4 className="fw-bold m-0">Hello : {targets?.name || '...'}</h4>
-                        <div className="badge bg-dark">v3.9.7</div>
+                        <div className="badge bg-dark">v3.9.8</div>
                     </div>
                     
                     <span className="subscription-info">
@@ -158,21 +157,11 @@
                     <div className="row g-2 mt-1">
                         <div className="col-6">
                             <small className="d-block text-secondary mb-1 fw-bold">WATER GOAL</small>
-                            <button 
-                                className={`btn w-100 toggle-btn ${f.water === 'YES' ? 'btn-yes' : 'btn-no'}`}
-                                onClick={() => toggle('water')}
-                            >
-                                {f.water}
-                            </button>
+                            <button className={`btn w-100 toggle-btn ${f.water === 'YES' ? 'btn-yes' : 'btn-no'}`} onClick={() => toggle('water')}>{f.water}</button>
                         </div>
                         <div className="col-6">
                             <small className="d-block text-secondary mb-1 fw-bold">SLEEP GOAL</small>
-                            <button 
-                                className={`btn w-100 toggle-btn ${f.sleep === 'YES' ? 'btn-yes' : 'btn-no'}`}
-                                onClick={() => toggle('sleep')}
-                            >
-                                {f.sleep}
-                            </button>
+                            <button className={`btn w-100 toggle-btn ${f.sleep === 'YES' ? 'btn-yes' : 'btn-no'}`} onClick={() => toggle('sleep')}>{f.sleep}</button>
                         </div>
                     </div>
                     <button className="btn btn-primary mt-3" onClick={save} disabled={loading}>{loading ? "Saving..." : "Submit Log"}</button>
@@ -294,7 +283,8 @@
                                         <th>Date</th>
                                         <th>Wt</th>
                                         <th>P/C/F</th>
-                                        <th>Steps</th>
+                                        <th>H2O/Slp</th>
+                                        <th>Stps</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -303,6 +293,10 @@
                                             <td className="log-date">{day.date.split('-').slice(1).join('/')}</td>
                                             <td>{day.weight}</td>
                                             <td>{day.p}/{day.c}/{day.f}</td>
+                                            <td className="fw-bold">
+                                                <span className={day.water === 'YES' ? 'text-success' : 'text-danger'}>{day.water === 'YES' ? 'W' : '-'}</span> / 
+                                                <span className={day.sleep === 'YES' ? 'text-success' : 'text-danger'}> {day.sleep === 'YES' ? 'S' : '-'}</span>
+                                            </td>
                                             <td>{day.steps}</td>
                                         </tr>
                                     ))}
