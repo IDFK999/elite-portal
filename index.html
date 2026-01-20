@@ -97,7 +97,7 @@
                     )}
 
                     {view === 'log' && <DailyLog user={user} call={call} onSave={refreshData} />}
-                    {view === 'update' && <Metrics user={user} call={call} maxWeeks={maxWeeks} />}
+                    {view === 'update' && <Metrics user={user} call={call} maxWeeks={maxWeeks} startDate={targets?.subscriptionDate} />}
                     {view === 'stats' && <Stats user={user} call={call} />}
                     
                     <div className="nav-bottom">
@@ -171,9 +171,15 @@
             );
         }
 
-        function Metrics({ user, call, maxWeeks }) {
+        function Metrics({ user, call, maxWeeks, startDate }) {
             const [f, setF] = useState({ weekNum:'', chest:'', waist:'', glute:'', larm:'', rarm:'', lthigh:'', rthigh:'', img1:'', img2:'' });
             const [loading, setLoading] = useState(false);
+
+            // Function to format Date to MM/DD
+            const formatDate = (date) => {
+                return (date.getMonth() + 1).toString().padStart(2, '0') + '/' + 
+                       date.getDate().toString().padStart(2, '0');
+            };
 
             const handleImg = (e, key) => {
                 const file = e.target.files[0];
@@ -210,9 +216,21 @@
                     <h6 className="fw-bold mb-3 text-success">Weekly Update</h6>
                     <select className="form-select" value={f.weekNum} onChange={e=>setF({...f, weekNum:e.target.value})}>
                         <option value="">Select Week</option>
-                        {[...Array(maxWeeks)].map((_, i) => (
-                            <option key={i+1} value={i+1}>Week {i+1}</option>
-                        ))}
+                        {[...Array(maxWeeks)].map((_, i) => {
+                            if (!startDate) return <option key={i+1} value={i+1}>Week {i+1}</option>;
+                            
+                            const start = new Date(startDate);
+                            start.setDate(start.getDate() + (i * 7));
+                            
+                            const end = new Date(start);
+                            end.setDate(start.getDate() + 6);
+                            
+                            return (
+                                <option key={i+1} value={i+1}>
+                                    Week {i+1} ({formatDate(start)} - {formatDate(end)})
+                                </option>
+                            );
+                        })}
                     </select>
                     
                     <label className="small text-secondary fw-bold">Main (cm)</label>
