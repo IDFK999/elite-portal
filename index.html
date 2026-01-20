@@ -22,9 +22,9 @@
         .subscription-info { font-size: 11px; color: #8e8e93; font-weight: 600; text-transform: uppercase; margin-bottom: 4px; display: block; }
         .prog-container { width: 100%; background: #e5e5ea; height: 8px; border-radius: 4px; margin-bottom: 15px; overflow: hidden; }
         .prog-bar { height: 100%; background: #007AFF; transition: width 0.5s ease; }
-        .table-responsive { border-radius: 15px; overflow: hidden; font-size: 10px; }
+        .table-responsive { border-radius: 15px; overflow: hidden; font-size: 9px; }
         .table thead { background: #1c1c1e; color: #fff; }
-        .table-sm th, .table-sm td { padding: 8px 2px; text-align: center; vertical-align: middle; }
+        .table-sm th, .table-sm td { padding: 8px 1px; text-align: center; vertical-align: middle; }
         .log-date { font-weight: bold; color: #007AFF; }
         .avg-box { background: #f8f9fa; border-radius: 12px; padding: 10px; text-align: center; border: 1px solid #eee; }
         .avg-val { display: block; font-weight: 800; font-size: 16px; color: #1c1c1e; }
@@ -87,7 +87,7 @@
                 <div className="container py-4">
                     <div className="d-flex justify-content-between align-items-center mb-1">
                         <h4 className="fw-bold m-0">Hello : {targets?.name || '...'}</h4>
-                        <div className="badge bg-dark">v4.0.2</div>
+                        <div className="badge bg-dark">v4.0.4</div>
                     </div>
                     
                     <span className="subscription-info">
@@ -266,16 +266,19 @@
             const filteredDaily = dailyLogs.filter(d => d.date >= dateRange.start && d.date <= dateRange.end);
             const filteredMetrics = measurements.filter(m => Number(m.weekNum) >= wkFilter.start && Number(m.weekNum) <= wkFilter.end);
 
-            // Corrected Weight Loss Logic: Start Weight - Current Weight
-            let weightLoss = 0;
+            let weightDiff = 0;
             if(filteredDaily.length > 1) {
                 const startWeight = Number(filteredDaily[0].weight);
                 const currentWeight = Number(filteredDaily[filteredDaily.length - 1].weight);
-                weightLoss = (startWeight - currentWeight).toFixed(1);
+                weightDiff = (currentWeight - startWeight).toFixed(1);
+            }
+
+            const getDayKcal = (day) => {
+                return Number(day.cal) || (Number(day.p)*4 + Number(day.c)*4 + Number(day.f)*9) || 0;
             }
 
             const avgSteps = filteredDaily.length ? Math.round(filteredDaily.reduce((acc, curr) => acc + (Number(curr.steps) || 0), 0) / filteredDaily.length) : 0;
-            const avgCals = filteredDaily.length ? Math.round(filteredDaily.reduce((acc, curr) => acc + (Number(curr.cal) || (Number(curr.p)*4 + Number(curr.c)*4 + Number(curr.f)*9) || 0), 0) / filteredDaily.length) : 0;
+            const avgCals = filteredDaily.length ? Math.round(filteredDaily.reduce((acc, curr) => acc + getDayKcal(curr), 0) / filteredDaily.length) : 0;
 
             return (
                 <div>
@@ -288,8 +291,10 @@
                         <div className="row g-2">
                             <div className="col-4">
                                 <div className="avg-box">
-                                    <span className={`avg-val ${weightLoss < 0 ? 'text-danger' : 'text-success'}`}>{weightLoss}kg</span>
-                                    <span className="avg-label">Weight Loss</span>
+                                    <span className={`avg-val ${weightDiff > 0 ? 'text-success' : weightDiff < 0 ? 'text-danger' : ''}`}>
+                                        {weightDiff > 0 ? `+${weightDiff}` : weightDiff}kg
+                                    </span>
+                                    <span className="avg-label">Weight Change</span>
                                 </div>
                             </div>
                             <div className="col-4"><div className="avg-box"><span className="avg-val">{avgSteps.toLocaleString()}</span><span className="avg-label">Avg Steps</span></div></div>
@@ -307,6 +312,7 @@
                                     <tr>
                                         <th>Date</th>
                                         <th>Wt</th>
+                                        <th>Kcal</th>
                                         <th>P/C/F</th>
                                         <th>H2O/Slp</th>
                                         <th>Stps</th>
@@ -317,6 +323,7 @@
                                         <tr key={i}>
                                             <td className="log-date">{day.date.split('-').slice(1).join('/')}</td>
                                             <td>{day.weight}</td>
+                                            <td className="fw-bold">{getDayKcal(day)}</td>
                                             <td>{day.p || 0}/{day.c || 0}/{day.f || 0}</td>
                                             <td className="fw-bold">
                                                 <span className={day.water === 'YES' ? 'text-success' : 'text-danger'}>{day.water === 'YES' ? 'W' : '-'}</span> / 
