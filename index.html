@@ -28,7 +28,8 @@
         
         .section-title { font-size: 11px; font-weight: 800; color: #8e8e93; text-transform: uppercase; margin-bottom: 12px; margin-top: 5px; letter-spacing: 0.5px; border-bottom: 1px solid #f2f2f7; padding-bottom: 5px; }
         .toggle-label { font-size: 10px; font-weight: bold; color: #8e8e93; margin-bottom: 4px; display: block; margin-left: 5px; }
-        .date-range-badge { background: #f2f2f7; color: #007AFF; font-size: 11px; padding: 8px 12px; border-radius: 10px; font-weight: 800; display: block; margin-bottom: 20px; text-align: center; }
+        .date-range-badge { background: #007AFF; color: #fff; font-size: 11px; padding: 8px 12px; border-radius: 10px; font-weight: 800; display: block; margin-bottom: 20px; text-align: center; box-shadow: 0 4px 10px rgba(0,122,255,0.2); }
+        .start-date-config { background: #f2f2f7; padding: 10px; border-radius: 12px; margin-bottom: 15px; border: 1px dashed #d1d1d6; }
     </style>
 </head>
 <body>
@@ -59,7 +60,7 @@
                 <div className="container py-4">
                     <div className="d-flex justify-content-between align-items-center mb-3">
                         <h4 className="fw-bold m-0">Elite Portal</h4>
-                        <div className="badge bg-dark">v6.4.2</div>
+                        <div className="badge bg-dark">v6.5.0</div>
                     </div>
 
                     {view === 'log' && <DailyLog user={session.user} />}
@@ -146,26 +147,57 @@
 
         function Metrics({ user }) {
             const [f, setF] = useState({ chest:'', waist:'', glute:'', larm:'', rarm:'', lthigh:'', rthigh:'' });
+            const [startDate, setStartDate] = useState(localStorage.getItem('coach_start_date') || '2026-01-21');
             
-            // Calculate Current Week Range
-            const now = new Date();
-            const past = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-            const range = `${past.toLocaleDateString()} - ${now.toLocaleDateString()}`;
+            // Calculate Current Week and Range
+            const getWeekInfo = () => {
+                const start = new Date(startDate);
+                const today = new Date();
+                const diffTime = Math.abs(today - start);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                const weekNum = Math.ceil(diffDays / 7) || 1;
+                
+                // Current week range
+                const weekStart = new Date(start);
+                weekStart.setDate(start.getDate() + (weekNum - 1) * 7);
+                const weekEnd = new Date(weekStart);
+                weekEnd.setDate(weekStart.getDate() + 7);
+                
+                return {
+                    num: weekNum,
+                    range: `${weekStart.toLocaleDateString()} - ${weekEnd.toLocaleDateString()}`
+                };
+            };
+
+            const weekInfo = getWeekInfo();
+
+            const handleStartDateChange = (val) => {
+                setStartDate(val);
+                localStorage.setItem('coach_start_date', val);
+            };
 
             const submitCheckin = async () => {
                 const { error } = await _supabase.from('weekly_metrics').upsert({
                     user_id: user.id,
+                    week_number: weekInfo.num,
                     chest: parseFloat(f.chest)||0, waist: parseFloat(f.waist)||0, glute: parseFloat(f.glute)||0,
                     left_arm: parseFloat(f.larm)||0, right_arm: parseFloat(f.rarm)||0,
                     left_thigh: parseFloat(f.lthigh)||0, right_thigh: parseFloat(f.rthigh)||0
                 });
-                if (error) alert(error.message); else alert("Weekly Update Submitted");
+                if (error) alert(error.message); else alert(`Week ${weekInfo.num} Submitted`);
             };
 
             return (
                 <div className="card">
-                    <h6 className="fw-bold mb-1 text-dark">Weekly Check-in</h6>
-                    <div className="date-range-badge">Period: {range}</div>
+                    <div className="start-date-config">
+                        <label className="toggle-label">Coaching Start Date</label>
+                        <input type="date" className="form-control m-0" value={startDate} onChange={e=>handleStartDateChange(e.target.value)} />
+                    </div>
+
+                    <div className="date-range-badge">
+                        WEEK {weekInfo.num}<br/>
+                        <span style={{fontSize:'10px', opacity:0.8}}>{weekInfo.range}</span>
+                    </div>
                     
                     <div className="section-title">Upper Body (cm)</div>
                     <div className="row g-2 mb-3">
@@ -182,7 +214,7 @@
                         <div className="col-6"><label className="toggle-label">Right Thigh</label><input type="number" inputMode="decimal" className="form-control" value={f.rthigh} onChange={e=>setF({...f, rthigh: cleanNum(e.target.value)})} /></div>
                     </div>
 
-                    <button className="btn btn-primary mt-4" onClick={submitCheckin}>Submit Weekly Update</button>
+                    <button className="btn btn-primary mt-4" onClick={submitCheckin}>Submit Week {weekInfo.num} Update</button>
                 </div>
             );
         }
