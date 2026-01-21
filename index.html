@@ -18,7 +18,6 @@
         .nav-item.active { color: #007AFF; }
         .form-control, .form-select { background: #e5e5ea; border: none; border-radius: 12px; padding: 12px; margin-bottom: 10px; font-size: 14px; -webkit-appearance: none; }
         .btn-primary { background: #007AFF; border: none; border-radius: 12px; padding: 15px; font-weight: bold; width: 100%; }
-        .target-pill { background: #1c1c1e; color: #fff; border-radius: 15px; padding: 12px; margin-bottom: 15px; font-size: 12px; }
         .table-responsive { border-radius: 15px; overflow: hidden; font-size: 9px; }
         .table thead { background: #1c1c1e; color: #fff; }
     </style>
@@ -49,7 +48,7 @@
                 <div className="container py-4">
                     <div className="d-flex justify-content-between align-items-center mb-3">
                         <h4 className="fw-bold m-0">Elite Portal</h4>
-                        <div className="badge bg-dark">v5.0.0</div>
+                        <div className="badge bg-dark">v5.0.1</div>
                     </div>
 
                     {view === 'log' && <DailyLog user={session.user} />}
@@ -67,36 +66,44 @@
         }
 
         function DailyLog({ user }) {
-            const [f, setF] = useState({ date: new Date().toISOString().split('T')[0], weight:'', steps:'', p:'', c:'', f:'', water:8, sleep:8 });
+            const [f, setF] = useState({ date: new Date().toISOString().split('T')[0], weight:'', steps:'', p:'', c:'', f:'' });
 
             const save = async () => {
                 const { error } = await _supabase.from('daily_logs').upsert({
                     user_id: user.id,
                     log_date: f.date,
-                    weight: parseFloat(f.weight),
-                    protein: parseInt(f.p),
-                    carbs: parseInt(f.c),
-                    fats: parseInt(f.f),
-                    steps: parseInt(f.steps),
-                    water_liters: parseFloat(f.water),
-                    sleep_hours: parseFloat(f.sleep)
+                    weight: parseFloat(f.weight) || 0,
+                    protein: parseInt(f.p) || 0,
+                    carbs: parseInt(f.c) || 0,
+                    fats: parseInt(f.f) || 0,
+                    steps: parseInt(f.steps) || 0
                 });
-                if (error) alert(error.message);
-                else alert("Daily Log Updated");
+                if (error) alert("Error: " + error.message);
+                else alert("Daily Log Saved Successfully");
             };
 
             return (
                 <div className="card">
                     <h6 className="fw-bold mb-3 text-primary">Daily Entry</h6>
+                    <label className="small fw-bold mb-1">Date</label>
                     <input type="date" className="form-control" value={f.date} onChange={e=>setF({...f, date:e.target.value})} />
+                    
                     <div className="row g-2">
-                        <div className="col-6"><input type="number" step="0.1" className="form-control" placeholder="Weight (kg)" onChange={e=>setF({...f, weight:e.target.value})} /></div>
-                        <div className="col-6"><input type="number" className="form-control" placeholder="Steps" onChange={e=>setF({...f, steps:e.target.value})} /></div>
+                        <div className="col-6">
+                            <label className="small fw-bold mb-1">Weight (kg)</label>
+                            <input type="number" step="0.1" className="form-control" placeholder="0.0" value={f.weight} onChange={e=>setF({...f, weight:e.target.value})} />
+                        </div>
+                        <div className="col-6">
+                            <label className="small fw-bold mb-1">Steps</label>
+                            <input type="number" className="form-control" placeholder="0" value={f.steps} onChange={e=>setF({...f, steps:e.target.value})} />
+                        </div>
                     </div>
+
+                    <label className="small fw-bold mb-1 mt-2">Macros (P / C / F)</label>
                     <div className="row g-2">
-                        <div className="col-4"><input type="number" className="form-control" placeholder="P" onChange={e=>setF({...f, p:e.target.value})} /></div>
-                        <div className="col-4"><input type="number" className="form-control" placeholder="C" onChange={e=>setF({...f, c:e.target.value})} /></div>
-                        <div className="col-4"><input type="number" className="form-control" placeholder="F" onChange={e=>setF({...f, f:e.target.value})} /></div>
+                        <div className="col-4"><input type="number" className="form-control" placeholder="P" value={f.p} onChange={e=>setF({...f, p:e.target.value})} /></div>
+                        <div className="col-4"><input type="number" className="form-control" placeholder="C" value={f.c} onChange={e=>setF({...f, c:e.target.value})} /></div>
+                        <div className="col-4"><input type="number" className="form-control" placeholder="F" value={f.f} onChange={e=>setF({...f, f:e.target.value})} /></div>
                     </div>
                     <button className="btn btn-primary mt-3" onClick={save}>Submit Log</button>
                 </div>
@@ -109,19 +116,19 @@
             const save = async () => {
                 const { error } = await _supabase.from('weekly_metrics').upsert({
                     user_id: user.id,
-                    week_number: parseInt(f.weekNum),
-                    chest: parseFloat(f.chest), waist: parseFloat(f.waist), glute: parseFloat(f.glute),
-                    left_arm: parseFloat(f.larm), right_arm: parseFloat(f.rarm),
-                    left_thigh: parseFloat(f.lthigh), right_thigh: parseFloat(f.rthigh)
+                    week_number: parseInt(f.weekNum) || 0,
+                    chest: parseFloat(f.chest) || 0, waist: parseFloat(f.waist) || 0, glute: parseFloat(f.glute) || 0,
+                    left_arm: parseFloat(f.larm) || 0, right_arm: parseFloat(f.rarm) || 0,
+                    left_thigh: parseFloat(f.lthigh) || 0, right_thigh: parseFloat(f.rthigh) || 0
                 });
-                if (error) alert(error.message);
+                if (error) alert("Error: " + error.message);
                 else alert("Weekly Measurements Saved");
             };
 
             return (
                 <div className="card">
                     <h6 className="fw-bold mb-3 text-success">Weekly Update (7-Point)</h6>
-                    <input type="number" className="form-control" placeholder="Week Number" onChange={e=>setF({...f, weekNum:e.target.value})} />
+                    <input type="number" className="form-control" placeholder="Week Number" value={f.weekNum} onChange={e=>setF({...f, weekNum:e.target.value})} />
                     <div className="row g-2">
                         <div className="col-4"><input className="form-control" type="number" step="0.1" placeholder="Chest" onChange={e=>setF({...f, chest:e.target.value})} /></div>
                         <div className="col-4"><input className="form-control" type="number" step="0.1" placeholder="Waist" onChange={e=>setF({...f, waist:e.target.value})} /></div>
@@ -144,6 +151,7 @@
             const [logs, setLogs] = useState([]);
             const [metrics, setMetrics] = useState([]);
             const canvasRef = useRef(null);
+            const chartInstance = useRef(null);
 
             useEffect(() => {
                 _supabase.from('daily_logs').select('*').eq('user_id', user.id).order('log_date', {ascending: true}).then(({data}) => setLogs(data || []));
@@ -152,12 +160,14 @@
 
             useEffect(() => {
                 if (canvasRef.current && logs.length > 0) {
-                    new Chart(canvasRef.current, {
+                    if (chartInstance.current) chartInstance.current.destroy();
+                    chartInstance.current = new Chart(canvasRef.current, {
                         type: 'line',
                         data: {
                             labels: logs.map(l => l.log_date.split('-').slice(1).join('/')),
                             datasets: [{ label: 'Weight', data: logs.map(l => l.weight), borderColor: '#007AFF', tension: 0.3 }]
-                        }
+                        },
+                        options: { responsive: true, maintainAspectRatio: false }
                     });
                 }
             }, [logs]);
@@ -188,16 +198,24 @@
         function Login() {
             const [email, setEmail] = useState('');
             const [pass, setPass] = useState('');
+            const [loading, setLoading] = useState(false);
+
+            const handleLogin = async () => {
+                setLoading(true);
+                const { error } = await _supabase.auth.signInWithPassword({ email, password: pass });
+                if (error) alert("Login Failed: " + error.message);
+                setLoading(false);
+            };
+
             return (
                 <div className="container vh-100 d-flex align-items-center">
                     <div className="card w-100 text-center py-5">
                         <h2 className="fw-bold mb-4">ELITE COACHING</h2>
-                        <input className="form-control" placeholder="Email" onChange={e=>setEmail(e.target.value)} />
+                        <input className="form-control" type="email" placeholder="Email Address" onChange={e=>setEmail(e.target.value)} />
                         <input className="form-control" type="password" placeholder="Password" onChange={e=>setPass(e.target.value)} />
-                        <button className="btn btn-primary mt-3" onClick={async () => {
-                            const { error } = await _supabase.auth.signInWithPassword({ email, password: pass });
-                            if (error) alert(error.message);
-                        }}>Sign In</button>
+                        <button className="btn btn-primary mt-3" disabled={loading} onClick={handleLogin}>
+                            {loading ? "Verifying..." : "Sign In"}
+                        </button>
                     </div>
                 </div>
             );
