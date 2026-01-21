@@ -27,6 +27,8 @@
         .section-title { font-size: 11px; font-weight: 800; color: #8e8e93; text-transform: uppercase; margin-bottom: 12px; margin-top: 5px; letter-spacing: 0.5px; border-bottom: 1px solid #f2f2f7; padding-bottom: 5px; }
         .toggle-label { font-size: 10px; font-weight: bold; color: #8e8e93; margin-bottom: 4px; display: block; margin-left: 5px; }
         .date-range-badge { background: #007AFF; color: #fff; font-size: 11px; padding: 8px 12px; border-radius: 10px; font-weight: 800; display: block; margin-bottom: 20px; text-align: center; box-shadow: 0 4px 10px rgba(0,122,255,0.2); }
+        .table-responsive { border-radius: 15px; overflow: hidden; }
+        .date-filter-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
     </style>
 </head>
 <body>
@@ -57,7 +59,7 @@
                 <div className="container py-4">
                     <div className="d-flex justify-content-between align-items-center mb-3">
                         <h4 className="fw-bold m-0">Elite Portal</h4>
-                        <div className="badge bg-dark">v7.0.0</div>
+                        <div className="badge bg-dark">v8.0.0</div>
                     </div>
 
                     {view === 'log' && <DailyLog user={session.user} />}
@@ -117,7 +119,6 @@
                             <button className="btn btn-sm btn-light w-100 mt-2 fw-bold" onClick={() => setEditTargets(false)}>Update Targets</button>
                         </div>
                     )}
-
                     <div className="card">
                         <input type="date" className="form-control" value={f.date} onChange={e=>setF({...f, date:e.target.value})} />
                         <div className="section-title">Daily Metrics</div>
@@ -145,7 +146,6 @@
         function Metrics({ user }) {
             const [f, setF] = useState({ chest:'', waist:'', glute:'', larm:'', rarm:'', lthigh:'', rthigh:'' });
             const [startDate, setStartDate] = useState(localStorage.getItem('coach_start_date') || '2026-01-21');
-            
             const getWeekInfo = () => {
                 const start = new Date(startDate);
                 const today = new Date();
@@ -158,32 +158,21 @@
                 weekEnd.setDate(weekStart.getDate() + 7);
                 return { num: weekNum, range: `${weekStart.toLocaleDateString()} - ${weekEnd.toLocaleDateString()}` };
             };
-
             const weekInfo = getWeekInfo();
-
-            const handleStartDateChange = (val) => {
-                setStartDate(val);
-                localStorage.setItem('coach_start_date', val);
-            };
-
             const submitCheckin = async () => {
                 const { error } = await _supabase.from('weekly_metrics').upsert({
-                    user_id: user.id,
-                    week_number: weekInfo.num,
+                    user_id: user.id, week_number: weekInfo.num,
                     chest: parseFloat(f.chest)||0, waist: parseFloat(f.waist)||0, glute: parseFloat(f.glute)||0,
                     left_arm: parseFloat(f.larm)||0, right_arm: parseFloat(f.rarm)||0,
                     left_thigh: parseFloat(f.lthigh)||0, right_thigh: parseFloat(f.rthigh)||0
                 });
                 if (error) alert(error.message); else alert(`Week ${weekInfo.num} Submitted`);
             };
-
             return (
                 <div className="card">
                     <label className="toggle-label">Start Date</label>
-                    <input type="date" className="form-control mb-3" value={startDate} onChange={e=>handleStartDateChange(e.target.value)} />
-
+                    <input type="date" className="form-control mb-3" value={startDate} onChange={e=>{setStartDate(e.target.value); localStorage.setItem('coach_start_date', e.target.value);}} />
                     <div className="date-range-badge">WEEK {weekInfo.num}<br/><span style={{fontSize:'10px', opacity:0.8}}>{weekInfo.range}</span></div>
-                    
                     <div className="section-title">Body Stats</div>
                     <div className="row g-2 mb-3">
                         <div className="col-6"><label className="toggle-label">Waist</label><input type="number" className="form-control" value={f.waist} onChange={e=>setF({...f, waist: cleanNum(e.target.value)})} /></div>
@@ -200,72 +189,81 @@
 
         function Stats({ user }) {
             const [logs, setLogs] = useState([]);
-            const [metrics, setMetrics] = useState([]);
+            const [dateFrom, setDateFrom] = useState(new Date(Date.now() - 13 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
+            const [dateTo, setDateTo] = useState(new Date().toISOString().split('T')[0]);
             const canvasRef = useRef(null);
             const chartInstance = useRef(null);
 
-            useEffect(() => {
-                const loadData = async () => {
-                    const { data: logData } = await _supabase.from('daily_logs').select('*').eq('user_id', user.id).order('log_date', {ascending: false}).limit(14);
-                    const { data: metricData } = await _supabase.from('weekly_metrics').select('*').eq('user_id', user.id).order('week_number', {ascending: false});
-                    setLogs(logData || []);
-                    setMetrics(metricData || []);
-                };
-                loadData();
-            }, []);
+            const loadData = async () => {
+                const { data } = await _supabase.from('daily_logs')
+                    .select('*')
+                    .eq('user_id', user.id)
+                    .gte('log_date', dateFrom)
+                    .lte('log_date', dateTo)
+                    .order('log_date', {ascending: false});
+                setLogs(data || []);
+            };
+
+            useEffect(() => { loadData(); }, [dateFrom, dateTo]);
 
             useEffect(() => {
                 if (canvasRef.current && logs.length > 0) {
-                    const sorted = [...logs].reverse();
+                    const sorted = [...logs].sort((a,b) => new Date(a.log_date) - new Date(b.log_date));
                     if (chartInstance.current) chartInstance.current.destroy();
                     chartInstance.current = new Chart(canvasRef.current, {
                         type: 'line',
                         data: { 
-                            labels: sorted.map(l => l.log_date.split('-')[2]), 
-                            datasets: [{ 
-                                label: 'Weight', 
-                                data: sorted.map(l => l.weight), 
-                                borderColor: '#007AFF', 
-                                tension: 0.4,
-                                backgroundColor: 'rgba(0,122,255,0.1)',
-                                fill: true
-                            }] 
+                            labels: sorted.map(l => l.log_date.split('-').slice(1).reverse().join('/')), 
+                            datasets: [{ label: 'Weight', data: sorted.map(l => l.weight), borderColor: '#007AFF', tension: 0.4, backgroundColor: 'rgba(0,122,255,0.1)', fill: true }] 
                         },
-                        options: { 
-                            responsive: true, 
-                            maintainAspectRatio: false,
-                            plugins: { legend: { display: false } },
-                            scales: { x: { grid: { display: false } } }
-                        }
+                        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false } }, y: { position: 'right' } } }
                     });
                 }
             }, [logs]);
 
             return (
                 <div>
-                    <div className="card" style={{height: '240px'}}>
-                        <div className="section-title">Weight Trend (14 Days)</div>
-                        <div style={{flex: 1}}><canvas ref={canvasRef}></canvas></div>
+                    <div className="card">
+                        <div className="section-title">Select Range</div>
+                        <div className="date-filter-grid">
+                            <div><label className="toggle-label">From</label><input type="date" className="form-control" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} /></div>
+                            <div><label className="toggle-label">To</label><input type="date" className="form-control" value={dateTo} onChange={e=>setDateTo(e.target.value)} /></div>
+                        </div>
+                        <div className="section-title">Weight Trend</div>
+                        <div style={{height: '200px'}}><canvas ref={canvasRef}></canvas></div>
                     </div>
-                    
-                    <div className="section-title">Weekly Measurements</div>
+
+                    <div className="section-title">Daily Performance Log</div>
                     <div className="card p-0 overflow-hidden">
-                        <table className="table table-sm m-0" style={{fontSize: '13px'}}>
-                            <thead className="table-light">
-                                <tr><th>Week</th><th>Waist</th><th>Chest</th><th>Arms (L/R)</th></tr>
-                            </thead>
-                            <tbody>
-                                {metrics.map((m, i) => (
-                                    <tr key={i}>
-                                        <td className="fw-bold text-primary">W{m.week_number}</td>
-                                        <td>{m.waist}</td>
-                                        <td>{m.chest}</td>
-                                        <td>{m.left_arm}/{m.right_arm}</td>
+                        <div className="table-responsive">
+                            <table className="table table-hover table-sm m-0" style={{fontSize: '11px'}}>
+                                <thead className="table-dark">
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Weight</th>
+                                        <th>Kcal</th>
+                                        <th>P/C/F</th>
+                                        <th>Water</th>
+                                        <th>Sleep</th>
+                                        <th>Steps</th>
                                     </tr>
-                                ))}
-                                {metrics.length === 0 && <tr><td colSpan="4" className="text-center p-3 text-muted">No measurements logged.</td></tr>}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    {logs.map((l, i) => (
+                                        <tr key={i}>
+                                            <td className="fw-bold">{l.log_date.split('-').slice(1).join('/')}</td>
+                                            <td>{l.weight}</td>
+                                            <td className="text-primary fw-bold">{(l.protein*4 + l.carbs*4 + l.fats*9) || 0}</td>
+                                            <td>{l.protein}/{l.carbs}/{l.fats}</td>
+                                            <td>{l.water_liters}L</td>
+                                            <td>{l.sleep_hours}h</td>
+                                            <td>{l.steps?.toLocaleString()}</td>
+                                        </tr>
+                                    ))}
+                                    {logs.length === 0 && <tr><td colSpan="7" className="text-center p-3">No data for selected range.</td></tr>}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             );
