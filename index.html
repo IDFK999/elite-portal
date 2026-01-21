@@ -231,59 +231,62 @@
         function Stats({ user, call, maxWeeks }) {
             const [dailyLogs, setDailyLogs] = useState([]);
             const [measurements, setMeasurements] = useState([]);
-            const [dateRange, setDateRange] = useState({ start: '', end: '' });
+            const [dateRange, setDateRange] = useState({ 
+                start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], 
+                end: new Date().toISOString().split('T')[0] 
+            });
             const [wkFilter, setWkFilter] = useState({ start: 1, end: 12 });
+            const [fetching, setFetching] = useState(false);
             const canvasRef = useRef(null);
             const chartRef = useRef(null);
 
-            useEffect(() => {
-                call('getTrends', user).then(data => { 
-                    if(data && Array.isArray(data)) {
-                        const logs = data.filter(d => !d.isSummary).sort((a,b) => a.date.localeCompare(b.date));
-                        const metrics = data.filter(d => d.isSummary).sort((a,b) => (Number(a.weekNum) || 0) - (Number(b.weekNum) || 0));
-                        setDailyLogs(logs);
-                        setMeasurements(metrics);
-                        if(logs.length > 0) setDateRange({ start: logs[Math.max(0, logs.length - 7)].date, end: logs[logs.length - 1].date });
-                    }
-                });
-            }, []);
+            const fetchData = async () => {
+                setFetching(true);
+                const data = await call('getTrends', { ...user, ...dateRange });
+                if(data && Array.isArray(data)) {
+                    const logs = data.filter(d => !d.isSummary).sort((a,b) => a.date.localeCompare(b.date));
+                    const metrics = data.filter(d => d.isSummary).sort((a,b) => (Number(a.weekNum) || 0) - (Number(b.weekNum) || 0));
+                    setDailyLogs(logs);
+                    setMeasurements(metrics);
+                }
+                setFetching(false);
+            };
+
+            useEffect(() => { fetchData(); }, [dateRange.start, dateRange.end]);
 
             useEffect(() => {
-                const filtered = dailyLogs.filter(d => d.date >= dateRange.start && d.date <= dateRange.end);
-                if (canvasRef.current && filtered.length > 0) {
+                if (canvasRef.current && dailyLogs.length > 0) {
                     if (chartRef.current) chartRef.current.destroy();
                     chartRef.current = new Chart(canvasRef.current, {
                         type: 'line',
                         data: {
-                            labels: filtered.map(d => d.date.split('-').slice(1).join('/')),
-                            datasets: [{ label: 'Weight', data: filtered.map(d => d.weight), borderColor: '#007AFF', backgroundColor: 'rgba(0,122,255,0.1)', fill: true, tension: 0.3 }]
+                            labels: dailyLogs.map(d => d.date.split('-').slice(1).join('/')),
+                            datasets: [{ label: 'Weight', data: dailyLogs.map(d => d.weight), borderColor: '#007AFF', backgroundColor: 'rgba(0,122,255,0.1)', fill: true, tension: 0.3 }]
                         },
                         options: { responsive: true, maintainAspectRatio: false }
                     });
                 }
-            }, [dailyLogs, dateRange]);
-
-            const filteredDaily = dailyLogs.filter(d => d.date >= dateRange.start && d.date <= dateRange.end);
-            const filteredMetrics = measurements.filter(m => Number(m.weekNum) >= wkFilter.start && Number(m.weekNum) <= wkFilter.end);
+            }, [dailyLogs]);
 
             let weightDiff = 0;
-            if(filteredDaily.length > 1) {
-                const startWeight = Number(filteredDaily[0].weight);
-                const currentWeight = Number(filteredDaily[filteredDaily.length - 1].weight);
+            if(dailyLogs.length > 1) {
+                const startWeight = Number(dailyLogs[0].weight);
+                const currentWeight = Number(dailyLogs[dailyLogs.length - 1].weight);
                 weightDiff = (currentWeight - startWeight).toFixed(1);
             }
 
-            const getDayKcal = (day) => {
-                return Number(day.cal) || (Number(day.p)*4 + Number(day.c)*4 + Number(day.f)*9) || 0;
-            }
-
-            const avgSteps = filteredDaily.length ? Math.round(filteredDaily.reduce((acc, curr) => acc + (Number(curr.steps) || 0), 0) / filteredDaily.length) : 0;
-            const avgCals = filteredDaily.length ? Math.round(filteredDaily.reduce((acc, curr) => acc + getDayKcal(curr), 0) / filteredDaily.length) : 0;
+            const getDayKcal = (day) => Number(day.cal) || (Number(day.p)*4 + Number(day.c)*4 + Number(day.f)*9) || 0;
+            const avgSteps = dailyLogs.length ? Math.round(dailyLogs.reduce((acc, curr) => acc + (Number(curr.steps) || 0), 0) / dailyLogs.length) : 0;
+            const avgCals = dailyLogs.length ? Math.round(dailyLogs.reduce((acc, curr) => acc + getDayKcal(curr), 0) / dailyLogs.length) : 0;
+            const filteredMetrics = measurements.filter(m => Number(m.weekNum) >= wkFilter.start && Number(m.weekNum) <= wkFilter.end);
 
             return (
                 <div>
                     <div className="card mb-3">
-                        <h6 className="fw-bold mb-3 text-primary">Range Averages</h6>
+                        <div className="d-flex justify-content-between">
+                            <h6 className="fw-bold mb-3 text-primary">Range Averages</h6>
+                            {fetching && <small className="text-muted">Syncing...</small>}
+                        </div>
                         <div className="row g-2 mb-3">
                             <div className="col-6"><input type="date" className="form-control" value={dateRange.start} onChange={e=>setDateRange({...dateRange, start:e.target.value})} /></div>
                             <div className="col-6"><input type="date" className="form-control" value={dateRange.end} onChange={e=>setDateRange({...dateRange, end:e.target.value})} /></div>
@@ -310,16 +313,11 @@
                             <table className="table table-sm table-striped m-0">
                                 <thead>
                                     <tr>
-                                        <th>Date</th>
-                                        <th>Wt</th>
-                                        <th>Kcal</th>
-                                        <th>P/C/F</th>
-                                        <th>H2O/Slp</th>
-                                        <th>Stps</th>
+                                        <th>Date</th><th>Wt</th><th>Kcal</th><th>P/C/F</th><th>H2O/Slp</th><th>Stps</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {filteredDaily.map((day, i) => (
+                                    {dailyLogs.map((day, i) => (
                                         <tr key={i}>
                                             <td className="log-date">{day.date.split('-').slice(1).join('/')}</td>
                                             <td>{day.weight}</td>
@@ -337,9 +335,7 @@
                         </div>
                     </div>
 
-                    <hr className="my-4" />
-
-                    <div className="card">
+                    <div className="card mt-3">
                         <div className="d-flex justify-content-between align-items-center mb-3">
                             <h6 className="fw-bold m-0 text-success">Body Table</h6>
                             <div className="d-flex gap-1" style={{maxWidth: '160px'}}>
