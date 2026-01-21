@@ -18,14 +18,14 @@
         .nav-item.active { color: #007AFF; }
         .form-control { background: #e5e5ea; border: none; border-radius: 12px; padding: 12px; margin-bottom: 10px; font-size: 14px; }
         .btn-primary { background: #007AFF; border: none; border-radius: 12px; padding: 15px; font-weight: bold; width: 100%; }
-        .target-pill { background: #1c1c1e; color: #fff; border-radius: 15px; padding: 12px; margin-bottom: 15px; font-size: 12px; text-align: center; font-weight: bold; cursor: pointer; }
+        .target-pill { background: #1c1c1e; color: #fff; border-radius: 15px; padding: 12px; margin-bottom: 15px; font-size: 12px; font-weight: bold; cursor: pointer; display: flex; justify-content: space-around; align-items: center; }
         .section-title { font-size: 12px; font-weight: bold; color: #8e8e93; text-transform: uppercase; margin-bottom: 10px; margin-left: 5px; }
         
         /* Binary Toggle Styles */
         .toggle-group { display: flex; gap: 5px; background: #e5e5ea; padding: 4px; border-radius: 12px; margin-bottom: 10px; }
         .toggle-btn { flex: 1; border: none; background: transparent; padding: 8px; border-radius: 10px; font-size: 12px; font-weight: bold; color: #8e8e93; transition: 0.2s; }
         .toggle-btn.active { background: #fff; color: #000; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        .toggle-label { font-size: 11px; font-weight: bold; color: #8e8e93; margin-bottom: 4px; display: block; margin-left: 5px; }
+        .toggle-label { font-size: 10px; font-weight: bold; color: #8e8e93; margin-bottom: 4px; display: block; margin-left: 5px; line-height: 1.2; height: 25px; display: flex; align-items: flex-end; }
     </style>
 </head>
 <body>
@@ -54,7 +54,7 @@
                 <div className="container py-4">
                     <div className="d-flex justify-content-between align-items-center mb-3">
                         <h4 className="fw-bold m-0">Elite Portal</h4>
-                        <div className="badge bg-dark">v6.2.0</div>
+                        <div className="badge bg-dark">v6.3.0</div>
                     </div>
 
                     {view === 'log' && <DailyLog user={session.user} />}
@@ -108,7 +108,10 @@
                 <div>
                     {!editTargets ? (
                         <div className="target-pill" onClick={() => setEditTargets(true)}>
-                            🎯 GOAL: {targets.p}P / {targets.c}C / {targets.f}F (Tap to Edit)
+                            <span>🎯 GOAL:</span>
+                            <span>{targets.p}P</span>
+                            <span>{targets.c}C</span>
+                            <span>{targets.f}F</span>
                         </div>
                     ) : (
                         <div className="card mb-3 p-3" style={{background: '#1c1c1e'}}>
@@ -140,14 +143,14 @@
                         <div className="section-title mt-2">Daily Checklist</div>
                         <div className="row g-2">
                             <div className="col-6">
-                                <span className="toggle-label">Hydrated?</span>
+                                <span className="toggle-label">Did you drink enough water?</span>
                                 <div className="toggle-group">
                                     <button className={`toggle-btn ${f.water ? 'active' : ''}`} onClick={()=>setF({...f, water: true})}>YES</button>
                                     <button className={`toggle-btn ${!f.water ? 'active' : ''}`} onClick={()=>setF({...f, water: false})}>NO</button>
                                 </div>
                             </div>
                             <div className="col-6">
-                                <span className="toggle-label">Slept 7-8h?</span>
+                                <span className="toggle-label">Did you sleep enough?</span>
                                 <div className="toggle-group">
                                     <button className={`toggle-btn ${f.sleep ? 'active' : ''}`} onClick={()=>setF({...f, sleep: true})}>YES</button>
                                     <button className={`toggle-btn ${!f.sleep ? 'active' : ''}`} onClick={()=>setF({...f, sleep: false})}>NO</button>
