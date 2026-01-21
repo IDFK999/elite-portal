@@ -19,17 +19,14 @@
         .form-control { background: #e5e5ea; border: none; border-radius: 12px; padding: 12px; margin-bottom: 10px; font-size: 14px; }
         .form-control:focus { background: #d1d1d6; box-shadow: none; }
         .btn-primary { background: #007AFF; border: none; border-radius: 12px; padding: 15px; font-weight: bold; width: 100%; }
-        
         .target-pill { background: #1c1c1e; color: #fff; border-radius: 20px; padding: 18px 10px; margin-bottom: 20px; cursor: pointer; border: 1px solid #3a3a3c; }
         .macro-container { display: flex; justify-content: space-around; text-align: center; }
         .macro-box { display: flex; flex-direction: column; }
         .macro-label { font-size: 9px; color: #8e8e93; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 2px; }
         .macro-value { font-size: 16px; font-weight: 800; }
-        
         .section-title { font-size: 11px; font-weight: 800; color: #8e8e93; text-transform: uppercase; margin-bottom: 12px; margin-top: 5px; letter-spacing: 0.5px; border-bottom: 1px solid #f2f2f7; padding-bottom: 5px; }
         .toggle-label { font-size: 10px; font-weight: bold; color: #8e8e93; margin-bottom: 4px; display: block; margin-left: 5px; }
         .date-range-badge { background: #007AFF; color: #fff; font-size: 11px; padding: 8px 12px; border-radius: 10px; font-weight: 800; display: block; margin-bottom: 20px; text-align: center; box-shadow: 0 4px 10px rgba(0,122,255,0.2); }
-        .start-date-config { background: #f2f2f7; padding: 10px; border-radius: 12px; margin-bottom: 15px; border: 1px dashed #d1d1d6; }
     </style>
 </head>
 <body>
@@ -45,7 +42,7 @@
         const cleanNum = (val) => val.replace(/[^0-9.]/g, '');
 
         function App() {
-            const [view, setView] = useState('log');
+            const [view, setView] = useState('stats');
             const [session, setSession] = useState(null);
 
             useEffect(() => {
@@ -60,7 +57,7 @@
                 <div className="container py-4">
                     <div className="d-flex justify-content-between align-items-center mb-3">
                         <h4 className="fw-bold m-0">Elite Portal</h4>
-                        <div className="badge bg-dark">v6.5.0</div>
+                        <div className="badge bg-dark">v7.0.0</div>
                     </div>
 
                     {view === 'log' && <DailyLog user={session.user} />}
@@ -149,24 +146,17 @@
             const [f, setF] = useState({ chest:'', waist:'', glute:'', larm:'', rarm:'', lthigh:'', rthigh:'' });
             const [startDate, setStartDate] = useState(localStorage.getItem('coach_start_date') || '2026-01-21');
             
-            // Calculate Current Week and Range
             const getWeekInfo = () => {
                 const start = new Date(startDate);
                 const today = new Date();
                 const diffTime = Math.abs(today - start);
                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
                 const weekNum = Math.ceil(diffDays / 7) || 1;
-                
-                // Current week range
                 const weekStart = new Date(start);
                 weekStart.setDate(start.getDate() + (weekNum - 1) * 7);
                 const weekEnd = new Date(weekStart);
                 weekEnd.setDate(weekStart.getDate() + 7);
-                
-                return {
-                    num: weekNum,
-                    range: `${weekStart.toLocaleDateString()} - ${weekEnd.toLocaleDateString()}`
-                };
+                return { num: weekNum, range: `${weekStart.toLocaleDateString()} - ${weekEnd.toLocaleDateString()}` };
             };
 
             const weekInfo = getWeekInfo();
@@ -189,62 +179,92 @@
 
             return (
                 <div className="card">
-                    <div className="start-date-config">
-                        <label className="toggle-label">Coaching Start Date</label>
-                        <input type="date" className="form-control m-0" value={startDate} onChange={e=>handleStartDateChange(e.target.value)} />
-                    </div>
+                    <label className="toggle-label">Start Date</label>
+                    <input type="date" className="form-control mb-3" value={startDate} onChange={e=>handleStartDateChange(e.target.value)} />
 
-                    <div className="date-range-badge">
-                        WEEK {weekInfo.num}<br/>
-                        <span style={{fontSize:'10px', opacity:0.8}}>{weekInfo.range}</span>
-                    </div>
+                    <div className="date-range-badge">WEEK {weekInfo.num}<br/><span style={{fontSize:'10px', opacity:0.8}}>{weekInfo.range}</span></div>
                     
-                    <div className="section-title">Upper Body (cm)</div>
+                    <div className="section-title">Body Stats</div>
                     <div className="row g-2 mb-3">
-                        <div className="col-6"><label className="toggle-label">Chest</label><input type="number" inputMode="decimal" className="form-control" value={f.chest} onChange={e=>setF({...f, chest: cleanNum(e.target.value)})} /></div>
-                        <div className="col-6"><label className="toggle-label">Waist</label><input type="number" inputMode="decimal" className="form-control" value={f.waist} onChange={e=>setF({...f, waist: cleanNum(e.target.value)})} /></div>
-                        <div className="col-6"><label className="toggle-label">Left Arm</label><input type="number" inputMode="decimal" className="form-control" value={f.larm} onChange={e=>setF({...f, larm: cleanNum(e.target.value)})} /></div>
-                        <div className="col-6"><label className="toggle-label">Right Arm</label><input type="number" inputMode="decimal" className="form-control" value={f.rarm} onChange={e=>setF({...f, rarm: cleanNum(e.target.value)})} /></div>
+                        <div className="col-6"><label className="toggle-label">Waist</label><input type="number" className="form-control" value={f.waist} onChange={e=>setF({...f, waist: cleanNum(e.target.value)})} /></div>
+                        <div className="col-6"><label className="toggle-label">Chest</label><input type="number" className="form-control" value={f.chest} onChange={e=>setF({...f, chest: cleanNum(e.target.value)})} /></div>
                     </div>
-
-                    <div className="section-title">Lower Body (cm)</div>
-                    <div className="row g-2">
-                        <div className="col-12 mb-2"><label className="toggle-label">Glutes</label><input type="number" inputMode="decimal" className="form-control" value={f.glute} onChange={e=>setF({...f, glute: cleanNum(e.target.value)})} /></div>
-                        <div className="col-6"><label className="toggle-label">Left Thigh</label><input type="number" inputMode="decimal" className="form-control" value={f.lthigh} onChange={e=>setF({...f, lthigh: cleanNum(e.target.value)})} /></div>
-                        <div className="col-6"><label className="toggle-label">Right Thigh</label><input type="number" inputMode="decimal" className="form-control" value={f.rthigh} onChange={e=>setF({...f, rthigh: cleanNum(e.target.value)})} /></div>
+                    <div className="row g-2 mb-3">
+                        <div className="col-6"><label className="toggle-label">Left Arm</label><input type="number" className="form-control" value={f.larm} onChange={e=>setF({...f, larm: cleanNum(e.target.value)})} /></div>
+                        <div className="col-6"><label className="toggle-label">Right Arm</label><input type="number" className="form-control" value={f.rarm} onChange={e=>setF({...f, rarm: cleanNum(e.target.value)})} /></div>
                     </div>
-
-                    <button className="btn btn-primary mt-4" onClick={submitCheckin}>Submit Week {weekInfo.num} Update</button>
+                    <button className="btn btn-primary mt-2" onClick={submitCheckin}>Submit Weekly Stats</button>
                 </div>
             );
         }
 
         function Stats({ user }) {
             const [logs, setLogs] = useState([]);
+            const [metrics, setMetrics] = useState([]);
             const canvasRef = useRef(null);
             const chartInstance = useRef(null);
+
             useEffect(() => {
-                _supabase.from('daily_logs').select('*').eq('user_id', user.id).order('log_date', {ascending: false}).limit(14).then(({data}) => setLogs(data || []));
+                const loadData = async () => {
+                    const { data: logData } = await _supabase.from('daily_logs').select('*').eq('user_id', user.id).order('log_date', {ascending: false}).limit(14);
+                    const { data: metricData } = await _supabase.from('weekly_metrics').select('*').eq('user_id', user.id).order('week_number', {ascending: false});
+                    setLogs(logData || []);
+                    setMetrics(metricData || []);
+                };
+                loadData();
             }, []);
+
             useEffect(() => {
                 if (canvasRef.current && logs.length > 0) {
                     const sorted = [...logs].reverse();
                     if (chartInstance.current) chartInstance.current.destroy();
                     chartInstance.current = new Chart(canvasRef.current, {
                         type: 'line',
-                        data: { labels: sorted.map(l => l.log_date.split('-')[2]), datasets: [{ label: 'Weight', data: sorted.map(l => l.weight), borderColor: '#007AFF', tension: 0.3 }] },
-                        options: { responsive: true, maintainAspectRatio: false }
+                        data: { 
+                            labels: sorted.map(l => l.log_date.split('-')[2]), 
+                            datasets: [{ 
+                                label: 'Weight', 
+                                data: sorted.map(l => l.weight), 
+                                borderColor: '#007AFF', 
+                                tension: 0.4,
+                                backgroundColor: 'rgba(0,122,255,0.1)',
+                                fill: true
+                            }] 
+                        },
+                        options: { 
+                            responsive: true, 
+                            maintainAspectRatio: false,
+                            plugins: { legend: { display: false } },
+                            scales: { x: { grid: { display: false } } }
+                        }
                     });
                 }
             }, [logs]);
+
             return (
                 <div>
-                    <div className="card" style={{height: '200px'}}><canvas ref={canvasRef}></canvas></div>
-                    <div className="section-title">Daily History</div>
+                    <div className="card" style={{height: '240px'}}>
+                        <div className="section-title">Weight Trend (14 Days)</div>
+                        <div style={{flex: 1}}><canvas ref={canvasRef}></canvas></div>
+                    </div>
+                    
+                    <div className="section-title">Weekly Measurements</div>
                     <div className="card p-0 overflow-hidden">
-                        <table className="table table-sm m-0" style={{fontSize: '12px'}}>
-                            <thead className="table-light"><tr><th>Date</th><th>Weight</th><th>Cals</th></tr></thead>
-                            <tbody>{logs.map((l, i) => (<tr key={i}><td>{l.log_date.slice(5)}</td><td>{l.weight}</td><td>{(l.protein*4+l.carbs*4+l.fats*9)}</td></tr>))}</tbody>
+                        <table className="table table-sm m-0" style={{fontSize: '13px'}}>
+                            <thead className="table-light">
+                                <tr><th>Week</th><th>Waist</th><th>Chest</th><th>Arms (L/R)</th></tr>
+                            </thead>
+                            <tbody>
+                                {metrics.map((m, i) => (
+                                    <tr key={i}>
+                                        <td className="fw-bold text-primary">W{m.week_number}</td>
+                                        <td>{m.waist}</td>
+                                        <td>{m.chest}</td>
+                                        <td>{m.left_arm}/{m.right_arm}</td>
+                                    </tr>
+                                ))}
+                                {metrics.length === 0 && <tr><td colSpan="4" className="text-center p-3 text-muted">No measurements logged.</td></tr>}
+                            </tbody>
                         </table>
                     </div>
                 </div>
