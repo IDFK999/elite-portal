@@ -278,7 +278,13 @@
             const getDayKcal = (day) => Number(day.cal) || (Number(day.p)*4 + Number(day.c)*4 + Number(day.f)*9) || 0;
             const avgSteps = dailyLogs.length ? Math.round(dailyLogs.reduce((acc, curr) => acc + (Number(curr.steps) || 0), 0) / dailyLogs.length) : 0;
             const avgCals = dailyLogs.length ? Math.round(dailyLogs.reduce((acc, curr) => acc + getDayKcal(curr), 0) / dailyLogs.length) : 0;
-            const filteredMetrics = measurements.filter(m => Number(m.weekNum) >= wkFilter.start && Number(m.weekNum) <= wkFilter.end);
+            
+            // Updated to hide rows with no data
+            const filteredMetrics = measurements.filter(m => 
+                Number(m.weekNum) >= wkFilter.start && 
+                Number(m.weekNum) <= wkFilter.end &&
+                (m.chest || m.waist || m.glute)
+            );
 
             return (
                 <div>
