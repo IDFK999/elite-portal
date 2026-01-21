@@ -21,7 +21,6 @@
         .btn-primary { background: #007AFF; border: none; border-radius: 12px; padding: 15px; font-weight: bold; width: 100%; }
         .target-pill { background: #1c1c1e; color: #fff; border-radius: 20px; padding: 18px 10px; margin-bottom: 20px; cursor: pointer; border: 1px solid #3a3a3c; }
         .macro-container { display: flex; justify-content: space-around; text-align: center; }
-        .macro-box { display: flex; flex-direction: column; }
         .macro-mini-label { font-size: 8px; color: #8e8e93; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
         .macro-mini-value { font-size: 14px; font-weight: 800; }
         .section-title { font-size: 11px; font-weight: 800; color: #8e8e93; text-transform: uppercase; margin-bottom: 12px; margin-top: 5px; letter-spacing: 0.5px; border-bottom: 1px solid #f2f2f7; padding-bottom: 5px; }
@@ -51,7 +50,6 @@
             const [isBooting, setIsBooting] = useState(true);
 
             useEffect(() => {
-                // Anti-Paste Protection
                 const blockPaste = (e) => {
                     if (e.target.tagName === 'INPUT') e.preventDefault();
                 };
@@ -80,7 +78,7 @@
                 <div className="container py-4">
                     <div className="d-flex justify-content-between align-items-center mb-3">
                         <h4 className="fw-bold m-0">Elite Portal</h4>
-                        <div className="badge bg-dark">v9.2.3</div>
+                        <div className="badge bg-dark">v9.2.6</div>
                     </div>
 
                     {view === 'log' && <DailyLog user={session.user} />}
@@ -112,12 +110,7 @@
             }, [f.date]);
 
             const saveLog = async () => {
-                // Validation Logic
-                if (!f.weight || !f.steps) {
-                    alert("Weight and Steps are mandatory fields.");
-                    return;
-                }
-
+                if (!f.weight || !f.steps) return alert("Weight and Steps are mandatory fields.");
                 const { error } = await _supabase.from('daily_logs').upsert({
                     user_id: user.id, log_date: f.date, weight: parseFloat(f.weight),
                     protein: parseInt(f.p)||0, carbs: parseInt(f.c)||0, fats: parseInt(f.f)||0,
@@ -131,9 +124,9 @@
                     {!editTargets ? (
                         <div className="target-pill" onClick={() => setEditTargets(true)}>
                             <div className="macro-container">
-                                <div className="macro-box"><span className="macro-mini-label">Protein</span><span className="macro-mini-value">{targets.p}g</span></div>
-                                <div className="macro-box"><span className="macro-mini-label">Carbs</span><span className="macro-mini-value">{targets.c}g</span></div>
-                                <div className="macro-box"><span className="macro-mini-label">Fats</span><span className="macro-mini-value">{targets.f}g</span></div>
+                                <div className="text-center"><span className="macro-mini-label">Protein</span><br/><span className="macro-mini-value">{targets.p}g</span></div>
+                                <div className="text-center"><span className="macro-mini-label">Carbs</span><br/><span className="macro-mini-value">{targets.c}g</span></div>
+                                <div className="text-center"><span className="macro-mini-label">Fats</span><br/><span className="macro-mini-value">{targets.f}g</span></div>
                             </div>
                         </div>
                     ) : (
@@ -176,26 +169,14 @@
             
             const getWeekInfo = () => {
                 const start = new Date(startDate);
-                const today = new Date();
-                const diffTime = Math.abs(today - start);
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                const diffDays = Math.ceil(Math.abs(new Date() - start) / (1000 * 60 * 60 * 24));
                 const weekNum = Math.ceil(diffDays / 7) || 1;
-                const weekStart = new Date(start);
-                weekStart.setDate(start.getDate() + (weekNum - 1) * 7);
-                const weekEnd = new Date(weekStart);
-                weekEnd.setDate(weekStart.getDate() + 7);
-                return { num: weekNum, range: `${weekStart.toLocaleDateString()} - ${weekEnd.toLocaleDateString()}` };
+                return { num: weekNum };
             };
-
             const weekInfo = getWeekInfo();
 
             const submitCheckin = async () => {
-                // Validation for Weekly Metrics
-                if (!f.waist || !f.chest) {
-                    alert("Waist and Chest are mandatory for check-in.");
-                    return;
-                }
-
+                if (!f.waist || !f.chest) return alert("Waist and Chest are mandatory for check-in.");
                 const { error } = await _supabase.from('weekly_metrics').upsert({
                     user_id: user.id, week_number: weekInfo.num,
                     chest: parseFloat(f.chest), waist: parseFloat(f.waist), glute: parseFloat(f.glute)||0,
@@ -207,24 +188,26 @@
 
             return (
                 <div className="card">
-                    <label className="toggle-label">Start Date</label>
+                    <label className="toggle-label">Program Start Date</label>
                     <input type="date" className="form-control mb-3" value={startDate} onChange={e=>{setStartDate(e.target.value); localStorage.setItem('coach_start_date', e.target.value);}} />
-                    <div className="date-range-badge">WEEK {weekInfo.num}<br/><span style={{fontSize:'10px', opacity:0.8}}>{weekInfo.range}</span></div>
-                    <div className="section-title">Measurements</div>
+                    <div className="date-range-badge">WEEK {weekInfo.num} CHECK-IN</div>
+                    <div className="section-title">Core Measurements</div>
                     <div className="row g-2 mb-2">
                         <div className="col-6"><label className="toggle-label">Waist *</label><input type="number" className="form-control" value={f.waist} onChange={e=>setF({...f, waist: cleanNum(e.target.value)})} /></div>
                         <div className="col-6"><label className="toggle-label">Chest *</label><input type="number" className="form-control" value={f.chest} onChange={e=>setF({...f, chest: cleanNum(e.target.value)})} /></div>
                     </div>
+                    <div className="section-title">Extremities</div>
                     <div className="row g-2 mb-2">
                         <div className="col-6"><label className="toggle-label">Left Arm</label><input type="number" className="form-control" value={f.larm} onChange={e=>setF({...f, larm: cleanNum(e.target.value)})} /></div>
                         <div className="col-6"><label className="toggle-label">Right Arm</label><input type="number" className="form-control" value={f.rarm} onChange={e=>setF({...f, rarm: cleanNum(e.target.value)})} /></div>
                     </div>
                     <div className="row g-2 mb-3">
-                        <div className="col-12"><label className="toggle-label">Glutes</label><input type="number" className="form-control" value={f.glute} onChange={e=>setF({...f, glute: cleanNum(e.target.value)})} /></div>
-                    </div>
-                    <div className="row g-2 mb-3">
                         <div className="col-6"><label className="toggle-label">Left Thigh</label><input type="number" className="form-control" value={f.lthigh} onChange={e=>setF({...f, lthigh: cleanNum(e.target.value)})} /></div>
                         <div className="col-6"><label className="toggle-label">Right Thigh</label><input type="number" className="form-control" value={f.rthigh} onChange={e=>setF({...f, rthigh: cleanNum(e.target.value)})} /></div>
+                    </div>
+                    <div className="section-title">Posterior</div>
+                    <div className="row g-2 mb-3">
+                        <div className="col-12"><label className="toggle-label">Glutes</label><input type="number" className="form-control" value={f.glute} onChange={e=>setF({...f, glute: cleanNum(e.target.value)})} /></div>
                     </div>
                     <button className="btn btn-primary mt-2" onClick={submitCheckin}>Submit Weekly Stats</button>
                 </div>
@@ -238,7 +221,6 @@
             const [dateTo, setDateTo] = useState(new Date().toISOString().split('T')[0]);
             const [weekFrom, setWeekFrom] = useState(1);
             const [weekTo, setWeekTo] = useState(52);
-            
             const canvasRef = useRef(null);
             const chartInstance = useRef(null);
 
@@ -266,82 +248,43 @@
                 }
             }, [logs]);
 
-            const calculateAverages = () => {
+            const stats = (() => {
                 if (logs.length === 0) return { loss: 0, kcal: 0, steps: 0 };
                 const sorted = [...logs].sort((a,b) => new Date(a.log_date) - new Date(b.log_date));
-                const startWeight = sorted[0].weight;
-                const endWeight = sorted[sorted.length - 1].weight;
                 const totalKcal = logs.reduce((acc, l) => acc + (l.protein*4 + l.carbs*4 + l.fats*9), 0);
                 const totalSteps = logs.reduce((acc, l) => acc + (l.steps || 0), 0);
                 return {
-                    loss: (startWeight - endWeight).toFixed(1),
+                    loss: (sorted[0].weight - sorted[sorted.length - 1].weight).toFixed(1),
                     kcal: Math.round(totalKcal / logs.length),
                     steps: Math.round(totalSteps / logs.length)
                 };
-            };
-
-            const stats = calculateAverages();
+            })();
 
             return (
                 <div>
                     <div className="card">
-                        <div className="section-title">Weight Trend Selector</div>
+                        <div className="section-title">Trend Range</div>
                         <div className="row g-2 mb-3">
                             <div className="col-6"><label className="toggle-label">From</label><input type="date" className="form-control" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} /></div>
                             <div className="col-6"><label className="toggle-label">To</label><input type="date" className="form-control" value={dateTo} onChange={e=>setDateTo(e.target.value)} /></div>
                         </div>
                         <div style={{height: '180px'}}><canvas ref={canvasRef}></canvas></div>
                     </div>
-                    <div className="section-title">Period Performance Averages</div>
                     <div className="row g-2 mb-3">
                         <div className="col-4"><div className="avg-card"><div className="avg-label">Loss</div><div className="avg-value">{stats.loss}kg</div></div></div>
                         <div className="col-4"><div className="avg-card"><div className="avg-label">Avg Kcal</div><div className="avg-value">{stats.kcal}</div></div></div>
                         <div className="col-4"><div className="avg-card"><div className="avg-label">Avg Steps</div><div className="avg-value">{stats.steps}</div></div></div>
                     </div>
-                    <div className="section-title">Selected Log History</div>
-                    <div className="card p-0 overflow-hidden mb-4">
-                        <div className="table-responsive">
-                            <table className="table table-hover table-sm m-0" style={{fontSize: '11px'}}>
-                                <thead className="table-dark">
-                                    <tr><th>Date</th><th>KG</th><th>Kcal</th><th>P/C/F</th><th>Steps</th></tr>
-                                </thead>
-                                <tbody>
-                                    {logs.map((l, i) => (
-                                        <tr key={i}>
-                                            <td className="fw-bold">{l.log_date.split('-').slice(1).join('/')}</td>
-                                            <td>{l.weight}</td>
-                                            <td className="text-primary fw-bold">{(l.protein*4 + l.carbs*4 + l.fats*9) || 0}</td>
-                                            <td>{l.protein}/{l.carbs}/{l.fats}</td>
-                                            <td>{l.steps?.toLocaleString()}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                    <div className="section-title">Weekly Measurements Range</div>
                     <div className="card">
-                        <div className="row g-2 mb-2">
-                            <div className="col-6"><label className="toggle-label">Week From</label><input type="number" className="form-control" value={weekFrom} onChange={e=>setWeekFrom(e.target.value)} /></div>
-                            <div className="col-6"><label className="toggle-label">Week To</label><input type="number" className="form-control" value={weekTo} onChange={e=>setWeekTo(e.target.value)} /></div>
+                        <div className="section-title">Weekly Filter</div>
+                        <div className="row g-2 mb-3">
+                            <div className="col-6"><label className="toggle-label">Week From</label><input type="number" className="form-control" value={weekFrom} onChange={e=>setWeekFrom(cleanNum(e.target.value))} /></div>
+                            <div className="col-6"><label className="toggle-label">Week To</label><input type="number" className="form-control" value={weekTo} onChange={e=>setWeekTo(cleanNum(e.target.value))} /></div>
                         </div>
                         <div className="table-responsive">
                             <table className="table table-sm m-0" style={{fontSize: '11px', minWidth: '400px'}}>
-                                <thead className="table-light">
-                                    <tr><th>Week</th><th>Waist</th><th>Chest</th><th>Arms</th><th>Glute</th><th>Thighs</th></tr>
-                                </thead>
-                                <tbody>
-                                    {metrics.map((m, i) => (
-                                        <tr key={i}>
-                                            <td className="fw-bold text-primary">W{m.week_number}</td>
-                                            <td>{m.waist}</td>
-                                            <td>{m.chest}</td>
-                                            <td>{m.left_arm}/{m.right_arm}</td>
-                                            <td>{m.glute}</td>
-                                            <td>{m.left_thigh}/{m.right_thigh}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
+                                <thead><tr><th>Week</th><th>Waist</th><th>Chest</th><th>Arms</th><th>Glute</th><th>Thighs</th></tr></thead>
+                                <tbody>{metrics.map((m, i) => (<tr key={i}><td>W{m.week_number}</td><td>{m.waist}</td><td>{m.chest}</td><td>{m.left_arm}/{m.right_arm}</td><td>{m.glute}</td><td>{m.left_thigh}/{m.right_thigh}</td></tr>))}</tbody>
                             </table>
                         </div>
                     </div>
