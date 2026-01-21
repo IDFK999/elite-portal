@@ -261,13 +261,23 @@
             }, [logs]);
 
             const calculateAverages = () => {
-                if (logs.length === 0) return { loss: 0, kcal: 0, steps: 0 };
+                if (logs.length === 0) return { loss: 0, kcal: 0, steps: 0, color: '#1c1c1e', sign: '' };
                 const sorted = [...logs].sort((a,b) => new Date(a.log_date) - new Date(b.log_date));
                 const startWeight = sorted[0].weight;
                 const endWeight = sorted[sorted.length - 1].weight;
+                const weightDiff = (endWeight - startWeight).toFixed(1);
+                
                 const totalKcal = logs.reduce((acc, l) => acc + (l.protein*4 + l.carbs*4 + l.fats*9), 0);
                 const totalSteps = logs.reduce((acc, l) => acc + (l.steps || 0), 0);
-                return { loss: (startWeight - endWeight).toFixed(1), kcal: Math.round(totalKcal / logs.length), steps: Math.round(totalSteps / logs.length) };
+                
+                // If weightDiff is positive = Gain (+), if negative = Loss (-)
+                return { 
+                    loss: Math.abs(weightDiff), 
+                    kcal: Math.round(totalKcal / logs.length), 
+                    steps: Math.round(totalSteps / logs.length),
+                    color: weightDiff > 0 ? '#28a745' : weightDiff < 0 ? '#dc3545' : '#1c1c1e',
+                    sign: weightDiff > 0 ? '+' : weightDiff < 0 ? '-' : ''
+                };
             };
 
             const stats = calculateAverages();
@@ -284,7 +294,12 @@
                     </div>
                     <div className="section-title">Period Performance Averages</div>
                     <div className="row g-2 mb-3">
-                        <div className="col-4"><div className="avg-card"><div className="avg-label">Loss</div><div className="avg-value">{stats.loss}kg</div></div></div>
+                        <div className="col-4">
+                            <div className="avg-card">
+                                <div className="avg-label">Trend</div>
+                                <div className="avg-value" style={{ color: stats.color }}>{stats.sign}{stats.loss}kg</div>
+                            </div>
+                        </div>
                         <div className="col-4"><div className="avg-card"><div className="avg-label">Avg Kcal</div><div className="avg-value">{stats.kcal}</div></div></div>
                         <div className="col-4"><div className="avg-card"><div className="avg-label">Avg Steps</div><div className="avg-value">{stats.steps}</div></div></div>
                     </div>
