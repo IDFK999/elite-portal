@@ -184,13 +184,15 @@
                     const img = new Image();
                     img.onload = () => {
                         const canvas = document.createElement('canvas');
-                        const MAX_WIDTH = 800;
+                        // Reduced to 600px for even smaller file sizes
+                        const MAX_WIDTH = 600;
                         const scaleSize = MAX_WIDTH / img.width;
                         canvas.width = MAX_WIDTH;
                         canvas.height = img.height * scaleSize;
                         const ctx = canvas.getContext('2d');
                         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                        setF(prev => ({...prev, [key]: canvas.toDataURL('image/jpeg', 0.7)}));
+                        // Quality reduced to 0.4 for very fast upload/low res
+                        setF(prev => ({...prev, [key]: canvas.toDataURL('image/jpeg', 0.4)}));
                     };
                     img.src = event.target.result;
                 };
@@ -279,7 +281,6 @@
             const avgSteps = dailyLogs.length ? Math.round(dailyLogs.reduce((acc, curr) => acc + (Number(curr.steps) || 0), 0) / dailyLogs.length) : 0;
             const avgCals = dailyLogs.length ? Math.round(dailyLogs.reduce((acc, curr) => acc + getDayKcal(curr), 0) / dailyLogs.length) : 0;
             
-            // Updated to hide rows with no data
             const filteredMetrics = measurements.filter(m => 
                 Number(m.weekNum) >= wkFilter.start && 
                 Number(m.weekNum) <= wkFilter.end &&
