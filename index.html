@@ -6,12 +6,12 @@
     <title>Elite Performance Portal</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body { background: #f2f2f7; font-family: -apple-system, sans-serif; padding-bottom: 110px; -webkit-user-select: none; user-select: none; }
+        body { background: #f2f2f7; font-family: -apple-system, sans-serif; padding-bottom: 110px; }
         .card { border-radius: 20px; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 15px; padding: 20px; background: #fff; }
         .nav-bottom { position: fixed; bottom: 0; left:0; width: 100%; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); display: flex; justify-content: space-around; padding: 15px 0 35px; border-top: 1px solid #ddd; z-index: 1000; }
         .nav-item { color: #8e8e93; font-weight: 700; font-size: 10px; cursor: pointer; text-align: center; text-transform: uppercase; }
@@ -43,7 +43,6 @@
         const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV1ZXBwcXN1eXRyb3loaXJyemt4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkwMjAyMjIsImV4cCI6MjA4NDU5NjIyMn0.mGUyMMeuF5Ce7pTnsg5INGaR4v-ZsfQNoQgjbYZ_3Gw";
         const _supabase = supabase.createClient(SB_URL, SB_KEY);
 
-        // Utility to prevent non-numeric entry and sanitise
         const cleanNum = (val) => val.replace(/[^0-9.]/g, '');
 
         function App() {
@@ -51,22 +50,9 @@
             const [session, setSession] = useState(null);
 
             useEffect(() => {
-                // Disable Paste Clipboard globally
-                const preventPaste = (e) => {
-                    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
-                        e.preventDefault();
-                        alert("Manual entry required for accuracy.");
-                    }
-                };
-                window.addEventListener('paste', preventPaste);
-
                 _supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
                 const { data: { subscription } } = _supabase.auth.onAuthStateChange((_event, session) => setSession(session));
-                
-                return () => {
-                    subscription.unsubscribe();
-                    window.removeEventListener('paste', preventPaste);
-                };
+                return () => subscription.unsubscribe();
             }, []);
 
             if (!session) return <Login />;
@@ -75,7 +61,7 @@
                 <div className="container py-4">
                     <div className="d-flex justify-content-between align-items-center mb-3">
                         <h4 className="fw-bold m-0">Elite Portal</h4>
-                        <div className="badge bg-dark">v9.2.0</div>
+                        <div className="badge bg-dark">v9.1.1</div>
                     </div>
 
                     {view === 'log' && <DailyLog user={session.user} />}
@@ -107,16 +93,12 @@
             }, [f.date]);
 
             const saveLog = async () => {
-                // Validation: Ensure weight and steps are entered
-                if (!f.weight || parseFloat(f.weight) <= 0) return alert("Please enter a valid weight.");
-                if (!f.steps || parseInt(f.steps) < 0) return alert("Please enter daily steps.");
-
                 const { error } = await _supabase.from('daily_logs').upsert({
-                    user_id: user.id, log_date: f.date, weight: parseFloat(f.weight),
+                    user_id: user.id, log_date: f.date, weight: parseFloat(f.weight)||0,
                     protein: parseInt(f.p)||0, carbs: parseInt(f.c)||0, fats: parseInt(f.f)||0,
-                    steps: parseInt(f.steps), water_liters: parseFloat(f.water)||0, sleep_hours: parseFloat(f.sleep)||0
+                    steps: parseInt(f.steps)||0, water_liters: parseFloat(f.water)||0, sleep_hours: parseFloat(f.sleep)||0
                 }, { onConflict: 'user_id,log_date' });
-                if (error) alert(error.message); else alert("Log Saved Successfully");
+                if (error) alert(error.message); else alert("Saved");
             };
 
             return (
@@ -152,8 +134,8 @@
                         <input type="date" className="form-control" value={f.date} onChange={e=>setF({...f, date:e.target.value})} />
                         <div className="section-title">Daily Metrics</div>
                         <div className="row g-2">
-                            <div className="col-6"><label className="toggle-label">Weight (kg) *</label><input type="number" inputMode="decimal" className="form-control" value={f.weight} onChange={e=>setF({...f, weight: cleanNum(e.target.value)})} required /></div>
-                            <div className="col-6"><label className="toggle-label">Steps *</label><input type="number" inputMode="numeric" className="form-control" value={f.steps} onChange={e=>setF({...f, steps: cleanNum(e.target.value)})} required /></div>
+                            <div className="col-6"><label className="toggle-label">Weight (kg)</label><input type="number" inputMode="decimal" className="form-control" value={f.weight} onChange={e=>setF({...f, weight: cleanNum(e.target.value)})} /></div>
+                            <div className="col-6"><label className="toggle-label">Steps</label><input type="number" inputMode="numeric" className="form-control" value={f.steps} onChange={e=>setF({...f, steps: cleanNum(e.target.value)})} /></div>
                         </div>
                         <div className="section-title mt-2">Macro Intake</div>
                         <div className="row g-2">
@@ -192,16 +174,13 @@
             const weekInfo = getWeekInfo();
 
             const submitCheckin = async () => {
-                // Validation: Ensure waist and chest are entered at minimum
-                if (!f.waist || !f.chest) return alert("Please enter at least Waist and Chest measurements.");
-
                 const { error } = await _supabase.from('weekly_metrics').upsert({
                     user_id: user.id, week_number: weekInfo.num,
-                    chest: parseFloat(f.chest), waist: parseFloat(f.waist), glute: parseFloat(f.glute)||0,
+                    chest: parseFloat(f.chest)||0, waist: parseFloat(f.waist)||0, glute: parseFloat(f.glute)||0,
                     left_arm: parseFloat(f.larm)||0, right_arm: parseFloat(f.rarm)||0,
                     left_thigh: parseFloat(f.lthigh)||0, right_thigh: parseFloat(f.rthigh)||0
                 });
-                if (error) alert(error.message); else alert(`Week ${weekInfo.num} Submitted Successfully`);
+                if (error) alert(error.message); else alert(`Week ${weekInfo.num} Submitted`);
             };
 
             return (
@@ -209,10 +188,10 @@
                     <label className="toggle-label">Start Date</label>
                     <input type="date" className="form-control mb-3" value={startDate} onChange={e=>{setStartDate(e.target.value); localStorage.setItem('coach_start_date', e.target.value);}} />
                     <div className="date-range-badge">WEEK {weekInfo.num}<br/><span style={{fontSize:'10px', opacity:0.8}}>{weekInfo.range}</span></div>
-                    <div className="section-title">Measurements (Required *)</div>
+                    <div className="section-title">Measurements</div>
                     <div className="row g-2 mb-2">
-                        <div className="col-6"><label className="toggle-label">Waist *</label><input type="number" className="form-control" value={f.waist} onChange={e=>setF({...f, waist: cleanNum(e.target.value)})} /></div>
-                        <div className="col-6"><label className="toggle-label">Chest *</label><input type="number" className="form-control" value={f.chest} onChange={e=>setF({...f, chest: cleanNum(e.target.value)})} /></div>
+                        <div className="col-6"><label className="toggle-label">Waist</label><input type="number" className="form-control" value={f.waist} onChange={e=>setF({...f, waist: cleanNum(e.target.value)})} /></div>
+                        <div className="col-6"><label className="toggle-label">Chest</label><input type="number" className="form-control" value={f.chest} onChange={e=>setF({...f, chest: cleanNum(e.target.value)})} /></div>
                     </div>
                     <div className="row g-2 mb-2">
                         <div className="col-6"><label className="toggle-label">Left Arm</label><input type="number" className="form-control" value={f.larm} onChange={e=>setF({...f, larm: cleanNum(e.target.value)})} /></div>
