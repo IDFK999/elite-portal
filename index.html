@@ -20,6 +20,9 @@
         .btn-primary { background: #007AFF; border: none; border-radius: 12px; padding: 15px; font-weight: bold; width: 100%; }
         .target-pill { background: #1c1c1e; color: #fff; border-radius: 15px; padding: 12px; margin-bottom: 15px; font-size: 12px; text-align: center; font-weight: bold; }
         .section-title { font-size: 12px; font-weight: bold; color: #8e8e93; text-transform: uppercase; margin-bottom: 10px; margin-left: 5px; }
+        .avg-display { background: #f8f9fa; border-radius: 12px; padding: 10px; text-align: center; margin-bottom: 10px; border: 1px solid #eee; }
+        .avg-val { font-size: 16px; font-weight: 800; color: #007AFF; }
+        .avg-label { font-size: 10px; color: #8e8e93; display: block; }
     </style>
 </head>
 <body>
@@ -48,7 +51,7 @@
                 <div className="container py-4">
                     <div className="d-flex justify-content-between align-items-center mb-3">
                         <h4 className="fw-bold m-0">Elite Portal</h4>
-                        <div className="badge bg-dark">v5.0.5</div>
+                        <div className="badge bg-dark">v6.0.2</div>
                     </div>
 
                     {view === 'log' && <DailyLog user={session.user} />}
@@ -68,144 +71,95 @@
         function DailyLog({ user }) {
             const [f, setF] = useState({ date: new Date().toISOString().split('T')[0], weight:'', steps:'', p:'', c:'', f:'', water:'', sleep:'' });
             const [targets, setTargets] = useState({ p: 200, c: 250, f: 70 });
+            const [avgs, setAvgs] = useState({ w: 0, s: 0, cal: 0 });
 
-            // Fetch existing data when date changes
             useEffect(() => {
-                const fetchExisting = async () => {
-                    const { data, error } = await _supabase
-                        .from('daily_logs')
-                        .select('*')
-                        .eq('user_id', user.id)
-                        .eq('log_date', f.date)
-                        .maybeSingle();
-                    
-                    if (data) {
-                        setF({
-                            date: f.date,
-                            weight: data.weight || '',
-                            steps: data.steps || '',
-                            p: data.protein || '',
-                            c: data.carbs || '',
-                            f: data.fats || '',
-                            water: data.water_liters || '',
-                            sleep: data.sleep_hours || ''
-                        });
-                    } else {
-                        // Reset form for new date
-                        setF({ ...f, weight:'', steps:'', p:'', c:'', f:'', water:'', sleep:'' });
+                const fetchData = async () => {
+                    // Fetch existing log for date
+                    const { data } = await _supabase.from('daily_logs').select('*').eq('user_id', user.id).eq('log_date', f.date).maybeSingle();
+                    if (data) setF({ ...f, weight: data.weight||'', steps: data.steps||'', p: data.protein||'', c: data.carbs||'', f: data.fats||'', water: data.water_liters||'', sleep: data.sleep_hours||'' });
+                    else setF({ ...f, weight:'', steps:'', p:'', c:'', f:'', water:'', sleep:'' });
+
+                    // Fetch last 7 logs for averages
+                    const { data: hist } = await _supabase.from('daily_logs').select('*').eq('user_id', user.id).lte('log_date', f.date).order('log_date', {ascending: false}).limit(7);
+                    if (hist && hist.length > 0) {
+                        const total = hist.reduce((acc, cur) => ({
+                            w: acc.w + (cur.weight || 0),
+                            s: acc.s + (cur.steps || 0),
+                            cal: acc.cal + ((cur.protein*4) + (cur.carbs*4) + (cur.fats*9))
+                        }), {w:0, s:0, cal:0});
+                        setAvgs({ w: (total.w/hist.length).toFixed(1), s: Math.round(total.s/hist.length), cal: Math.round(total.cal/hist.length) });
                     }
                 };
-                fetchExisting();
+                fetchData();
             }, [f.date]);
-
-            useEffect(() => {
-                const saved = localStorage.getItem(`targets_${user.id}`);
-                if (saved) setTargets(JSON.parse(saved));
-            }, [user.id]);
 
             const saveLog = async () => {
                 const { error } = await _supabase.from('daily_logs').upsert({
-                    user_id: user.id,
-                    log_date: f.date,
-                    weight: parseFloat(f.weight) || 0,
-                    protein: parseInt(f.p) || 0,
-                    carbs: parseInt(f.c) || 0,
-                    fats: parseInt(f.f) || 0,
-                    steps: parseInt(f.steps) || 0,
-                    water_liters: parseFloat(f.water) || 0,
-                    sleep_hours: parseFloat(f.sleep) || 0
+                    user_id: user.id, log_date: f.date, weight: parseFloat(f.weight)||0,
+                    protein: parseInt(f.p)||0, carbs: parseInt(f.c)||0, fats: parseInt(f.f)||0,
+                    steps: parseInt(f.steps)||0, water_liters: parseFloat(f.water)||0, sleep_hours: parseFloat(f.sleep)||0
                 }, { onConflict: 'user_id,log_date' });
-
-                if (error) alert(error.message);
-                else alert("Data Saved/Updated");
+                if (error) alert(error.message); else alert("Saved");
             };
-
-            const targetCal = (targets.p * 4) + (targets.c * 4) + (targets.f * 9);
-            const currentCal = (parseInt(f.p)||0)*4 + (parseInt(f.c)||0)*4 + (parseInt(f.f)||0)*9;
 
             return (
                 <div>
-                    <div className="target-pill">
-                        🎯 GOAL: {targets.p}P / {targets.c}C / {targets.f}F ({targetCal} kcal)
-                    </div>
+                    <div className="target-pill">🎯 GOAL: {targets.p}P / {targets.c}C / {targets.f}F</div>
                     
-                    <div className="section-title">Log Daily Stats</div>
+                    <div className="row g-2 mb-2">
+                        <div className="col-4"><div className="avg-display"><span className="avg-label">Avg Wt</span><span className="avg-val">{avgs.w}</span></div></div>
+                        <div className="col-4"><div className="avg-display"><span className="avg-label">Avg Steps</span><span className="avg-val">{avgs.s}</span></div></div>
+                        <div className="col-4"><div className="avg-display"><span className="avg-label">Avg Cal</span><span className="avg-val">{avgs.cal}</span></div></div>
+                    </div>
+
                     <div className="card">
-                        <label className="small fw-bold mb-1">Select Date</label>
                         <input type="date" className="form-control" value={f.date} onChange={e=>setF({...f, date:e.target.value})} />
-                        
                         <div className="row g-2">
-                            <div className="col-6"><input type="number" step="0.1" className="form-control" placeholder="Weight (kg)" value={f.weight} onChange={e=>setF({...f, weight:e.target.value})} /></div>
+                            <div className="col-6"><input type="number" step="0.1" className="form-control" placeholder="Weight" value={f.weight} onChange={e=>setF({...f, weight:e.target.value})} /></div>
                             <div className="col-6"><input type="number" className="form-control" placeholder="Steps" value={f.steps} onChange={e=>setF({...f, steps:e.target.value})} /></div>
                         </div>
-
                         <div className="row g-2">
-                            <div className="col-4"><input type="number" className="form-control" placeholder="Prot" value={f.p} onChange={e=>setF({...f, p:e.target.value})} /></div>
-                            <div className="col-4"><input type="number" className="form-control" placeholder="Carb" value={f.c} onChange={e=>setF({...f, c:e.target.value})} /></div>
-                            <div className="col-4"><input type="number" className="form-control" placeholder="Fat" value={f.f} onChange={e=>setF({...f, f:e.target.value})} /></div>
+                            <div className="col-4"><input type="number" className="form-control" placeholder="P" value={f.p} onChange={e=>setF({...f, p:e.target.value})} /></div>
+                            <div className="col-4"><input type="number" className="form-control" placeholder="C" value={f.c} onChange={e=>setF({...f, c:e.target.value})} /></div>
+                            <div className="col-4"><input type="number" className="form-control" placeholder="F" value={f.f} onChange={e=>setF({...f, f:e.target.value})} /></div>
                         </div>
-
-                        <div className="row g-2">
-                            <div className="col-6"><input type="number" step="0.1" className="form-control" placeholder="Water (L)" value={f.water} onChange={e=>setF({...f, water:e.target.value})} /></div>
-                            <div className="col-6"><input type="number" step="0.5" className="form-control" placeholder="Sleep (Hrs)" value={f.sleep} onChange={e=>setF({...f, sleep:e.target.value})} /></div>
-                        </div>
-
-                        <div className="mt-2 small text-center fw-bold text-primary">
-                            Calories: {currentCal} / {targetCal}
-                        </div>
-
-                        <button className="btn btn-primary mt-3" onClick={saveLog}>Save Changes</button>
-                    </div>
-
-                    <div className="section-title">Edit Nutrition Targets</div>
-                    <div className="card">
-                        <div className="row g-2">
-                            <div className="col-4"><input type="number" className="form-control" value={targets.p} onChange={e=>setTargets({...targets, p: parseInt(e.target.value)||0})} /></div>
-                            <div className="col-4"><input type="number" className="form-control" value={targets.c} onChange={e=>setTargets({...targets, c: parseInt(e.target.value)||0})} /></div>
-                            <div className="col-4"><input type="number" className="form-control" value={targets.f} onChange={e=>setTargets({...targets, f: parseInt(e.target.value)||0})} /></div>
-                        </div>
-                        <button className="btn btn-dark btn-sm w-100 mt-2" onClick={() => { localStorage.setItem(`targets_${user.id}`, JSON.stringify(targets)); alert("Goal Updated"); }}>Update Goal</button>
+                        <button className="btn btn-primary mt-2" onClick={saveLog}>Save Entry</button>
                     </div>
                 </div>
             );
         }
 
-        // ... Metrics and Stats remain the same as previous version but with fixed onConflict ...
-        // (Full code continues below with these fixes)
-
         function Metrics({ user }) {
             const [f, setF] = useState({ weekNum:'', chest:'', waist:'', glute:'', larm:'', rarm:'', lthigh:'', rthigh:'' });
-
-            const save = async () => {
-                const { error } = await _supabase.from('weekly_metrics').upsert({
-                    user_id: user.id,
-                    week_number: parseInt(f.weekNum) || 0,
-                    chest: parseFloat(f.chest) || 0, waist: parseFloat(f.waist) || 0, glute: parseFloat(f.glute) || 0,
-                    left_arm: parseFloat(f.larm) || 0, right_arm: parseFloat(f.rarm) || 0,
-                    left_thigh: parseFloat(f.lthigh) || 0, right_thigh: parseFloat(f.rthigh) || 0
-                }, { onConflict: 'user_id,week_number' });
-                if (error) alert(error.message);
-                else alert("Weekly Measurements Updated");
-            };
-
+            
             return (
-                <div className="card">
-                    <h6 className="fw-bold mb-3 text-success">Weekly Update (7-Point)</h6>
-                    <input type="number" className="form-control" placeholder="Week Number" value={f.weekNum} onChange={e=>setF({...f, weekNum:e.target.value})} />
-                    <div className="row g-2">
-                        <div className="col-4"><input className="form-control" type="number" step="0.1" placeholder="Chest" value={f.chest} onChange={e=>setF({...f, chest:e.target.value})} /></div>
-                        <div className="col-4"><input className="form-control" type="number" step="0.1" placeholder="Waist" value={f.waist} onChange={e=>setF({...f, waist:e.target.value})} /></div>
-                        <div className="col-4"><input className="form-control" type="number" step="0.1" placeholder="Glutes" value={f.glute} onChange={e=>setF({...f, glute:e.target.value})} /></div>
+                <div>
+                    <div className="alert alert-secondary py-2 small" style={{fontSize: '11px', borderRadius: '12px'}}>
+                        <b>2026 Reference:</b><br/>
+                        Week 1: 01/01 - 01/07 | Week 4: 01/22 - 01/28
                     </div>
-                    <div className="row g-2">
-                        <div className="col-6"><input className="form-control" type="number" step="0.1" placeholder="L-Arm" value={f.larm} onChange={e=>setF({...f, larm:e.target.value})} /></div>
-                        <div className="col-6"><input className="form-control" type="number" step="0.1" placeholder="R-Arm" value={f.rarm} onChange={e=>setF({...f, rarm:e.target.value})} /></div>
+                    <div className="card">
+                        <h6 className="fw-bold mb-3 text-primary">Weekly Measurements</h6>
+                        <input type="number" className="form-control" placeholder="Week Number (e.g. 4)" value={f.weekNum} onChange={e=>setF({...f, weekNum:e.target.value})} />
+                        <div className="row g-2">
+                            <div className="col-4"><input className="form-control" placeholder="Chest" onChange={e=>setF({...f, chest:e.target.value})} /></div>
+                            <div className="col-4"><input className="form-control" placeholder="Waist" onChange={e=>setF({...f, waist:e.target.value})} /></div>
+                            <div className="col-4"><input className="form-control" placeholder="Glute" onChange={e=>setF({...f, glute:e.target.value})} /></div>
+                        </div>
+                        <div className="row g-2">
+                            <div className="col-6"><input className="form-control" placeholder="L-Thigh" onChange={e=>setF({...f, lthigh:e.target.value})} /></div>
+                            <div className="col-6"><input className="form-control" placeholder="R-Thigh" onChange={e=>setF({...f, rthigh:e.target.value})} /></div>
+                        </div>
+                        <button className="btn btn-primary mt-2" onClick={async () => {
+                            const { error } = await _supabase.from('weekly_metrics').upsert({
+                                user_id: user.id, week_number: parseInt(f.weekNum), 
+                                chest: parseFloat(f.chest), waist: parseFloat(f.waist), glute: parseFloat(f.glute),
+                                left_thigh: parseFloat(f.lthigh), right_thigh: parseFloat(f.rthigh)
+                            }, { onConflict: 'user_id,week_number' });
+                            if (error) alert(error.message); else alert("Metrics Saved");
+                        }}>Submit Check-in</button>
                     </div>
-                    <div className="row g-2">
-                        <div className="col-6"><input className="form-control" type="number" step="0.1" placeholder="L-Thigh" value={f.lthigh} onChange={e=>setF({...f, lthigh:e.target.value})} /></div>
-                        <div className="col-6"><input className="form-control" type="number" step="0.1" placeholder="R-Thigh" value={f.rthigh} onChange={e=>setF({...f, rthigh:e.target.value})} /></div>
-                    </div>
-                    <button className="btn btn-primary mt-2" onClick={save}>Submit Check-in</button>
                 </div>
             );
         }
@@ -218,19 +172,16 @@
 
             useEffect(() => {
                 _supabase.from('daily_logs').select('*').eq('user_id', user.id).order('log_date', {ascending: false}).limit(14).then(({data}) => setLogs(data || []));
-                _supabase.from('weekly_metrics').select('*').eq('user_id', user.id).order('week_number', {ascending: false}).then(({data}) => setMetrics(data || []));
+                _supabase.from('weekly_metrics').select('*').eq('user_id', user.id).order('week_number', {ascending: false}).limit(10).then(({data}) => setMetrics(data || []));
             }, []);
 
             useEffect(() => {
                 if (canvasRef.current && logs.length > 0) {
-                    const sortedLogs = [...logs].reverse();
+                    const sorted = [...logs].reverse();
                     if (chartInstance.current) chartInstance.current.destroy();
                     chartInstance.current = new Chart(canvasRef.current, {
                         type: 'line',
-                        data: {
-                            labels: sortedLogs.map(l => l.log_date.split('-').slice(1).join('/')),
-                            datasets: [{ label: 'Weight', data: sortedLogs.map(l => l.weight), borderColor: '#007AFF', tension: 0.3 }]
-                        },
+                        data: { labels: sorted.map(l => l.log_date.split('-')[2]), datasets: [{ label: 'Weight', data: sorted.map(l => l.weight), borderColor: '#007AFF', tension: 0.3 }] },
                         options: { responsive: true, maintainAspectRatio: false }
                     });
                 }
@@ -238,23 +189,22 @@
 
             return (
                 <div>
-                    <div className="card" style={{height: '250px'}}><canvas ref={canvasRef}></canvas></div>
-                    <div className="section-title">History</div>
-                    <div className="card">
-                        <div className="table-responsive">
-                            <table className="table table-sm table-striped m-0">
-                                <thead><tr><th>Date</th><th>Wt</th><th>P/C/F</th></tr></thead>
-                                <tbody>
-                                    {logs.map((l, i) => (
-                                        <tr key={i}>
-                                            <td>{l.log_date.split('-').slice(1).join('/')}</td>
-                                            <td>{l.weight}</td>
-                                            <td>{l.protein}/{l.carbs}/{l.fats}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
+                    <div className="card" style={{height: '200px'}}><canvas ref={canvasRef}></canvas></div>
+                    
+                    <div className="section-title">Daily History</div>
+                    <div className="card p-0 overflow-hidden">
+                        <table className="table table-sm m-0" style={{fontSize: '12px'}}>
+                            <thead className="table-light"><tr><th>Date</th><th>Weight</th><th>Cals</th></tr></thead>
+                            <tbody>{logs.map((l, i) => (<tr key={i}><td>{l.log_date.slice(5)}</td><td>{l.weight}</td><td>{(l.protein*4+l.carbs*4+l.fats*9)}</td></tr>))}</tbody>
+                        </table>
+                    </div>
+
+                    <div className="section-title">Body Progress</div>
+                    <div className="card p-0 overflow-hidden">
+                        <table className="table table-sm m-0" style={{fontSize: '12px'}}>
+                            <thead className="table-dark"><tr><th>Wk</th><th>Waist</th><th>Glute</th><th>Thighs</th></tr></thead>
+                            <tbody>{metrics.map((m, i) => (<tr key={i}><td>{m.week_number}</td><td>{m.waist}</td><td>{m.glute}</td><td>{m.left_thigh}/{m.right_thigh}</td></tr>))}</tbody>
+                        </table>
                     </div>
                 </div>
             );
