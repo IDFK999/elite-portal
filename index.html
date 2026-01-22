@@ -25,6 +25,7 @@
             padding-bottom: 110px; 
             -webkit-user-select: none; 
             user-select: none;
+            touch-action: manipulation;
         }
 
         @keyframes slideIn {
@@ -65,6 +66,7 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
             transition: color 0.2s;
+            -webkit-tap-highlight-color: transparent;
         }
 
         .nav-item.active { 
@@ -76,7 +78,7 @@
             border: 1px solid transparent; 
             border-radius: 10px; 
             padding: 12px; 
-            font-size: 15px;
+            font-size: 16px; /* Prevents auto-zoom on iOS */
             margin-bottom: 10px; 
             transition: all 0.2s;
         }
@@ -96,8 +98,6 @@
             width: 100%; 
             transition: opacity 0.2s;
         }
-
-        .btn-primary:active { opacity: 0.8; transform: scale(0.99); }
 
         .target-pill { 
             background: var(--text-main); 
@@ -143,9 +143,6 @@
         .avg-value { font-size: 17px; font-weight: 700; color: var(--text-main); }
         .avg-label { font-size: 9px; color: #86868B; text-transform: uppercase; }
 
-        .table { border-radius: 8px; overflow: hidden; }
-        .table thead { background: var(--text-main); color: #fff; }
-        
         .date-range-badge { 
             background: var(--soft-grey); 
             color: var(--text-main); 
@@ -178,11 +175,6 @@
             const [isBooting, setIsBooting] = useState(true);
 
             useEffect(() => {
-                const blockPaste = (e) => {
-                    if (e.target.tagName === 'INPUT') e.preventDefault();
-                };
-                document.addEventListener('paste', blockPaste);
-
                 _supabase.auth.getSession().then(({ data: { session } }) => {
                     setSession(session);
                     setIsBooting(false);
@@ -190,14 +182,16 @@
 
                 const { data: { subscription } } = _supabase.auth.onAuthStateChange((_event, session) => {
                     setSession(session);
-                    setIsBooting(false);
                 });
 
-                return () => {
-                    document.removeEventListener('paste', blockPaste);
-                    subscription.unsubscribe();
-                };
+                return () => subscription.unsubscribe();
             }, []);
+
+            const handleSignOut = async (e) => {
+                e.preventDefault();
+                await _supabase.auth.signOut();
+                window.location.reload();
+            };
 
             if (isBooting) return <div className="p-5 text-center text-muted">Syncing...</div>;
             if (!session) return <Login />;
@@ -206,7 +200,7 @@
                 <div className="container py-4">
                     <div className="d-flex justify-content-between align-items-center mb-3">
                         <h5 className="fw-bold m-0" style={{letterSpacing: '-0.5px'}}>ELITE PERFORMANCE</h5>
-                        <div className="badge rounded-pill text-dark border">v9.2.6</div>
+                        <div className="badge rounded-pill text-dark border">v9.2.7</div>
                     </div>
 
                     {view === 'log' && <DailyLog user={session.user} />}
@@ -217,7 +211,7 @@
                         <div className={`nav-item ${view === 'log' ? 'active' : ''}`} onClick={()=>setView('log')}>Log</div>
                         <div className={`nav-item ${view === 'update' ? 'active' : ''}`} onClick={()=>setView('update')}>Update</div>
                         <div className={`nav-item ${view === 'stats' ? 'active' : ''}`} onClick={()=>setView('stats')}>Stats</div>
-                        <div className="nav-item text-danger" onClick={()=>_supabase.auth.signOut()}>Exit</div>
+                        <div className="nav-item text-danger" onClick={handleSignOut}>Exit</div>
                     </div>
                 </div>
             );
@@ -271,7 +265,7 @@
                         <input type="date" className="form-control mb-3 fw-bold" value={f.date} onChange={e=>setF({...f, date:e.target.value})} />
                         <div className="section-title">Core Metrics</div>
                         <div className="row g-2">
-                            <div className="col-6"><label className="toggle-label">Weight (kg) *</label><input type="number" inputMode="decimal" className="form-control" value={f.weight} onChange={e=>setF({...f, weight: cleanNum(e.target.value)})} /></div>
+                            <div className="col-6"><label className="toggle-label">Weight (kg) *</label><input type="number" step="any" inputMode="decimal" className="form-control" value={f.weight} onChange={e=>setF({...f, weight: cleanNum(e.target.value)})} /></div>
                             <div className="col-6"><label className="toggle-label">Steps *</label><input type="number" inputMode="numeric" className="form-control" value={f.steps} onChange={e=>setF({...f, steps: cleanNum(e.target.value)})} /></div>
                         </div>
                         <div className="section-title mt-2">Nutrient Intake</div>
@@ -282,8 +276,8 @@
                         </div>
                         <div className="section-title mt-2">Recovery</div>
                         <div className="row g-2">
-                            <div className="col-6"><label className="toggle-label">Water (L)</label><input type="number" inputMode="decimal" className="form-control" value={f.water} onChange={e=>setF({...f, water: cleanNum(e.target.value)})} /></div>
-                            <div className="col-6"><label className="toggle-label">Sleep (H)</label><input type="number" inputMode="decimal" className="form-control" value={f.sleep} onChange={e=>setF({...f, sleep: cleanNum(e.target.value)})} /></div>
+                            <div className="col-6"><label className="toggle-label">Water (L)</label><input type="number" step="any" inputMode="decimal" className="form-control" value={f.water} onChange={e=>setF({...f, water: cleanNum(e.target.value)})} /></div>
+                            <div className="col-6"><label className="toggle-label">Sleep (H)</label><input type="number" step="any" inputMode="decimal" className="form-control" value={f.sleep} onChange={e=>setF({...f, sleep: cleanNum(e.target.value)})} /></div>
                         </div>
                         <button className="btn btn-primary mt-3" onClick={saveLog}>Save Daily Record</button>
                     </div>
@@ -323,7 +317,6 @@
                     left_thigh: parseFloat(f.lthigh)||0, 
                     right_thigh: parseFloat(f.rthigh)||0
                 }, { onConflict: 'user_id,week_number' });
-                
                 if (error) alert(error.message); else alert(`Week ${weekInfo.num} Updated`);
             };
 
@@ -334,7 +327,6 @@
                     <div className="date-range-badge">WEEK {weekInfo.num}<br/><span style={{fontSize:'10px', opacity:0.6}}>{weekInfo.range}</span></div>
                     <div className="section-title">Measurements</div>
                     <div className="row g-2 mb-2">
-                        {/* inputMode="decimal" triggers number pad on iOS/Android */}
                         <div className="col-6"><label className="toggle-label">Waist *</label><input type="number" step="any" inputMode="decimal" className="form-control" value={f.waist} onChange={e=>setF({...f, waist: cleanNum(e.target.value)})} /></div>
                         <div className="col-6"><label className="toggle-label">Chest *</label><input type="number" step="any" inputMode="decimal" className="form-control" value={f.chest} onChange={e=>setF({...f, chest: cleanNum(e.target.value)})} /></div>
                     </div>
@@ -399,7 +391,7 @@
                             scales: { 
                                 x: { grid: { display: false }, ticks: { font: { size: 10 } } }, 
                                 y: { 
-                                    position: 'right', // Numbers on the right side of chart
+                                    position: 'left',
                                     grid: { color: '#F2F2F7' }, 
                                     ticks: { font: { size: 10 } } 
                                 } 
@@ -476,8 +468,8 @@
                     <div className="section-title">Measurement History</div>
                     <div className="card mb-3">
                         <div className="row g-2 mb-3">
-                            <div className="col-6"><label className="toggle-label">Week From</label><input type="number" className="form-control" value={weekFrom} onChange={e=>setWeekFrom(e.target.value)} /></div>
-                            <div className="col-6"><label className="toggle-label">Week To</label><input type="number" className="form-control" value={weekTo} onChange={e=>setWeekTo(e.target.value)} /></div>
+                            <div className="col-6"><label className="toggle-label">Week From</label><input type="number" inputMode="numeric" className="form-control" value={weekFrom} onChange={e=>setWeekFrom(e.target.value)} /></div>
+                            <div className="col-6"><label className="toggle-label">Week To</label><input type="number" inputMode="numeric" className="form-control" value={weekTo} onChange={e=>setWeekTo(e.target.value)} /></div>
                         </div>
                         <div className="table-responsive">
                             <table className="table table-sm m-0" style={{fontSize: '11px'}}>
