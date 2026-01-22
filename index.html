@@ -178,6 +178,19 @@
         .strategy-cal { font-weight: 700; color: var(--accent-blue); }
         .strategy-macros { font-size: 11px; color: #86868B; }
 
+        .date-range-badge { 
+            background: var(--soft-grey); 
+            color: var(--text-main); 
+            font-size: 11px; 
+            padding: 10px; 
+            border-radius: 10px; 
+            font-weight: 700; 
+            display: block; 
+            margin-bottom: 20px; 
+            text-align: center;
+            border: 1px solid var(--border-grey);
+        }
+
         .coach-box {
             background: #F2F2F7;
             border-left: 4px solid var(--accent-blue);
@@ -250,7 +263,7 @@
                 <div className="container py-4">
                     <div className="d-flex justify-content-between align-items-center mb-3">
                         <h5 className="fw-bold m-0" style={{letterSpacing: '-0.5px'}}>ELITE PERFORMANCE</h5>
-                        <div className="badge rounded-pill text-dark border">v9.8.0</div>
+                        <div className="badge rounded-pill text-dark border">v9.9.0</div>
                     </div>
 
                     {view === 'log' && <DailyLog user={session.user} />}
@@ -377,6 +390,7 @@
                 <div className="card">
                     <label className="toggle-label">Program Start Date</label>
                     <input type="date" className="form-control mb-3" value={startDate} onChange={e=>{setStartDate(e.target.value); localStorage.setItem('coach_start_date', e.target.value);}} />
+                    <div className="date-range-badge">WEEK {weekInfo.num}<br/><span style={{fontSize:'10px', opacity:0.6}}>{weekInfo.range}</span></div>
                     <div className="section-title">Measurements</div>
                     <div className="row g-2 mb-2">
                         <div className="col-6"><label className="toggle-label">Waist *</label><input type="number" step="any" inputMode="decimal" className="form-control" value={f.waist} onChange={e=>setF({...f, waist: cleanNum(e.target.value)})} /></div>
@@ -425,7 +439,7 @@
                             labels: sorted.map(l => l.log_date.split('-').slice(1).reverse().join('/')), 
                             datasets: [{ label: 'Weight', data: sorted.map(l => l.weight), borderColor: '#0066FF', tension: 0.3, backgroundColor: 'rgba(0,102,255,0.05)', fill: true, borderWidth: 2, pointRadius: 3 }] 
                         },
-                        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { position: 'right', grid: { color: '#F2F2F7' } } } }
+                        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { position: 'left', grid: { color: '#F2F2F7' } } } }
                     });
                 }
             }, [logs]);
@@ -445,14 +459,12 @@
                 const week2Avg = week2.reduce((a,b)=>a+b.weight, 0) / 7;
                 const delta = week1Avg - week2Avg;
 
-                // Whoosh Check
                 const avgCals = week1.reduce((a,b)=>a+(b.protein*4+b.carbs*4+b.fats*9),0) / 7;
                 const avgSteps = week1.reduce((a,b)=>a+(b.steps||0),0) / 7;
                 if (avgCals < 2100 && avgSteps > 9500 && delta >= 0) {
                     return <span><b className="decision-highlight">HOLD POSITION</b> Potential "Whoosh" detected. Activity is high and calories are controlled, but water is masking fat loss. Do not adjust yet.</span>;
                 }
 
-                // High Confidence Decisions
                 if (Math.abs(delta) < 0.1) {
                     return <span><b className="decision-highlight">ACTION: PLATEAU CONFIRMED</b> Weight is flat over a 14-day comparison. Apply a 150kcal shift below to resume progress.</span>;
                 }
@@ -524,17 +536,17 @@
                                 <div className="strategy-row" onClick={()=>applyStrategy(paths.bulk)}>
                                     <div className="strategy-name" style={{color:'var(--bulk-green)'}}>LEAN BULK</div>
                                     <div className="strategy-cal">{paths.bulk.cal}</div>
-                                    <div className="strategy-macros">P{paths.bulk.p} C{paths.bulk.c} F{paths.bulk.f}</div>
+                                    <div className="strategy-macros">P{paths.bulk.p} C{paths.bulk.c} f{paths.bulk.f}</div>
                                 </div>
                                 <div className="strategy-row" onClick={()=>applyStrategy(paths.maint)}>
                                     <div className="strategy-name">MAINTAIN</div>
                                     <div className="strategy-cal">{paths.maint.cal}</div>
-                                    <div className="strategy-macros">P{paths.maint.p} C{paths.maint.c} F{paths.maint.f}</div>
+                                    <div className="strategy-macros">P{paths.maint.p} C{paths.maint.c} f{paths.maint.f}</div>
                                 </div>
                                 <div className="strategy-row border-0" onClick={()=>applyStrategy(paths.cut)}>
                                     <div className="strategy-name" style={{color:'var(--cut-red)'}}>SUSTAINABLE CUT</div>
                                     <div className="strategy-cal">{paths.cut.cal}</div>
-                                    <div className="strategy-macros">P{paths.cut.p} C{paths.cut.c} F{paths.cut.f}</div>
+                                    <div className="strategy-macros">P{paths.cut.p} C{paths.cut.c} f{paths.cut.f}</div>
                                 </div>
                             </>
                         ) : <div className="p-3 text-center text-muted">Log 7 days of data to generate strategies.</div>}
