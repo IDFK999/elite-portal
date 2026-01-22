@@ -254,7 +254,7 @@
                 <div className="container py-4">
                     <div className="d-flex justify-content-between align-items-center mb-3">
                         <h5 className="fw-bold m-0" style={{letterSpacing: '-0.5px'}}>ELITE PERFORMANCE</h5>
-                        <div className="badge rounded-pill text-dark border">v9.5.0</div>
+                        <div className="badge rounded-pill text-dark border">v9.6.0</div>
                     </div>
 
                     {view === 'log' && <DailyLog user={session.user} />}
@@ -476,7 +476,7 @@
                 };
 
                 return {
-                    bulk: calcMacros(tdee + 200),
+                    bulk: calcMacros(tdee + 150),
                     maint: calcMacros(tdee),
                     cut: calcMacros(tdee - 150)
                 };
@@ -492,15 +492,14 @@
                 const avgCals = sorted.slice(0, 7).reduce((a,b)=>a+(b.protein*4+b.carbs*4+b.fats*9),0) / 7;
                 const avgSteps = sorted.slice(0, 7).reduce((a,b)=>a+(b.steps||0),0) / 7;
 
-                // Whoosh Logic: Calories are low, steps high, but weight is flat/up
-                if (avgCals < 2000 && avgSteps > 10000 && weightChange >= 0) {
-                    return "Potential Whoosh Detected: Your data suggests fat loss is happening despite the scale. Stay consistent with water and salt intake; the drop is coming.";
+                if (avgCals < 2100 && avgSteps > 9500 && weightChange >= 0) {
+                    return "Potential Whoosh Detected: Your activity is high and calories are managed, but the scale is stalled. This is likely water masking fat loss. Keep going.";
                 }
 
-                if (weightChange < -0.8) return "Fast Drop: You are losing weight quickly. Ensure protein stays high and consider moving to the Maintenance pathway if fatigue increases.";
-                if (weightChange > 0.5) return "Growth Phase: You are in a clear surplus. Ensure your training intensity matches the weight gain to prioritize muscle over fat.";
+                if (weightChange < -0.6) return "Pace Warning: Weight is dropping slightly fast for a sustainable phase. Monitor strength in the gym.";
+                if (weightChange > 0.4) return "Surplus Detected: 7-day average is rising. This is perfect for the Lean Bulk pathway; ensure you are hitting your protein targets.";
                 
-                return "Steady Progress: Your 7-day average is moving optimally. Stick to the current pathway and prioritize sleep for recovery.";
+                return "Precision Phase: You are currently within the optimal 150kcal adjustment window. Consistency here will yield the best long-term body composition.";
             };
 
             const paths = getMacroPathways();
