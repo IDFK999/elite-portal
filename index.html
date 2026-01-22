@@ -172,8 +172,9 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
+            cursor: pointer;
         }
-        .strategy-name { font-weight: 800; font-size: 12px; width: 80px; }
+        .strategy-name { font-weight: 800; font-size: 12px; width: 100px; }
         .strategy-cal { font-weight: 700; color: var(--accent-blue); }
         .strategy-macros { font-size: 11px; color: #86868B; }
 
@@ -221,20 +222,10 @@
                 return () => subscription.unsubscribe();
             }, []);
 
-            const handleSignOut = async (e) => {
-                if (e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                }
-                try {
-                    await _supabase.auth.signOut();
-                    localStorage.clear();
-                    sessionStorage.clear();
-                    window.location.replace(window.location.origin + window.location.pathname);
-                } catch (err) {
-                    console.error(err);
-                    window.location.reload();
-                }
+            const handleSignOut = async () => {
+                await _supabase.auth.signOut();
+                localStorage.clear();
+                window.location.reload();
             };
 
             if (isBooting) return <div className="p-5 text-center text-muted">Syncing...</div>;
@@ -244,7 +235,7 @@
                 <div className="container py-4">
                     <div className="d-flex justify-content-between align-items-center mb-3">
                         <h5 className="fw-bold m-0" style={{letterSpacing: '-0.5px'}}>ELITE PERFORMANCE</h5>
-                        <div className="badge rounded-pill text-dark border">v9.3.2</div>
+                        <div className="badge rounded-pill text-dark border">v10.0.1</div>
                     </div>
 
                     {view === 'log' && <DailyLog user={session.user} />}
@@ -321,11 +312,6 @@
                             <div className="col-4"><label className="toggle-label">C</label><input type="number" inputMode="numeric" className="form-control" value={f.c} onChange={e=>setF({...f, c: cleanNum(e.target.value)})} /></div>
                             <div className="col-4"><label className="toggle-label">F</label><input type="number" inputMode="numeric" className="form-control" value={f.f} onChange={e=>setF({...f, f: cleanNum(e.target.value)})} /></div>
                         </div>
-                        <div className="section-title mt-2">Recovery</div>
-                        <div className="row g-2">
-                            <div className="col-6"><label className="toggle-label">Water (L)</label><input type="number" step="any" inputMode="decimal" className="form-control" value={f.water} onChange={e=>setF({...f, water: cleanNum(e.target.value)})} /></div>
-                            <div className="col-6"><label className="toggle-label">Sleep (H)</label><input type="number" step="any" inputMode="decimal" className="form-control" value={f.sleep} onChange={e=>setF({...f, sleep: cleanNum(e.target.value)})} /></div>
-                        </div>
                         <button className="btn btn-primary mt-3" onClick={saveLog}>Save Daily Record</button>
                     </div>
                 </div>
@@ -342,11 +328,7 @@
                 const diffTime = Math.abs(today - start);
                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
                 const weekNum = Math.ceil(diffDays / 7) || 1;
-                const weekStart = new Date(start);
-                weekStart.setDate(start.getDate() + (weekNum - 1) * 7);
-                const weekEnd = new Date(weekStart);
-                weekEnd.setDate(weekStart.getDate() + 7);
-                return { num: weekNum, range: `${weekStart.toLocaleDateString()} - ${weekEnd.toLocaleDateString()}` };
+                return { num: weekNum };
             };
 
             const weekInfo = getWeekInfo();
@@ -354,14 +336,10 @@
             const submitCheckin = async () => {
                 if (!f.waist || !f.chest) return alert("Waist and Chest are mandatory.");
                 const { error } = await _supabase.from('weekly_metrics').upsert({
-                    user_id: user.id, 
-                    week_number: weekInfo.num,
-                    chest: parseFloat(f.chest), 
-                    waist: parseFloat(f.waist), 
-                    glute: parseFloat(f.glute)||0,
-                    left_arm: parseFloat(f.larm)||0, 
-                    right_arm: parseFloat(f.rarm)||0,
-                    left_thigh: parseFloat(f.lthigh)||0, 
+                    user_id: user.id, week_number: weekInfo.num,
+                    chest: parseFloat(f.chest), waist: parseFloat(f.waist), 
+                    glute: parseFloat(f.glute)||0, left_arm: parseFloat(f.larm)||0, 
+                    right_arm: parseFloat(f.rarm)||0, left_thigh: parseFloat(f.lthigh)||0, 
                     right_thigh: parseFloat(f.rthigh)||0
                 }, { onConflict: 'user_id,week_number' });
                 if (error) alert(error.message); else alert(`Week ${weekInfo.num} Updated`);
@@ -371,22 +349,15 @@
                 <div className="card">
                     <label className="toggle-label">Program Start Date</label>
                     <input type="date" className="form-control mb-3" value={startDate} onChange={e=>{setStartDate(e.target.value); localStorage.setItem('coach_start_date', e.target.value);}} />
-                    <div className="date-range-badge">WEEK {weekInfo.num}<br/><span style={{fontSize:'10px', opacity:0.6}}>{weekInfo.range}</span></div>
+                    <div className="date-range-badge">WEEK {weekInfo.num}</div>
                     <div className="section-title">Measurements</div>
                     <div className="row g-2 mb-2">
                         <div className="col-6"><label className="toggle-label">Waist *</label><input type="number" step="any" inputMode="decimal" className="form-control" value={f.waist} onChange={e=>setF({...f, waist: cleanNum(e.target.value)})} /></div>
                         <div className="col-6"><label className="toggle-label">Chest *</label><input type="number" step="any" inputMode="decimal" className="form-control" value={f.chest} onChange={e=>setF({...f, chest: cleanNum(e.target.value)})} /></div>
                     </div>
                     <div className="row g-2 mb-2">
-                        <div className="col-6"><label className="toggle-label">Left Arm</label><input type="number" step="any" inputMode="decimal" className="form-control" value={f.larm} onChange={e=>setF({...f, larm: cleanNum(e.target.value)})} /></div>
-                        <div className="col-6"><label className="toggle-label">Right Arm</label><input type="number" step="any" inputMode="decimal" className="form-control" value={f.rarm} onChange={e=>setF({...f, rarm: cleanNum(e.target.value)})} /></div>
-                    </div>
-                    <div className="row g-2 mb-3">
-                        <div className="col-12"><label className="toggle-label">Glutes</label><input type="number" step="any" inputMode="decimal" className="form-control" value={f.glute} onChange={e=>setF({...f, glute: cleanNum(e.target.value)})} /></div>
-                    </div>
-                    <div className="row g-2 mb-3">
-                        <div className="col-6"><label className="toggle-label">Left Thigh</label><input type="number" step="any" inputMode="decimal" className="form-control" value={f.lthigh} onChange={e=>setF({...f, lthigh: cleanNum(e.target.value)})} /></div>
-                        <div className="col-6"><label className="toggle-label">Right Thigh</label><input type="number" step="any" inputMode="decimal" className="form-control" value={f.rthigh} onChange={e=>setF({...f, rthigh: cleanNum(e.target.value)})} /></div>
+                        <div className="col-6"><label className="toggle-label">L Arm</label><input type="number" step="any" inputMode="decimal" className="form-control" value={f.larm} onChange={e=>setF({...f, larm: cleanNum(e.target.value)})} /></div>
+                        <div className="col-6"><label className="toggle-label">R Arm</label><input type="number" step="any" inputMode="decimal" className="form-control" value={f.rarm} onChange={e=>setF({...f, rarm: cleanNum(e.target.value)})} /></div>
                     </div>
                     <button className="btn btn-primary mt-2" onClick={submitCheckin}>Submit Weekly Stats</button>
                 </div>
@@ -398,19 +369,17 @@
             const [metrics, setMetrics] = useState([]);
             const [dateFrom, setDateFrom] = useState(new Date(Date.now() - 13 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
             const [dateTo, setDateTo] = useState(new Date().toISOString().split('T')[0]);
-            const [weekFrom, setWeekFrom] = useState(1);
-            const [weekTo, setWeekTo] = useState(52);
             const canvasRef = useRef(null);
             const chartInstance = useRef(null);
 
             const loadData = async () => {
                 const { data: logData } = await _supabase.from('daily_logs').select('*').eq('user_id', user.id).gte('log_date', dateFrom).lte('log_date', dateTo).order('log_date', {ascending: false});
-                const { data: metricData } = await _supabase.from('weekly_metrics').select('*').eq('user_id', user.id).gte('week_number', weekFrom).lte('week_number', weekTo).order('week_number', {ascending: false});
+                const { data: metricData } = await _supabase.from('weekly_metrics').select('*').eq('user_id', user.id).order('week_number', {ascending: false});
                 setLogs(logData || []);
                 setMetrics(metricData || []);
             };
 
-            useEffect(() => { loadData(); }, [dateFrom, dateTo, weekFrom, weekTo]);
+            useEffect(() => { loadData(); }, [dateFrom, dateTo]);
 
             useEffect(() => {
                 if (canvasRef.current && logs.length > 0) {
@@ -420,33 +389,29 @@
                         type: 'line',
                         data: { 
                             labels: sorted.map(l => l.log_date.split('-').slice(1).reverse().join('/')), 
-                            datasets: [{ 
-                                label: 'Weight', 
-                                data: sorted.map(l => l.weight), 
-                                borderColor: '#0066FF', 
-                                tension: 0.3, 
-                                backgroundColor: 'rgba(0,102,255,0.05)', 
-                                fill: true,
-                                borderWidth: 2,
-                                pointRadius: 3
-                            }] 
+                            datasets: [{ label: 'Weight', data: sorted.map(l => l.weight), borderColor: '#0066FF', tension: 0.3, fill: true, backgroundColor: 'rgba(0,102,255,0.05)' }] 
                         },
-                        options: { 
-                            responsive: true, 
-                            maintainAspectRatio: false, 
-                            plugins: { legend: { display: false } }, 
-                            scales: { 
-                                x: { grid: { display: false }, ticks: { font: { size: 10 } } }, 
-                                y: { 
-                                    position: 'left',
-                                    grid: { color: '#F2F2F7' }, 
-                                    ticks: { font: { size: 10 } } 
-                                } 
-                            } 
-                        }
+                        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
                     });
                 }
             }, [logs]);
+
+            const getCoachInsight = () => {
+                if (logs.length < 7 || metrics.length < 2) return { status: "Awaiting Data", advice: "Need 7 days of logs and 2 weeks of waist stats.", color: "#86868B" };
+                
+                const current7 = logs.slice(0, 7).reduce((a, b) => a + b.weight, 0) / 7;
+                const prev7 = logs.slice(7, 14).length === 7 ? logs.slice(7, 14).reduce((a, b) => a + b.weight, 0) / 7 : current7;
+                const latestWaist = metrics[0].waist;
+                const prevWaist = metrics[1].waist;
+
+                const weightStall = Math.abs(current7 - prev7) <= 0.15;
+                const waistShrinking = latestWaist < prevWaist;
+
+                if (weightStall && waistShrinking) return { status: "Whoosh Effect", advice: "Waist is dropping but weight is stalled. Hidden fat loss detected. Stay the course.", color: "var(--accent-blue)" };
+                if (current7 < prev7 - 0.2) return { status: "Progressing", advice: "Weight trend is down. Your current macros are optimal.", color: "var(--bulk-green)" };
+                if (weightStall && !waistShrinking) return { status: "Stall Detected", advice: "Weight and waist are both flat. Reduce carbs by 20g or add 2,000 steps.", color: "var(--cut-red)" };
+                return { status: "Analyzing", advice: "Continue tracking. Trends are calculating...", color: "#1D1D1F" };
+            };
 
             const getMacroPathways = () => {
                 if (logs.length < 7) return null;
@@ -455,121 +420,59 @@
                 const avgW = week.reduce((a,b)=>a+b.weight,0) / 7;
                 const avgK = week.reduce((a,b)=>a+(b.protein*4+b.carbs*4+b.fats*9),0) / 7;
                 const avgS = week.reduce((a,b)=>a+(b.steps||0),0) / 7;
-
-                // True TDEE baseline (Helms Step Adjustment)
                 const tdee = avgK + ((avgS - 8000) * 0.04);
                 
                 const calcMacros = (cals) => {
-                    const p = Math.round(avgW * 2.0);
-                    const f = Math.round((cals * 0.29) / 9);
+                    const p = Math.round(avgW * 2.2);
+                    const f = Math.round((cals * 0.25) / 9);
                     const c = Math.round((cals - (p * 4) - (f * 9)) / 4);
                     return { cal: Math.round(cals), p, c, f };
                 };
-
-                return {
-                    bulk: calcMacros(tdee + 200),
-                    maint: calcMacros(tdee),
-                    cut: calcMacros(tdee - 250)
-                };
+                return { bulk: calcMacros(tdee + 250), maint: calcMacros(tdee), cut: calcMacros(tdee - 450) };
             };
 
+            const insight = getCoachInsight();
             const paths = getMacroPathways();
-
-            const calculateAverages = () => {
-                if (logs.length === 0) return { loss: 0, kcal: 0, steps: 0, color: '#1D1D1F', sign: '' };
-                const sorted = [...logs].sort((a,b) => new Date(a.log_date) - new Date(b.log_date));
-                const startWeight = sorted[0].weight;
-                const endWeight = sorted[sorted.length - 1].weight;
-                const weightDiff = (endWeight - startWeight).toFixed(1);
-                const totalKcal = logs.reduce((acc, l) => acc + (l.protein*4 + l.carbs*4 + l.fats*9), 0);
-                const totalSteps = logs.reduce((acc, l) => acc + (l.steps || 0), 0);
-                return { 
-                    loss: Math.abs(weightDiff), 
-                    kcal: Math.round(totalKcal / logs.length), 
-                    steps: Math.round(totalSteps / logs.length),
-                    color: weightDiff > 0 ? '#34C759' : weightDiff < 0 ? '#FF3B30' : '#1D1D1F',
-                    sign: weightDiff > 0 ? '+' : weightDiff < 0 ? '-' : ''
-                };
-            };
-
-            const stats = calculateAverages();
-
             const applyStrategy = (s) => {
                 localStorage.setItem('macro_targets', JSON.stringify({ p: s.p, c: s.c, f: s.f }));
-                alert(`Pathway Synced to Log Tab: ${s.cal} kcal`);
+                alert(`Pathway Synced: ${s.cal} kcal`);
             };
 
             return (
-                <div key="stats">
+                <div>
+                    <div className="section-title">Coach Insight</div>
+                    <div className="card" style={{borderLeft: `4px solid ${insight.color}`}}>
+                        <div style={{fontSize: '10px', fontWeight: '800', color: insight.color, textTransform: 'uppercase'}}>{insight.status}</div>
+                        <div style={{fontSize: '13px', marginTop: '4px', lineHeight: '1.4'}}>{insight.advice}</div>
+                    </div>
+
                     <div className="card">
                         <div className="section-title">Weight Trend</div>
-                        <div className="row g-2 mb-3">
-                            <div className="col-6"><label className="toggle-label">From</label><input type="date" className="form-control" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} /></div>
-                            <div className="col-6"><label className="toggle-label">To</label><input type="date" className="form-control" value={dateTo} onChange={e=>setDateTo(e.target.value)} /></div>
-                        </div>
                         <div style={{height: '180px'}}><canvas ref={canvasRef}></canvas></div>
-                    </div>
-                    
-                    <div className="section-title">Period Averages</div>
-                    <div className="row g-2 mb-3">
-                        <div className="col-4">
-                            <div className="avg-card">
-                                <div className="avg-label">Trend</div>
-                                <div className="avg-value" style={{ color: stats.color }}>{stats.sign}{stats.loss}kg</div>
-                            </div>
-                        </div>
-                        <div className="col-4"><div className="avg-card"><div className="avg-label">Kcal</div><div className="avg-value">{stats.kcal}</div></div></div>
-                        <div className="col-4"><div className="avg-card"><div className="avg-label">Steps</div><div className="avg-value">{stats.steps}</div></div></div>
                     </div>
 
                     <div className="section-title">Daily History</div>
                     <div className="card p-0 overflow-hidden mb-4">
-                        <div className="table-responsive">
-                            <table className="table table-sm m-0" style={{fontSize: '11px'}}>
-                                <thead className="table-header-custom">
-                                    <tr><th>Date</th><th>KG</th><th>Cal</th><th>P/C/F</th><th>Steps</th></tr>
-                                </thead>
-                                <tbody>
-                                    {logs.map((l, i) => (
-                                        <tr key={i}>
-                                            <td className="fw-bold">{l.log_date.split('-').slice(1).join('/')}</td>
-                                            <td>{l.weight}</td>
-                                            <td className="text-primary fw-bold">{(l.protein*4 + l.carbs*4 + l.fats*9) || 0}</td>
-                                            <td>{l.protein}/{l.carbs}/{l.fats}</td>
-                                            <td>{l.steps?.toLocaleString()}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
+                        <table className="table table-sm m-0" style={{fontSize: '11px'}}>
+                            <thead className="table-header-custom">
+                                <tr><th>Date</th><th>KG</th><th>Cal</th><th>P/C/F</th></tr>
+                            </thead>
+                            <tbody>
+                                {logs.map((l, i) => (
+                                    <tr key={i}>
+                                        <td className="fw-bold">{l.log_date.split('-').slice(1).join('/')}</td>
+                                        <td>{l.weight}</td>
+                                        <td className="text-primary fw-bold">{(l.protein*4 + l.carbs*4 + l.fats*9) || 0}</td>
+                                        <td>{l.protein}/{l.carbs}/{l.fats}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
                     </div>
 
-                    <div className="section-title">Measurement History</div>
-                    <div className="card mb-4">
-                        <div className="table-responsive">
-                            <table className="table table-sm m-0" style={{fontSize: '11px'}}>
-                                <thead className="table-header-custom">
-                                    <tr><th>WK</th><th>Waist</th><th>Chest</th><th>Arms L/R</th><th>Thighs L/R</th></tr>
-                                </thead>
-                                <tbody>
-                                    {metrics.map((m, i) => (
-                                        <tr key={i}>
-                                            <td className="fw-bold">{m.week_number}</td>
-                                            <td>{m.waist}</td>
-                                            <td>{m.chest}</td>
-                                            <td>{m.left_arm}/{m.right_arm}</td>
-                                            <td>{m.left_thigh}/{m.right_thigh}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    {/* NEW STRATEGY TABLE */}
-                    <div className="section-title">Performance Strategy (Eric Helms)</div>
+                    <div className="section-title">Performance Strategy</div>
                     <div className="card p-0 overflow-hidden mb-5">
-                        {paths ? (
+                        {paths && (
                             <>
                                 <div className="strategy-row" onClick={() => applyStrategy(paths.bulk)}>
                                     <div className="strategy-name" style={{color: 'var(--bulk-green)'}}>LEAN BULK</div>
@@ -587,8 +490,6 @@
                                     <div className="strategy-macros">P{paths.cut.p} C{paths.cut.c} F{paths.cut.f}</div>
                                 </div>
                             </>
-                        ) : (
-                            <div className="p-3 text-center text-muted" style={{fontSize: '11px'}}>Log 7 days of data to generate strategies.</div>
                         )}
                     </div>
                 </div>
@@ -598,22 +499,24 @@
         function Login() {
             const [email, setEmail] = useState('');
             const [pass, setPass] = useState('');
+            const handleLogin = async () => {
+                const { error } = await _supabase.auth.signInWithPassword({ email, password: pass });
+                if (error) alert(error.message);
+            };
             return (
-                <div className="container vh-100 d-flex align-items-center">
-                    <div className="card w-100 text-center py-5">
-                        <h2 className="fw-bold mb-4" style={{letterSpacing: '-1px'}}>ELITE PERFORMANCE</h2>
-                        <input className="form-control" placeholder="Email Address" onChange={e=>setEmail(e.target.value)} />
-                        <input className="form-control" type="password" placeholder="Password" onChange={e=>setPass(e.target.value)} />
-                        <button className="btn btn-primary mt-3" onClick={async () => {
-                            const { error } = await _supabase.auth.signInWithPassword({ email, password: pass });
-                            if (error) alert(error.message);
-                        }}>Sign In</button>
+                <div className="container py-5">
+                    <div className="card shadow-sm border-0">
+                        <h4 className="fw-bold mb-4">Elite Access</h4>
+                        <input className="form-control" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} />
+                        <input className="form-control" type="password" placeholder="Password" value={pass} onChange={e=>setPass(e.target.value)} />
+                        <button className="btn btn-primary mt-2" onClick={handleLogin}>Log In</button>
                     </div>
                 </div>
             );
         }
 
-        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
     </script>
 </body>
 </html>
