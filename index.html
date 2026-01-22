@@ -254,7 +254,7 @@
                 <div className="container py-4">
                     <div className="d-flex justify-content-between align-items-center mb-3">
                         <h5 className="fw-bold m-0" style={{letterSpacing: '-0.5px'}}>ELITE PERFORMANCE</h5>
-                        <div className="badge rounded-pill text-dark border">v9.7.0</div>
+                        <div className="badge rounded-pill text-dark border">v9.8.0</div>
                     </div>
 
                     {view === 'log' && <DailyLog user={session.user} />}
@@ -430,7 +430,7 @@
                             labels: sorted.map(l => l.log_date.split('-').slice(1).reverse().join('/')), 
                             datasets: [{ label: 'Weight', data: sorted.map(l => l.weight), borderColor: '#0066FF', tension: 0.3, backgroundColor: 'rgba(0,102,255,0.05)', fill: true, borderWidth: 2, pointRadius: 3 }] 
                         },
-                        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { position: 'right', grid: { color: '#F2F2F7' } } } }
+                        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { position: 'left', grid: { color: '#F2F2F7' } } } }
                     });
                 }
             }, [logs]);
@@ -559,17 +559,17 @@
                     <div className="card p-0 overflow-hidden mb-5">
                         {paths ? (
                             <>
-                                <div className="strategy-row" onClick={()=>applyStrategy(paths.bulk)}>
+                                <div className="strategy-row" style={{cursor:'pointer'}} onClick={()=>applyStrategy(paths.bulk)}>
                                     <div className="strategy-name" style={{color:'var(--bulk-green)'}}>LEAN BULK</div>
                                     <div className="strategy-cal">{paths.bulk.cal}</div>
                                     <div className="strategy-macros">P{paths.bulk.p} C{paths.bulk.c} f{paths.bulk.f}</div>
                                 </div>
-                                <div className="strategy-row" onClick={()=>applyStrategy(paths.maint)}>
+                                <div className="strategy-row" style={{cursor:'pointer'}} onClick={()=>applyStrategy(paths.maint)}>
                                     <div className="strategy-name">MAINTAIN</div>
                                     <div className="strategy-cal">{paths.maint.cal}</div>
                                     <div className="strategy-macros">P{paths.maint.p} C{paths.maint.c} f{paths.maint.f}</div>
                                 </div>
-                                <div className="strategy-row border-0" onClick={()=>applyStrategy(paths.cut)}>
+                                <div className="strategy-row border-0" style={{cursor:'pointer'}} onClick={()=>applyStrategy(paths.cut)}>
                                     <div className="strategy-name" style={{color:'var(--cut-red)'}}>SUSTAINABLE CUT</div>
                                     <div className="strategy-cal">{paths.cut.cal}</div>
                                     <div className="strategy-macros">P{paths.cut.p} C{paths.cut.c} f{paths.cut.f}</div>
