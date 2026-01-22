@@ -567,11 +567,6 @@
             const stats = calculateAverages();
             const projections = getProjections();
 
-            const applyStrategy = (s) => {
-                localStorage.setItem('macro_targets', JSON.stringify({ p: s.p, c: s.c, f: s.f }));
-                alert(`Pathway Synced: ${s.cal} kcal`);
-            };
-
             return (
                 <div>
                     <div className="section-title">Current Objective</div>
@@ -592,30 +587,7 @@
                         </div>
                         <div style={{height: '180px'}}><canvas ref={canvasRef}></canvas></div>
                     </div>
-                </div>
 
-                <div className="section-title">Daily History</div>
-                    <div className="card p-0 overflow-hidden mb-5">
-                        <div className="table-responsive">
-                            <table className="table table-sm m-0" style={{fontSize: '11px'}}>
-                                <thead className="table-header-custom">
-                                    <tr><th>Date</th><th>KG</th><th>Cal</th><th>P/C/F</th><th>Steps</th></tr>
-                                </thead>
-                                <tbody>
-                                    {logs.map((l, i) => (
-                                        <tr key={i}>
-                                            <td className="fw-bold">{l.log_date.split('-').slice(1).join('/')}</td>
-                                            <td>{l.weight}</td>
-                                            <td className="text-primary fw-bold">{(l.protein*4 + l.carbs*4 + l.fats*9) || 0}</td>
-                                            <td>{l.protein}/{l.carbs}/{l.fats}</td>
-                                            <td>{l.steps?.toLocaleString()}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                
                     <div className="section-title">Period Averages</div>
                     <div className="row g-2 mb-3">
                         <div className="col-4"><div className="avg-card"><div className="avg-label">Trend</div><div className="avg-value" style={{ color: stats.color }}>{stats.sign}{stats.loss}kg</div></div></div>
@@ -628,6 +600,7 @@
                         <div className="col-6"><div className="avg-card"><div className="avg-label">4-Week Goal</div><div className="avg-value">{projections.goal}</div></div></div>
                         <div className="col-6"><div className="avg-card"><div className="avg-label">Est. TDEE</div><div className="avg-value" style={{color: 'var(--accent-blue)'}}>{projections.tdee}</div></div></div>
                     </div>
+
                     <div className="section-title">Measurement History</div>
                     <div className="card mb-4">
                         <div className="table-responsive">
@@ -649,6 +622,29 @@
                             </table>
                         </div>
                     </div>
+
+                    <div className="section-title">Daily History</div>
+                    <div className="card p-0 overflow-hidden mb-5">
+                        <div className="table-responsive">
+                            <table className="table table-sm m-0" style={{fontSize: '11px'}}>
+                                <thead className="table-header-custom">
+                                    <tr><th>Date</th><th>KG</th><th>Cal</th><th>P/C/F</th><th>Steps</th></tr>
+                                </thead>
+                                <tbody>
+                                    {logs.map((l, i) => (
+                                        <tr key={i}>
+                                            <td className="fw-bold">{l.log_date.split('-').slice(1).join('/')}</td>
+                                            <td>{l.weight}</td>
+                                            <td className="text-primary fw-bold">{(l.protein*4 + l.carbs*4 + l.fats*9) || 0}</td>
+                                            <td>{l.protein}/{l.carbs}/{l.fats}</td>
+                                            <td>{l.steps?.toLocaleString()}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
             );
         }
 
