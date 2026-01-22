@@ -244,7 +244,7 @@
                 <div className="container py-4">
                     <div className="d-flex justify-content-between align-items-center mb-3">
                         <h5 className="fw-bold m-0" style={{letterSpacing: '-0.5px'}}>ELITE PERFORMANCE</h5>
-                        <div className="badge rounded-pill text-dark border">v9.3.2</div>
+                        <div className="badge rounded-pill text-dark border">v9.4.0</div>
                     </div>
 
                     {view === 'log' && <DailyLog user={session.user} />}
@@ -456,7 +456,6 @@
                 const avgK = week.reduce((a,b)=>a+(b.protein*4+b.carbs*4+b.fats*9),0) / 7;
                 const avgS = week.reduce((a,b)=>a+(b.steps||0),0) / 7;
 
-                // True TDEE baseline (Helms Step Adjustment)
                 const tdee = avgK + ((avgS - 8000) * 0.04);
                 
                 const calcMacros = (cals) => {
@@ -473,7 +472,21 @@
                 };
             };
 
+            const getTrendComparison = () => {
+                if (logs.length < 14) return null;
+                const sorted = [...logs].sort((a,b) => new Date(b.log_date) - new Date(a.log_date));
+                const thisWeek = sorted.slice(0, 7).reduce((a,b)=>a+b.weight,0) / 7;
+                const lastWeek = sorted.slice(7, 14).reduce((a,b)=>a+b.weight,0) / 7;
+                const diff = (thisWeek - lastWeek).toFixed(2);
+                return {
+                    current: thisWeek.toFixed(1),
+                    diff: diff,
+                    color: diff > 0 ? 'var(--bulk-green)' : diff < 0 ? 'var(--cut-red)' : 'var(--text-main)'
+                };
+            };
+
             const paths = getMacroPathways();
+            const trend = getTrendComparison();
 
             const calculateAverages = () => {
                 if (logs.length === 0) return { loss: 0, kcal: 0, steps: 0, color: '#1D1D1F', sign: '' };
@@ -509,12 +522,27 @@
                         </div>
                         <div style={{height: '180px'}}><canvas ref={canvasRef}></canvas></div>
                     </div>
+
+                    {trend && (
+                        <div className="card mb-3" style={{background: 'var(--soft-grey)', border: 'none'}}>
+                            <div className="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div className="avg-label" style={{textAlign:'left'}}>7-Day Average</div>
+                                    <div className="avg-value" style={{textAlign:'left'}}>{trend.current} kg</div>
+                                </div>
+                                <div className="text-end">
+                                    <div className="avg-label">Weekly Delta</div>
+                                    <div className="avg-value" style={{color: trend.color}}>{trend.diff > 0 ? '+' : ''}{trend.diff} kg</div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                     
                     <div className="section-title">Period Averages</div>
                     <div className="row g-2 mb-3">
                         <div className="col-4">
                             <div className="avg-card">
-                                <div className="avg-label">Trend</div>
+                                <div className="avg-label">Net Change</div>
                                 <div className="avg-value" style={{ color: stats.color }}>{stats.sign}{stats.loss}kg</div>
                             </div>
                         </div>
@@ -566,7 +594,6 @@
                         </div>
                     </div>
 
-                    {/* NEW STRATEGY TABLE */}
                     <div className="section-title">Performance Strategy (Eric Helms)</div>
                     <div className="card p-0 overflow-hidden mb-5">
                         {paths ? (
