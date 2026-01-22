@@ -172,7 +172,6 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            cursor: pointer;
         }
         .strategy-name { font-weight: 800; font-size: 12px; width: 80px; }
         .strategy-cal { font-weight: 700; color: var(--accent-blue); }
@@ -199,14 +198,6 @@
             font-size: 13px;
             line-height: 1.5;
             margin-bottom: 20px;
-        }
-
-        .decision-highlight { 
-            font-weight: 800; 
-            color: var(--accent-blue); 
-            display: block; 
-            margin-bottom: 4px;
-            text-transform: uppercase;
         }
     </style>
 </head>
@@ -263,7 +254,7 @@
                 <div className="container py-4">
                     <div className="d-flex justify-content-between align-items-center mb-3">
                         <h5 className="fw-bold m-0" style={{letterSpacing: '-0.5px'}}>ELITE PERFORMANCE</h5>
-                        <div className="badge rounded-pill text-dark border">v9.9.0</div>
+                        <div className="badge rounded-pill text-dark border">v9.7.0</div>
                     </div>
 
                     {view === 'log' && <DailyLog user={session.user} />}
@@ -439,45 +430,34 @@
                             labels: sorted.map(l => l.log_date.split('-').slice(1).reverse().join('/')), 
                             datasets: [{ label: 'Weight', data: sorted.map(l => l.weight), borderColor: '#0066FF', tension: 0.3, backgroundColor: 'rgba(0,102,255,0.05)', fill: true, borderWidth: 2, pointRadius: 3 }] 
                         },
-                        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { position: 'left', grid: { color: '#F2F2F7' } } } }
+                        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { position: 'right', grid: { color: '#F2F2F7' } } } }
                     });
                 }
             }, [logs]);
 
             const getCoachRecommendation = () => {
-                if (logs.length < 7) return "Log 7 days of data for high-confidence analysis.";
+                if (logs.length < 14) return "Log 14 days of data for high-confidence strategy analysis.";
                 
                 const sorted = [...logs].sort((a,b) => new Date(b.log_date) - new Date(a.log_date));
-                const week1 = sorted.slice(0, 7);
-                const week1Avg = week1.reduce((a,b)=>a+b.weight, 0) / 7;
+                const week1Avg = sorted.slice(0, 7).reduce((a,b)=>a+b.weight, 0) / 7;
+                const week2Avg = sorted.slice(7, 14).reduce((a,b)=>a+b.weight, 0) / 7;
+                const weightChange = week1Avg - week2Avg;
+
+                const avgCals = sorted.slice(0, 7).reduce((a,b)=>a+(b.protein*4+b.carbs*4+b.fats*9), 0) / 7;
+                const avgSteps = sorted.slice(0, 7).reduce((a,b)=>a+(b.steps||0), 0) / 7;
+
+                if (avgCals < 2100 && avgSteps > 9500 && weightChange >= 0) {
+                    return "WHOOSH ALERT: Activity is high and calories are managed, but weight is flat over 14 days. This is likely water masking fat loss. Do not adjust calories yet.";
+                }
+
+                if (weightChange < -0.6) return "Pace Warning: Weight is dropping fast. Monitor gym performance; consider a slight calorie bump if fatigue is high.";
+                if (weightChange > 0.4) return "Surplus Phase: Weight is rising optimally for the Lean Bulk strategy.";
                 
-                if (logs.length < 14) {
-                    return `Baseline Set: 7-day average is ${week1Avg.toFixed(2)}kg. Continue logging for 7 more days to confirm your 14-day trend for an adjustment decision.`;
-                }
-
-                const week2 = sorted.slice(7, 14);
-                const week2Avg = week2.reduce((a,b)=>a+b.weight, 0) / 7;
-                const delta = week1Avg - week2Avg;
-
-                const avgCals = week1.reduce((a,b)=>a+(b.protein*4+b.carbs*4+b.fats*9),0) / 7;
-                const avgSteps = week1.reduce((a,b)=>a+(b.steps||0),0) / 7;
-                if (avgCals < 2100 && avgSteps > 9500 && delta >= 0) {
-                    return <span><b className="decision-highlight">HOLD POSITION</b> Potential "Whoosh" detected. Activity is high and calories are controlled, but water is masking fat loss. Do not adjust yet.</span>;
-                }
-
-                if (Math.abs(delta) < 0.1) {
-                    return <span><b className="decision-highlight">ACTION: PLATEAU CONFIRMED</b> Weight is flat over a 14-day comparison. Apply a 150kcal shift below to resume progress.</span>;
-                }
-                
-                if (delta <= -0.4) {
-                    return <span><b className="decision-highlight">SUSTAIN: ON TRACK</b> You are losing ~${Math.abs(delta).toFixed(2)}kg per week. This is optimal for muscle retention. Stay the course.</span>;
-                }
-
-                return `14-Day Trend: ${delta > 0 ? '+' : ''}${delta.toFixed(2)}kg. Metabolic rate is adapting. Precision phase active.`;
+                return "Precision Phase: 14-day data confirms you are within the optimal adjustment window. Stay consistent.";
             };
 
             const getMacroPathways = () => {
-                if (logs.length < 7) return null;
+                if (logs.length < 14) return null;
                 const sorted = [...logs].sort((a,b) => new Date(b.log_date) - new Date(a.log_date));
                 const week = sorted.slice(0, 7);
                 const avgW = week.reduce((a,b)=>a+b.weight,0) / 7;
@@ -529,27 +509,28 @@
                         <div className="col-4"><div className="avg-card"><div className="avg-label">Steps</div><div className="avg-value">{stats.steps}</div></div></div>
                     </div>
 
-                    <div className="section-title">Performance Strategies</div>
+                    <div className="section-title">Daily History</div>
                     <div className="card p-0 overflow-hidden mb-4">
-                        {paths ? (
-                            <>
-                                <div className="strategy-row" onClick={()=>applyStrategy(paths.bulk)}>
-                                    <div className="strategy-name" style={{color:'var(--bulk-green)'}}>LEAN BULK</div>
-                                    <div className="strategy-cal">{paths.bulk.cal}</div>
-                                    <div className="strategy-macros">P{paths.bulk.p} C{paths.bulk.c} f{paths.bulk.f}</div>
-                                </div>
-                                <div className="strategy-row" onClick={()=>applyStrategy(paths.maint)}>
-                                    <div className="strategy-name">MAINTAIN</div>
-                                    <div className="strategy-cal">{paths.maint.cal}</div>
-                                    <div className="strategy-macros">P{paths.maint.p} C{paths.maint.c} f{paths.maint.f}</div>
-                                </div>
-                                <div className="strategy-row border-0" onClick={()=>applyStrategy(paths.cut)}>
-                                    <div className="strategy-name" style={{color:'var(--cut-red)'}}>SUSTAINABLE CUT</div>
-                                    <div className="strategy-cal">{paths.cut.cal}</div>
-                                    <div className="strategy-macros">P{paths.cut.p} C{paths.cut.c} f{paths.cut.f}</div>
-                                </div>
-                            </>
-                        ) : <div className="p-3 text-center text-muted">Log 7 days of data to generate strategies.</div>}
+                        <div className="table-responsive">
+                            <table className="table table-sm m-0" style={{fontSize: '11px'}}>
+                                <thead className="table-header-custom">
+                                    <tr><th>Date</th><th>KG</th><th>Cal</th><th>P/C/F</th><th>Steps</th><th>Wtr</th><th>Slp</th></tr>
+                                </thead>
+                                <tbody>
+                                    {logs.map((l, i) => (
+                                        <tr key={i}>
+                                            <td className="fw-bold">{l.log_date.split('-').slice(1).join('/')}</td>
+                                            <td>{l.weight}</td>
+                                            <td className="text-primary fw-bold">{(l.protein*4 + l.carbs*4 + l.fats*9) || 0}</td>
+                                            <td>{l.protein}/{l.carbs}/{l.fats}</td>
+                                            <td>{l.steps?.toLocaleString()}</td>
+                                            <td>{l.water_liters}L</td>
+                                            <td>{l.sleep_hours}H</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
 
                     <div className="section-title">Measurement History</div>
@@ -574,26 +555,27 @@
                         </div>
                     </div>
 
-                    <div className="section-title">Daily History</div>
+                    <div className="section-title">Performance Strategies</div>
                     <div className="card p-0 overflow-hidden mb-5">
-                        <div className="table-responsive">
-                            <table className="table table-sm m-0" style={{fontSize: '11px'}}>
-                                <thead className="table-header-custom">
-                                    <tr><th>Date</th><th>KG</th><th>Cal</th><th>P/C/F</th><th>Steps</th></tr>
-                                </thead>
-                                <tbody>
-                                    {logs.map((l, i) => (
-                                        <tr key={i}>
-                                            <td className="fw-bold">{l.log_date.split('-').slice(1).join('/')}</td>
-                                            <td>{l.weight}</td>
-                                            <td className="text-primary fw-bold">{(l.protein*4 + l.carbs*4 + l.fats*9) || 0}</td>
-                                            <td>{l.protein}/{l.carbs}/{l.fats}</td>
-                                            <td>{l.steps?.toLocaleString()}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
+                        {paths ? (
+                            <>
+                                <div className="strategy-row" onClick={()=>applyStrategy(paths.bulk)}>
+                                    <div className="strategy-name" style={{color:'var(--bulk-green)'}}>LEAN BULK</div>
+                                    <div className="strategy-cal">{paths.bulk.cal}</div>
+                                    <div className="strategy-macros">P{paths.bulk.p} C{paths.bulk.c} f{paths.bulk.f}</div>
+                                </div>
+                                <div className="strategy-row" onClick={()=>applyStrategy(paths.maint)}>
+                                    <div className="strategy-name">MAINTAIN</div>
+                                    <div className="strategy-cal">{paths.maint.cal}</div>
+                                    <div className="strategy-macros">P{paths.maint.p} C{paths.maint.c} f{paths.maint.f}</div>
+                                </div>
+                                <div className="strategy-row border-0" onClick={()=>applyStrategy(paths.cut)}>
+                                    <div className="strategy-name" style={{color:'var(--cut-red)'}}>SUSTAINABLE CUT</div>
+                                    <div className="strategy-cal">{paths.cut.cal}</div>
+                                    <div className="strategy-macros">P{paths.cut.p} C{paths.cut.c} f{paths.cut.f}</div>
+                                </div>
+                            </>
+                        ) : <div className="p-3 text-center text-muted">Log 14 days of data to generate strategies.</div>}
                     </div>
                 </div>
             );
