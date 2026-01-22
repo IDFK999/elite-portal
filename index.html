@@ -156,7 +156,40 @@
 
         .toggle-label { font-size: 10px; font-weight: 600; color: #1D1D1F; margin-bottom: 4px; display: block; }
 
+        .avg-card { 
+            background: var(--soft-grey); 
+            border-radius: 10px; 
+            padding: 12px; 
+            text-align: center; 
+        }
+
+        .avg-value { font-size: 17px; font-weight: 700; color: var(--text-main); }
         .avg-label { font-size: 9px; color: #86868B; text-transform: uppercase; }
+
+        .strategy-row {
+            padding: 12px 8px;
+            border-bottom: 1px solid var(--border-grey);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+        }
+        .strategy-name { font-weight: 800; font-size: 12px; width: 80px; }
+        .strategy-cal { font-weight: 700; color: var(--accent-blue); }
+        .strategy-macros { font-size: 11px; color: #86868B; }
+
+        .date-range-badge { 
+            background: var(--soft-grey); 
+            color: var(--text-main); 
+            font-size: 11px; 
+            padding: 10px; 
+            border-radius: 10px; 
+            font-weight: 700; 
+            display: block; 
+            margin-bottom: 20px; 
+            text-align: center;
+            border: 1px solid var(--border-grey);
+        }
 
         .coach-box {
             background: #F2F2F7;
@@ -166,6 +199,14 @@
             font-size: 13px;
             line-height: 1.5;
             margin-bottom: 20px;
+        }
+
+        .decision-highlight { 
+            font-weight: 800; 
+            color: var(--accent-blue); 
+            display: block; 
+            margin-bottom: 4px;
+            text-transform: uppercase;
         }
     </style>
 </head>
@@ -222,7 +263,7 @@
                 <div className="container py-4">
                     <div className="d-flex justify-content-between align-items-center mb-3">
                         <h5 className="fw-bold m-0" style={{letterSpacing: '-0.5px'}}>ELITE PERFORMANCE</h5>
-                        <div className="badge rounded-pill text-dark border">v10.1-HELMS</div>
+                        <div className="badge rounded-pill text-dark border">v9.9.0</div>
                     </div>
 
                     {view === 'log' && <DailyLog user={session.user} />}
@@ -349,7 +390,7 @@
                 <div className="card">
                     <label className="toggle-label">Program Start Date</label>
                     <input type="date" className="form-control mb-3" value={startDate} onChange={e=>{setStartDate(e.target.value); localStorage.setItem('coach_start_date', e.target.value);}} />
-                    <div className="date-range-badge" style={{ background: 'var(--soft-grey)', textAlign: 'center', padding: '10px', borderRadius: '10px', marginBottom: '20px', fontWeight: '700' }}>WEEK {weekInfo.num}<br/><span style={{fontSize:'10px', opacity:0.6}}>{weekInfo.range}</span></div>
+                    <div className="date-range-badge">WEEK {weekInfo.num}<br/><span style={{fontSize:'10px', opacity:0.6}}>{weekInfo.range}</span></div>
                     <div className="section-title">Measurements</div>
                     <div className="row g-2 mb-2">
                         <div className="col-6"><label className="toggle-label">Waist *</label><input type="number" step="any" inputMode="decimal" className="form-control" value={f.waist} onChange={e=>setF({...f, waist: cleanNum(e.target.value)})} /></div>
@@ -374,30 +415,23 @@
         function Stats({ user }) {
             const [logs, setLogs] = useState([]);
             const [metrics, setMetrics] = useState([]);
-            const [dateFrom, setDateFrom] = useState(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
+            const [dateFrom, setDateFrom] = useState(new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
             const [dateTo, setDateTo] = useState(new Date().toISOString().split('T')[0]);
-            const [weekFrom, setWeekFrom] = useState(1);
-            const [weekTo, setWeekTo] = useState(52);
-            const [targetRatePercent, setTargetRatePercent] = useState(() => parseFloat(localStorage.getItem('goal_rate_pct')) || 0.5); 
-            const [goalWeight, setGoalWeight] = useState(() => localStorage.getItem('goal_weight_kg') || '');
-            
             const canvasRef = useRef(null);
             const chartInstance = useRef(null);
 
             const loadData = async () => {
-                const { data: logData } = await _supabase.from('daily_logs').select('*').eq('user_id', user.id).order('log_date', {ascending: false});
+                const { data: logData } = await _supabase.from('daily_logs').select('*').eq('user_id', user.id).gte('log_date', dateFrom).lte('log_date', dateTo).order('log_date', {ascending: false});
                 const { data: metricData } = await _supabase.from('weekly_metrics').select('*').eq('user_id', user.id).order('week_number', {ascending: false});
                 setLogs(logData || []);
                 setMetrics(metricData || []);
             };
 
-            useEffect(() => { loadData(); }, []);
+            useEffect(() => { loadData(); }, [dateFrom, dateTo]);
 
             useEffect(() => {
                 if (canvasRef.current && logs.length > 0) {
-                    const filtered = logs.filter(l => l.log_date >= dateFrom && l.log_date <= dateTo);
-                    const sorted = [...filtered].sort((a,b) => new Date(a.log_date) - new Date(b.log_date));
-                    
+                    const sorted = [...logs].sort((a,b) => new Date(a.log_date) - new Date(b.log_date));
                     if (chartInstance.current) chartInstance.current.destroy();
                     chartInstance.current = new Chart(canvasRef.current, {
                         type: 'line',
@@ -408,102 +442,131 @@
                         options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { position: 'left', grid: { color: '#F2F2F7' } } } }
                     });
                 }
-            }, [logs, dateFrom, dateTo]);
+            }, [logs]);
 
-            const runPyramidLogic = () => {
-                if (logs.length < 14) return { status: "Observing", msg: "Log 14 days to establish trend-based maintenance." };
+            const getCoachRecommendation = () => {
+                if (logs.length < 7) return "Log 7 days of data for high-confidence analysis.";
                 
-                const sorted = [...logs].sort((a,b) => new Date(b.log_date) - new Date(a.log_date)); 
+                const sorted = [...logs].sort((a,b) => new Date(b.log_date) - new Date(a.log_date));
                 const week1 = sorted.slice(0, 7);
-                const week2 = sorted.slice(7, 14);
+                const week1Avg = week1.reduce((a,b)=>a+b.weight, 0) / 7;
                 
-                const avgW1 = week1.reduce((acc, l) => acc + l.weight, 0) / week1.length;
-                const avgW2 = week2.reduce((acc, l) => acc + l.weight, 0) / week2.length;
-                
-                const currentRate = avgW1 - avgW2;
-                const currentWeight = avgW1;
-                const targetKgPerWeek = -(currentWeight * (targetRatePercent / 100));
-                
-                let advice = "No change needed. Stay the course.";
-                let kcalAdjustment = 0;
-                
-                if (currentRate > targetKgPerWeek + 0.15) { 
-                    advice = "Loss too slow. Reduce intake to push trend.";
-                    kcalAdjustment = -200;
-                } else if (currentRate < targetKgPerWeek - 0.25) { 
-                    advice = "Loss too aggressive. Increase intake to protect muscle.";
-                    kcalAdjustment = 150;
+                if (logs.length < 14) {
+                    return `Baseline Set: 7-day average is ${week1Avg.toFixed(2)}kg. Continue logging for 7 more days to confirm your 14-day trend for an adjustment decision.`;
                 }
 
-                return { 
-                    avgWeight: avgW1.toFixed(2),
-                    actualRate: currentRate.toFixed(2),
-                    targetRate: targetKgPerWeek.toFixed(2),
-                    advice,
-                    kcalAdjustment,
-                    status: Math.abs(currentRate - targetKgPerWeek) < 0.2 ? "ON TARGET" : "ADJUSTING"
-                };
+                const week2 = sorted.slice(7, 14);
+                const week2Avg = week2.reduce((a,b)=>a+b.weight, 0) / 7;
+                const delta = week1Avg - week2Avg;
+
+                const avgCals = week1.reduce((a,b)=>a+(b.protein*4+b.carbs*4+b.fats*9),0) / 7;
+                const avgSteps = week1.reduce((a,b)=>a+(b.steps||0),0) / 7;
+                if (avgCals < 2100 && avgSteps > 9500 && delta >= 0) {
+                    return <span><b className="decision-highlight">HOLD POSITION</b> Potential "Whoosh" detected. Activity is high and calories are controlled, but water is masking fat loss. Do not adjust yet.</span>;
+                }
+
+                if (Math.abs(delta) < 0.1) {
+                    return <span><b className="decision-highlight">ACTION: PLATEAU CONFIRMED</b> Weight is flat over a 14-day comparison. Apply a 150kcal shift below to resume progress.</span>;
+                }
+                
+                if (delta <= -0.4) {
+                    return <span><b className="decision-highlight">SUSTAIN: ON TRACK</b> You are losing ~${Math.abs(delta).toFixed(2)}kg per week. This is optimal for muscle retention. Stay the course.</span>;
+                }
+
+                return `14-Day Trend: ${delta > 0 ? '+' : ''}${delta.toFixed(2)}kg. Metabolic rate is adapting. Precision phase active.`;
             };
 
-            const logic = runPyramidLogic();
-            const filteredMetrics = metrics.filter(m => m.week_number >= weekFrom && m.week_number <= weekTo);
+            const getMacroPathways = () => {
+                if (logs.length < 7) return null;
+                const sorted = [...logs].sort((a,b) => new Date(b.log_date) - new Date(a.log_date));
+                const week = sorted.slice(0, 7);
+                const avgW = week.reduce((a,b)=>a+b.weight,0) / 7;
+                const avgK = week.reduce((a,b)=>a+(b.protein*4+b.carbs*4+b.fats*9),0) / 7;
+                const avgS = week.reduce((a,b)=>a+(b.steps||0),0) / 7;
+                const tdee = avgK + ((avgS - 8000) * 0.04);
+                
+                const calc = (c) => ({ cal: Math.round(c), p: Math.round(avgW*2), f: Math.round((c*0.29)/9), c: Math.round((c-(avgW*2*4)-((c*0.29)/9*9))/4) });
+                return { bulk: calc(tdee+150), maint: calc(tdee), cut: calc(tdee-150) };
+            };
+
+            const paths = getMacroPathways();
+            const recommendation = getCoachRecommendation();
+
+            const calculateAverages = () => {
+                if (logs.length === 0) return { loss: 0, kcal: 0, steps: 0, color: '#1D1D1F', sign: '' };
+                const sorted = [...logs].sort((a,b) => new Date(a.log_date) - new Date(b.log_date));
+                const weightDiff = (sorted[sorted.length - 1].weight - sorted[0].weight).toFixed(1);
+                const totalKcal = logs.reduce((acc, l) => acc + (l.protein*4 + l.carbs*4 + l.fats*9), 0);
+                const totalSteps = logs.reduce((acc, l) => acc + (l.steps || 0), 0);
+                return { loss: Math.abs(weightDiff), kcal: Math.round(totalKcal / logs.length), steps: Math.round(totalSteps / logs.length), color: weightDiff > 0 ? '#34C759' : weightDiff < 0 ? '#FF3B30' : '#1D1D1F', sign: weightDiff > 0 ? '+' : weightDiff < 0 ? '-' : '' };
+            };
+
+            const stats = calculateAverages();
+
+            const applyStrategy = (s) => {
+                localStorage.setItem('macro_targets', JSON.stringify({ p: s.p, c: s.c, f: s.f }));
+                alert(`Pathway Synced: ${s.cal} kcal`);
+            };
 
             return (
                 <div>
-                    <div className="section-title">Helms Feedback Engine</div>
-                    <div className="card shadow-sm border-0 mb-3" style={{background: '#f8f9fa'}}>
-                        <div className="row g-2 mb-2">
-                            <div className="col-6">
-                                <label className="avg-label">Target Rate (% BW)</label>
-                                <select className="form-control" value={targetRatePercent} onChange={e => {setTargetRatePercent(e.target.value); localStorage.setItem('goal_rate_pct', e.target.value);}}>
-                                    <option value="0.25">0.25%</option>
-                                    <option value="0.5">0.5%</option>
-                                    <option value="0.75">0.75%</option>
-                                    <option value="1.0">1.0%</option>
-                                </select>
-                            </div>
-                            <div className="col-6">
-                                <label className="avg-label">Goal Weight (KG)</label>
-                                <input type="number" step="any" className="form-control" value={goalWeight} onChange={e => {setGoalWeight(e.target.value); localStorage.setItem('goal_weight_kg', e.target.value);}} placeholder="Target" />
-                            </div>
+                    <div className="section-title">Coach Recommendation</div>
+                    <div className="coach-box">{recommendation}</div>
+
+                    <div className="card">
+                        <div className="section-title">Weight Trend</div>
+                        <div className="row g-2 mb-3">
+                            <div className="col-6"><label className="toggle-label">From</label><input type="date" className="form-control" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} /></div>
+                            <div className="col-6"><label className="toggle-label">To</label><input type="date" className="form-control" value={dateTo} onChange={e=>setDateTo(e.target.value)} /></div>
                         </div>
-                        
-                        <div className="coach-box mb-0 mt-3">
-                            <div className="d-flex justify-content-between fw-bold">
-                                <span>{logic.status}</span>
-                                <span className="text-primary">{logic.avgWeight} kg (Avg)</span>
-                            </div>
-                            <hr className="my-2"/>
-                            <div className="small">
-                                Target: {logic.targetRate} kg/wk | Actual: {logic.actualRate} kg/wk<br/>
-                                <strong>Guidance:</strong> {logic.advice}
-                            </div>
-                        </div>
+                        <div style={{height: '180px'}}><canvas ref={canvasRef}></canvas></div>
+                    </div>
+                    
+                    <div className="section-title">Period Averages</div>
+                    <div className="row g-2 mb-3">
+                        <div className="col-4"><div className="avg-card"><div className="avg-label">Trend</div><div className="avg-value" style={{ color: stats.color }}>{stats.sign}{stats.loss}kg</div></div></div>
+                        <div className="col-4"><div className="avg-card"><div className="avg-label">Kcal</div><div className="avg-value">{stats.kcal}</div></div></div>
+                        <div className="col-4"><div className="avg-card"><div className="avg-label">Steps</div><div className="avg-value">{stats.steps}</div></div></div>
                     </div>
 
-                    <div className="section-title">Macro Control Knob</div>
-                    <div className="card text-center py-3 mb-4">
-                        <div className="avg-label">Recommended Adjustment</div>
-                        <div className={`display-6 fw-bold ${logic.kcalAdjustment < 0 ? 'text-danger' : logic.kcalAdjustment > 0 ? 'text-success' : 'text-primary'}`}>
-                            {logic.kcalAdjustment === 0 ? "0" : logic.kcalAdjustment > 0 ? `+${logic.kcalAdjustment}` : logic.kcalAdjustment} kcal
-                        </div>
-                    </div>
-
-                    <div className="section-title">Daily History</div>
+                    <div className="section-title">Performance Strategies</div>
                     <div className="card p-0 overflow-hidden mb-4">
+                        {paths ? (
+                            <>
+                                <div className="strategy-row" onClick={()=>applyStrategy(paths.bulk)}>
+                                    <div className="strategy-name" style={{color:'var(--bulk-green)'}}>LEAN BULK</div>
+                                    <div className="strategy-cal">{paths.bulk.cal}</div>
+                                    <div className="strategy-macros">P{paths.bulk.p} C{paths.bulk.c} f{paths.bulk.f}</div>
+                                </div>
+                                <div className="strategy-row" onClick={()=>applyStrategy(paths.maint)}>
+                                    <div className="strategy-name">MAINTAIN</div>
+                                    <div className="strategy-cal">{paths.maint.cal}</div>
+                                    <div className="strategy-macros">P{paths.maint.p} C{paths.maint.c} f{paths.maint.f}</div>
+                                </div>
+                                <div className="strategy-row border-0" onClick={()=>applyStrategy(paths.cut)}>
+                                    <div className="strategy-name" style={{color:'var(--cut-red)'}}>SUSTAINABLE CUT</div>
+                                    <div className="strategy-cal">{paths.cut.cal}</div>
+                                    <div className="strategy-macros">P{paths.cut.p} C{paths.cut.c} f{paths.cut.f}</div>
+                                </div>
+                            </>
+                        ) : <div className="p-3 text-center text-muted">Log 7 days of data to generate strategies.</div>}
+                    </div>
+
+                    <div className="section-title">Measurement History</div>
+                    <div className="card mb-4">
                         <div className="table-responsive">
                             <table className="table table-sm m-0" style={{fontSize: '11px'}}>
                                 <thead className="table-header-custom">
-                                    <tr><th>Date</th><th>KG</th><th>Cal</th><th>P/C/F</th><th>Steps</th></tr>
+                                    <tr><th>WK</th><th>Waist</th><th>Chest</th><th>Arms</th><th>Thighs</th></tr>
                                 </thead>
                                 <tbody>
-                                    {logs.slice(0, 10).map((l, i) => (
+                                    {metrics.map((m, i) => (
                                         <tr key={i}>
-                                            <td className="fw-bold">{l.log_date.split('-').slice(1).join('/')}</td>
-                                            <td>{l.weight}</td>
-                                            <td className="text-primary fw-bold">{(l.protein * 4 + l.carbs * 4 + l.fats * 9) || 0}</td>
-                                            <td>{l.protein}/{l.carbs}/{l.fats}</td>
-                                            <td>{l.steps?.toLocaleString()}</td>
+                                            <td className="fw-bold">{m.week_number}</td>
+                                            <td>{m.waist}</td>
+                                            <td>{m.chest}</td>
+                                            <td>{m.left_arm}/{m.right_arm}</td>
+                                            <td>{m.left_thigh}/{m.right_thigh}</td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -511,34 +574,21 @@
                         </div>
                     </div>
 
-                    <div className="card">
-                        <div className="section-title">Trend Filters</div>
-                        <div className="row g-2 mb-3">
-                            <div className="col-6"><label className="avg-label">From Date</label><input type="date" className="form-control" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} /></div>
-                            <div className="col-6"><label className="avg-label">To Date</label><input type="date" className="form-control" value={dateTo} onChange={e=>setDateTo(e.target.value)} /></div>
-                        </div>
-                        <div style={{height: '180px'}}><canvas ref={canvasRef}></canvas></div>
-                    </div>
-                    
-                    <div className="section-title">Measurement Range</div>
-                    <div className="card mb-4">
-                        <div className="row g-2 mb-3">
-                            <div className="col-6"><label className="avg-label">Week From</label><input type="number" className="form-control" value={weekFrom} onChange={e=>setWeekFrom(parseInt(e.target.value) || 1)} /></div>
-                            <div className="col-6"><label className="avg-label">Week To</label><input type="number" className="form-control" value={weekTo} onChange={e=>setWeekTo(parseInt(e.target.value) || 52)} /></div>
-                        </div>
+                    <div className="section-title">Daily History</div>
+                    <div className="card p-0 overflow-hidden mb-5">
                         <div className="table-responsive">
                             <table className="table table-sm m-0" style={{fontSize: '11px'}}>
                                 <thead className="table-header-custom">
-                                    <tr><th>WK</th><th>Waist</th><th>Chest</th><th>Arms</th><th>Thighs</th></tr>
+                                    <tr><th>Date</th><th>KG</th><th>Cal</th><th>P/C/F</th><th>Steps</th></tr>
                                 </thead>
                                 <tbody>
-                                    {filteredMetrics.map((m, i) => (
+                                    {logs.map((l, i) => (
                                         <tr key={i}>
-                                            <td className="fw-bold">{m.week_number}</td>
-                                            <td>{m.waist}</td>
-                                            <td>{m.chest}</td>
-                                            <td>{m.left_arm}/{m.right_arm}</td>
-                                            <td>{m.left_thigh}/{m.right_thigh}</td>
+                                            <td className="fw-bold">{l.log_date.split('-').slice(1).join('/')}</td>
+                                            <td>{l.weight}</td>
+                                            <td className="text-primary fw-bold">{(l.protein*4 + l.carbs*4 + l.fats*9) || 0}</td>
+                                            <td>{l.protein}/{l.carbs}/{l.fats}</td>
+                                            <td>{l.steps?.toLocaleString()}</td>
                                         </tr>
                                     ))}
                                 </tbody>
