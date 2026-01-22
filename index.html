@@ -206,7 +206,7 @@
                 <div className="container py-4">
                     <div className="d-flex justify-content-between align-items-center mb-3">
                         <h5 className="fw-bold m-0" style={{letterSpacing: '-0.5px'}}>ELITE PERFORMANCE</h5>
-                        <div className="badge rounded-pill text-dark border">v9.2.5</div>
+                        <div className="badge rounded-pill text-dark border">v9.2.6</div>
                     </div>
 
                     {view === 'log' && <DailyLog user={session.user} />}
@@ -312,12 +312,19 @@
 
             const submitCheckin = async () => {
                 if (!f.waist || !f.chest) return alert("Waist and Chest are mandatory.");
+                // FIXED: Used .upsert with onConflict to prevent duplicate key error
                 const { error } = await _supabase.from('weekly_metrics').upsert({
-                    user_id: user.id, week_number: weekInfo.num,
-                    chest: parseFloat(f.chest), waist: parseFloat(f.waist), glute: parseFloat(f.glute)||0,
-                    left_arm: parseFloat(f.larm)||0, right_arm: parseFloat(f.rarm)||0,
-                    left_thigh: parseFloat(f.lthigh)||0, right_thigh: parseFloat(f.rthigh)||0
-                });
+                    user_id: user.id, 
+                    week_number: weekInfo.num,
+                    chest: parseFloat(f.chest), 
+                    waist: parseFloat(f.waist), 
+                    glute: parseFloat(f.glute)||0,
+                    left_arm: parseFloat(f.larm)||0, 
+                    right_arm: parseFloat(f.rarm)||0,
+                    left_thigh: parseFloat(f.lthigh)||0, 
+                    right_thigh: parseFloat(f.rthigh)||0
+                }, { onConflict: 'user_id,week_number' });
+                
                 if (error) alert(error.message); else alert(`Week ${weekInfo.num} Updated`);
             };
 
