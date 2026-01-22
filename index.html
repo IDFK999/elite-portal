@@ -470,7 +470,7 @@
                 }
                 
                 if (delta <= -0.4) {
-                    return <span><b className="decision-highlight">SUSTAIN: ON TRACK</b> You are losing ~${Math.abs(delta).toFixed(2)}kg per week. This is optimal for muscle retention. Stay the course.</span>;
+                    return <span><b className="decision-highlight">SUSTAIN: ON TRACK</b> You are losing ~{Math.abs(delta).toFixed(2)}kg per week. This is optimal for muscle retention. Stay the course.</span>;
                 }
 
                 return `14-Day Trend: ${delta > 0 ? '+' : ''}${delta.toFixed(2)}kg. Metabolic rate is adapting. Precision phase active.`;
@@ -486,7 +486,7 @@
                 const tdee = avgK + ((avgS - 8000) * 0.04);
                 
                 const calc = (c) => ({ cal: Math.round(c), p: Math.round(avgW*2), f: Math.round((c*0.29)/9), c: Math.round((c-(avgW*2*4)-((c*0.29)/9*9))/4) });
-                return { bulk: calc(tdee+150), maint: calc(tdee), cut: calc(tdee-150) };
+                return { bulk: calc(tdee+150), maint: calc(tdee), cut: calc(tdee-150), tdeeVal: Math.round(tdee), currentWeight: avgW };
             };
 
             const paths = getMacroPathways();
@@ -501,7 +501,18 @@
                 return { loss: Math.abs(weightDiff), kcal: Math.round(totalKcal / logs.length), steps: Math.round(totalSteps / logs.length), color: weightDiff > 0 ? '#34C759' : weightDiff < 0 ? '#FF3B30' : '#1D1D1F', sign: weightDiff > 0 ? '+' : weightDiff < 0 ? '-' : '' };
             };
 
+            const getProjections = () => {
+                if (logs.length < 14 || !paths) return { goal: 'Calculating...', tdee: paths ? paths.tdeeVal : '...' };
+                const sorted = [...logs].sort((a,b) => new Date(b.log_date) - new Date(a.log_date));
+                const week1Avg = sorted.slice(0, 7).reduce((a,b)=>a+b.weight, 0) / 7;
+                const week2Avg = sorted.slice(7, 14).reduce((a,b)=>a+b.weight, 0) / 7;
+                const delta = week1Avg - week2Avg; // rate per week
+                const projection = week1Avg + (delta * 4);
+                return { goal: `${projection.toFixed(1)}kg`, tdee: paths.tdeeVal };
+            };
+
             const stats = calculateAverages();
+            const projections = getProjections();
 
             const applyStrategy = (s) => {
                 localStorage.setItem('macro_targets', JSON.stringify({ p: s.p, c: s.c, f: s.f }));
@@ -527,6 +538,12 @@
                         <div className="col-4"><div className="avg-card"><div className="avg-label">Trend</div><div className="avg-value" style={{ color: stats.color }}>{stats.sign}{stats.loss}kg</div></div></div>
                         <div className="col-4"><div className="avg-card"><div className="avg-label">Kcal</div><div className="avg-value">{stats.kcal}</div></div></div>
                         <div className="col-4"><div className="avg-card"><div className="avg-label">Steps</div><div className="avg-value">{stats.steps}</div></div></div>
+                    </div>
+
+                    <div className="section-title">Projections & Insights</div>
+                    <div className="row g-2 mb-3">
+                        <div className="col-6"><div className="avg-card"><div className="avg-label">4-Week Goal</div><div className="avg-value">{projections.goal}</div></div></div>
+                        <div className="col-6"><div className="avg-card"><div className="avg-label">Est. TDEE</div><div className="avg-value" style={{color: 'var(--accent-blue)'}}>{projections.tdee}</div></div></div>
                     </div>
 
                     <div className="section-title">Performance Strategies</div>
