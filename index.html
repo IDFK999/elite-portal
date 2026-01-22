@@ -498,9 +498,21 @@
                 const sorted = [...logs].sort((a,b) => new Date(b.log_date) - new Date(a.log_date));
                 const week1 = sorted.slice(0, 7);
                 const week1Avg = week1.reduce((a,b)=>a+b.weight, 0) / 7;
+
+                const helms = getHelmsMacros(week1Avg, goal);
+                const helmsDisplay = (
+                    <div className="mt-2 pt-2 border-top" style={{fontSize: '11px', opacity: 0.9}}>
+                        <b>Helms Strategy ({goal}):</b> {helms.totalCalories} kcal | {helms.protein}P | {helms.carbs}C | {helms.fat}F
+                    </div>
+                );
                 
                 if (logs.length < 14) {
-                    return `Baseline Set: 7-day average is ${week1Avg.toFixed(2)}kg. Continue logging for 7 more days to confirm your 14-day trend for an adjustment decision.`;
+                    return (
+                        <div>
+                            Baseline Set: 7-day average is {week1Avg.toFixed(2)}kg. Continue logging for 7 more days to confirm your 14-day trend.
+                            {helmsDisplay}
+                        </div>
+                    );
                 }
 
                 const week2 = sorted.slice(7, 14);
@@ -510,38 +522,37 @@
                 const avgCals = week1.reduce((a,b)=>a+(b.protein*4+b.carbs*4+b.fats*9),0) / 7;
                 const avgSteps = week1.reduce((a,b)=>a+(b.steps||0),0) / 7;
 
+                let feedback;
                 if (goal === 'cut') {
                     if (avgCals < 2100 && avgSteps > 9500 && delta >= 0) {
-                        return <span><b className="decision-highlight">HOLD POSITION</b> Potential "Whoosh" detected. Activity is high and calories are controlled, but water is masking fat loss. Do not adjust yet.</span>;
+                        feedback = <span><b className="decision-highlight">HOLD POSITION</b> Potential "Whoosh" detected. Activity is high and calories are controlled, but water is masking fat loss. Do not adjust yet.</span>;
+                    } else if (Math.abs(delta) < 0.1) {
+                        feedback = <span><b className="decision-highlight">ACTION: PLATEAU CONFIRMED</b> Weight is flat. Apply a 150kcal shift below to resume progress.</span>;
+                    } else if (delta <= -0.4) {
+                        feedback = <span><b className="decision-highlight">SUSTAIN: ON TRACK</b> You are losing ~{Math.abs(delta).toFixed(2)}kg per week. This is optimal for muscle retention. Stay the course.</span>;
                     }
-                    if (Math.abs(delta) < 0.1) {
-                        return <span><b className="decision-highlight">ACTION: PLATEAU CONFIRMED</b> Weight is flat. Apply a 150kcal shift below to resume progress.</span>;
-                    }
-                    if (delta <= -0.4) {
-                        return <span><b className="decision-highlight">SUSTAIN: ON TRACK</b> You are losing ~{Math.abs(delta).toFixed(2)}kg per week. This is optimal for muscle retention. Stay the course.</span>;
-                    }
-                }
-
-                if (goal === 'bulk') {
+                } else if (goal === 'bulk') {
                     if (delta >= 0.1 && delta <= 0.3) {
-                        return <span><b className="decision-highlight">PERFECT GAIN RATE</b> You are gaining ~{delta.toFixed(2)}kg per week. Muscle growth is prioritized with minimal fat.</span>;
+                        feedback = <span><b className="decision-highlight">PERFECT GAIN RATE</b> You are gaining ~{delta.toFixed(2)}kg per week. Muscle growth is prioritized with minimal fat.</span>;
+                    } else if (delta < 0.1) {
+                        feedback = <span><b className="decision-highlight">ACTION: INCREASE CALORIES</b> Growth is stalled. Shift +150kcal to enter a surplus.</span>;
+                    } else if (delta > 0.4) {
+                        feedback = <span><b className="decision-highlight">ACTION: SCALE BACK</b> Gaining too fast. Reduce surplus to avoid unnecessary fat accumulation.</span>;
                     }
-                    if (delta < 0.1) {
-                        return <span><b className="decision-highlight">ACTION: INCREASE CALORIES</b> Growth is stalled. Shift +150kcal to enter a surplus.</span>;
-                    }
-                    if (delta > 0.4) {
-                        return <span><b className="decision-highlight">ACTION: SCALE BACK</b> Gaining too fast. Reduce surplus to avoid unnecessary fat accumulation.</span>;
-                    }
-                }
-
-                if (goal === 'maintain') {
+                } else if (goal === 'maintain') {
                     if (Math.abs(delta) <= 0.2) {
-                        return <span><b className="decision-highlight">STABLE</b> Maintenance successful. Metabolic rate is balanced with intake.</span>;
+                        feedback = <span><b className="decision-highlight">STABLE</b> Maintenance successful. Metabolic rate is balanced with intake.</span>;
+                    } else {
+                        feedback = <span><b className="decision-highlight">ADJUSTMENT NEEDED</b> Weight is drifting. Re-sync to maintenance pathway.</span>;
                     }
-                    return <span><b className="decision-highlight">ADJUSTMENT NEEDED</b> Weight is drifting. Re-sync to maintenance pathway.</span>;
                 }
 
-                return `14-Day Trend: ${delta > 0 ? '+' : ''}${delta.toFixed(2)}kg. Metabolic rate is adapting. Precision phase active.`;
+                return (
+                    <div>
+                        {feedback || `14-Day Trend: ${delta > 0 ? '+' : ''}${delta.toFixed(2)}kg. Metabolic rate is adapting. Precision phase active.`}
+                        {helmsDisplay}
+                    </div>
+                );
             };
 
             const getMacroPathways = () => {
