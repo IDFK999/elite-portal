@@ -222,7 +222,7 @@
                 <div className="container py-4">
                     <div className="d-flex justify-content-between align-items-center mb-3">
                         <h5 className="fw-bold m-0" style={{letterSpacing: '-0.5px'}}>ELITE PERFORMANCE</h5>
-                        <div className="badge rounded-pill text-dark border">v9.9.5-HELMS</div>
+                        <div className="badge rounded-pill text-dark border">v10.1-HELMS</div>
                     </div>
 
                     {view === 'log' && <DailyLog user={session.user} />}
@@ -376,7 +376,11 @@
             const [metrics, setMetrics] = useState([]);
             const [dateFrom, setDateFrom] = useState(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
             const [dateTo, setDateTo] = useState(new Date().toISOString().split('T')[0]);
+            const [weekFrom, setWeekFrom] = useState(1);
+            const [weekTo, setWeekTo] = useState(52);
             const [targetRatePercent, setTargetRatePercent] = useState(() => parseFloat(localStorage.getItem('goal_rate_pct')) || 0.5); 
+            const [goalWeight, setGoalWeight] = useState(() => localStorage.getItem('goal_weight_kg') || '');
+            
             const canvasRef = useRef(null);
             const chartInstance = useRef(null);
 
@@ -387,11 +391,13 @@
                 setMetrics(metricData || []);
             };
 
-            useEffect(() => { loadData(); }, [dateFrom, dateTo]);
+            useEffect(() => { loadData(); }, []);
 
             useEffect(() => {
                 if (canvasRef.current && logs.length > 0) {
-                    const sorted = [...logs].filter(l => l.log_date >= dateFrom && l.log_date <= dateTo).sort((a,b) => new Date(a.log_date) - new Date(b.log_date));
+                    const filtered = logs.filter(l => l.log_date >= dateFrom && l.log_date <= dateTo);
+                    const sorted = [...filtered].sort((a,b) => new Date(a.log_date) - new Date(b.log_date));
+                    
                     if (chartInstance.current) chartInstance.current.destroy();
                     chartInstance.current = new Chart(canvasRef.current, {
                         type: 'line',
@@ -407,29 +413,24 @@
             const runPyramidLogic = () => {
                 if (logs.length < 14) return { status: "Observing", msg: "Log 14 days to establish trend-based maintenance." };
                 
-                const sorted = [...logs].sort((a,b) => new Date(b.log_date) - new Date(a.log_date)); // Newest first
-                
-                // 7-Day Rolling Averages (Gold Standard)
+                const sorted = [...logs].sort((a,b) => new Date(b.log_date) - new Date(a.log_date)); 
                 const week1 = sorted.slice(0, 7);
                 const week2 = sorted.slice(7, 14);
                 
                 const avgW1 = week1.reduce((acc, l) => acc + l.weight, 0) / week1.length;
                 const avgW2 = week2.reduce((acc, l) => acc + l.weight, 0) / week2.length;
                 
-                const currentRate = avgW1 - avgW2; // Negative is loss
+                const currentRate = avgW1 - avgW2;
                 const currentWeight = avgW1;
-                
-                // Helms Target Rate: % of bodyweight
                 const targetKgPerWeek = -(currentWeight * (targetRatePercent / 100));
                 
-                // Adjustment Rule: Feedback driven
                 let advice = "No change needed. Stay the course.";
                 let kcalAdjustment = 0;
                 
-                if (currentRate > targetKgPerWeek + 0.15) { // Losing too slowly
+                if (currentRate > targetKgPerWeek + 0.15) { 
                     advice = "Loss too slow. Reduce intake to push trend.";
                     kcalAdjustment = -200;
-                } else if (currentRate < targetKgPerWeek - 0.25) { // Losing too fast
+                } else if (currentRate < targetKgPerWeek - 0.25) { 
                     advice = "Loss too aggressive. Increase intake to protect muscle.";
                     kcalAdjustment = 150;
                 }
@@ -445,18 +446,27 @@
             };
 
             const logic = runPyramidLogic();
+            const filteredMetrics = metrics.filter(m => m.week_number >= weekFrom && m.week_number <= weekTo);
 
             return (
                 <div>
                     <div className="section-title">Helms Feedback Engine</div>
                     <div className="card shadow-sm border-0 mb-3" style={{background: '#f8f9fa'}}>
-                        <label className="avg-label">Target Loss Rate (% BW / Week)</label>
-                        <select className="form-control" value={targetRatePercent} onChange={e => {setTargetRatePercent(e.target.value); localStorage.setItem('goal_rate_pct', e.target.value);}}>
-                            <option value="0.25">Lean (0.25%)</option>
-                            <option value="0.5">Average (0.5%)</option>
-                            <option value="0.75">Standard (0.75%)</option>
-                            <option value="1.0">Aggressive (1.0%)</option>
-                        </select>
+                        <div className="row g-2 mb-2">
+                            <div className="col-6">
+                                <label className="avg-label">Target Rate (% BW)</label>
+                                <select className="form-control" value={targetRatePercent} onChange={e => {setTargetRatePercent(e.target.value); localStorage.setItem('goal_rate_pct', e.target.value);}}>
+                                    <option value="0.25">0.25%</option>
+                                    <option value="0.5">0.5%</option>
+                                    <option value="0.75">0.75%</option>
+                                    <option value="1.0">1.0%</option>
+                                </select>
+                            </div>
+                            <div className="col-6">
+                                <label className="avg-label">Goal Weight (KG)</label>
+                                <input type="number" step="any" className="form-control" value={goalWeight} onChange={e => {setGoalWeight(e.target.value); localStorage.setItem('goal_weight_kg', e.target.value);}} placeholder="Target" />
+                            </div>
+                        </div>
                         
                         <div className="coach-box mb-0 mt-3">
                             <div className="d-flex justify-content-between fw-bold">
@@ -477,45 +487,30 @@
                         <div className={`display-6 fw-bold ${logic.kcalAdjustment < 0 ? 'text-danger' : logic.kcalAdjustment > 0 ? 'text-success' : 'text-primary'}`}>
                             {logic.kcalAdjustment === 0 ? "0" : logic.kcalAdjustment > 0 ? `+${logic.kcalAdjustment}` : logic.kcalAdjustment} kcal
                         </div>
-                        <div className="small text-muted mt-1">Feedback-driven adjustment based on trend</div>
                     </div>
 
                     <div className="card">
-                        <div className="section-title">Weight Trend (Rolling)</div>
+                        <div className="section-title">Trend Filters</div>
+                        <div className="row g-2 mb-3">
+                            <div className="col-6"><label className="avg-label">From Date</label><input type="date" className="form-control" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} /></div>
+                            <div className="col-6"><label className="avg-label">To Date</label><input type="date" className="form-control" value={dateTo} onChange={e=>setDateTo(e.target.value)} /></div>
+                        </div>
                         <div style={{height: '180px'}}><canvas ref={canvasRef}></canvas></div>
                     </div>
                     
-                    <div className="section-title">Daily History</div>
-                    <div className="card p-0 overflow-hidden mb-4">
-                        <div className="table-responsive">
-                            <table className="table table-sm m-0" style={{fontSize: '11px'}}>
-                                <thead className="table-header-custom">
-                                    <tr><th>Date</th><th>KG</th><th>Cal</th><th>P/C/F</th><th>Steps</th></tr>
-                                </thead>
-                                <tbody>
-                                    {logs.slice(0,10).map((l, i) => (
-                                        <tr key={i}>
-                                            <td className="fw-bold">{l.log_date.split('-').slice(1).join('/')}</td>
-                                            <td>{l.weight}</td>
-                                            <td className="text-primary fw-bold">{(l.protein*4 + l.carbs*4 + l.fats*9) || 0}</td>
-                                            <td>{l.protein}/{l.carbs}/{l.fats}</td>
-                                            <td>{l.steps?.toLocaleString()}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <div className="section-title">Measurement History</div>
+                    <div className="section-title">Measurement Range</div>
                     <div className="card mb-4">
+                        <div className="row g-2 mb-3">
+                            <div className="col-6"><label className="avg-label">Week From</label><input type="number" className="form-control" value={weekFrom} onChange={e=>setWeekFrom(parseInt(e.target.value) || 1)} /></div>
+                            <div className="col-6"><label className="avg-label">Week To</label><input type="number" className="form-control" value={weekTo} onChange={e=>setWeekTo(parseInt(e.target.value) || 52)} /></div>
+                        </div>
                         <div className="table-responsive">
                             <table className="table table-sm m-0" style={{fontSize: '11px'}}>
                                 <thead className="table-header-custom">
                                     <tr><th>WK</th><th>Waist</th><th>Chest</th><th>Arms</th><th>Thighs</th></tr>
                                 </thead>
                                 <tbody>
-                                    {metrics.map((m, i) => (
+                                    {filteredMetrics.map((m, i) => (
                                         <tr key={i}>
                                             <td className="fw-bold">{m.week_number}</td>
                                             <td>{m.waist}</td>
