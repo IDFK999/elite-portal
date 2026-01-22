@@ -222,7 +222,7 @@
                 <div className="container py-4">
                     <div className="d-flex justify-content-between align-items-center mb-3">
                         <h5 className="fw-bold m-0" style={{letterSpacing: '-0.5px'}}>ELITE PERFORMANCE</h5>
-                        <div className="badge rounded-pill text-dark border">v9.9.0-PYRAMID</div>
+                        <div className="badge rounded-pill text-dark border">v9.9.5-HELMS</div>
                     </div>
 
                     {view === 'log' && <DailyLog user={session.user} />}
@@ -376,13 +376,12 @@
             const [metrics, setMetrics] = useState([]);
             const [dateFrom, setDateFrom] = useState(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
             const [dateTo, setDateTo] = useState(new Date().toISOString().split('T')[0]);
-            const [targetWeight, setTargetWeight] = useState(() => parseFloat(localStorage.getItem('goal_weight')) || 64); 
-            const [weeksToGoal, setWeeksToGoal] = useState(() => parseInt(localStorage.getItem('goal_weeks')) || 8);    
+            const [targetRatePercent, setTargetRatePercent] = useState(() => parseFloat(localStorage.getItem('goal_rate_pct')) || 0.5); 
             const canvasRef = useRef(null);
             const chartInstance = useRef(null);
 
             const loadData = async () => {
-                const { data: logData } = await _supabase.from('daily_logs').select('*').eq('user_id', user.id).gte('log_date', dateFrom).lte('log_date', dateTo).order('log_date', {ascending: false});
+                const { data: logData } = await _supabase.from('daily_logs').select('*').eq('user_id', user.id).order('log_date', {ascending: false});
                 const { data: metricData } = await _supabase.from('weekly_metrics').select('*').eq('user_id', user.id).order('week_number', {ascending: false});
                 setLogs(logData || []);
                 setMetrics(metricData || []);
@@ -392,7 +391,7 @@
 
             useEffect(() => {
                 if (canvasRef.current && logs.length > 0) {
-                    const sorted = [...logs].sort((a,b) => new Date(a.log_date) - new Date(b.log_date));
+                    const sorted = [...logs].filter(l => l.log_date >= dateFrom && l.log_date <= dateTo).sort((a,b) => new Date(a.log_date) - new Date(b.log_date));
                     if (chartInstance.current) chartInstance.current.destroy();
                     chartInstance.current = new Chart(canvasRef.current, {
                         type: 'line',
@@ -403,105 +402,90 @@
                         options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { position: 'left', grid: { color: '#F2F2F7' } } } }
                     });
                 }
-            }, [logs]);
+            }, [logs, dateFrom, dateTo]);
 
             const runPyramidLogic = () => {
-                if (logs.length < 2) return { status: "Awaiting Data", msg: "Log more entries for analysis." };
+                if (logs.length < 14) return { status: "Observing", msg: "Log 14 days to establish trend-based maintenance." };
                 
-                const sorted = [...logs].sort((a,b) => new Date(a.log_date) - new Date(b.log_date));
-                const currentW = sorted[sorted.length - 1].weight;
-                const startW = sorted[0].weight;
-                const weightDelta = currentW - startW;
-
-                // Helms Level 1: Energy Balance (Step-Aware Multiplier)
-                const avgSteps = logs.reduce((acc, l) => acc + (l.steps || 0), 0) / logs.length;
-                let stepMultiplier = 1.2;
-                if (avgSteps > 12000) stepMultiplier = 1.6;
-                else if (avgSteps > 8000) stepMultiplier = 1.45;
-                else if (avgSteps > 5000) stepMultiplier = 1.3;
-
-                const avgKcal = logs.reduce((acc, l) => acc + (l.protein*4 + l.carbs*4 + l.fats*9), 0) / logs.length;
-                const trueTDEE = Math.round(avgKcal - ((weightDelta * 7700) / logs.length));
-
-                // Helms Level 2: Rate of Change (Muscle Preservation)
-                const reqRate = (targetWeight - currentW) / (weeksToGoal || 1);
-                const percentLossPerWeek = (Math.abs(reqRate) / currentW) * 100;
-                let warning = "";
-                if (reqRate < 0 && percentLossPerWeek > 1.0) {
-                    warning = `HELMS ALERT: Rate of ${percentLossPerWeek.toFixed(1)}%/wk is aggressive. Maintain 2g/kg protein.`;
+                const sorted = [...logs].sort((a,b) => new Date(b.log_date) - new Date(a.log_date)); // Newest first
+                
+                // 7-Day Rolling Averages (Gold Standard)
+                const week1 = sorted.slice(0, 7);
+                const week2 = sorted.slice(7, 14);
+                
+                const avgW1 = week1.reduce((acc, l) => acc + l.weight, 0) / week1.length;
+                const avgW2 = week2.reduce((acc, l) => acc + l.weight, 0) / week2.length;
+                
+                const currentRate = avgW1 - avgW2; // Negative is loss
+                const currentWeight = avgW1;
+                
+                // Helms Target Rate: % of bodyweight
+                const targetKgPerWeek = -(currentWeight * (targetRatePercent / 100));
+                
+                // Adjustment Rule: Feedback driven
+                let advice = "No change needed. Stay the course.";
+                let kcalAdjustment = 0;
+                
+                if (currentRate > targetKgPerWeek + 0.15) { // Losing too slowly
+                    advice = "Loss too slow. Reduce intake to push trend.";
+                    kcalAdjustment = -200;
+                } else if (currentRate < targetKgPerWeek - 0.25) { // Losing too fast
+                    advice = "Loss too aggressive. Increase intake to protect muscle.";
+                    kcalAdjustment = 150;
                 }
 
-                const targetKcal = Math.round(trueTDEE + (reqRate * 7700 / 7));
-                const stepBuffer = avgSteps > 10000 ? 150 : 0;
-                
-                const actualRate = (weightDelta / (logs.length / 7));
-                const status = Math.abs(actualRate - reqRate) < 0.15 ? "ON TRACK" : actualRate > reqRate ? "ADJUSTING" : "ON TRACK";
-
-                return { reqRate: reqRate.toFixed(2), warning, trueTDEE, targetKcal: Math.max(targetKcal + stepBuffer, 1200), actualRate: actualRate.toFixed(2), status, avgSteps: Math.round(avgSteps) };
+                return { 
+                    avgWeight: avgW1.toFixed(2),
+                    actualRate: currentRate.toFixed(2),
+                    targetRate: targetKgPerWeek.toFixed(2),
+                    advice,
+                    kcalAdjustment,
+                    status: Math.abs(currentRate - targetKgPerWeek) < 0.2 ? "ON TARGET" : "ADJUSTING"
+                };
             };
 
             const logic = runPyramidLogic();
 
-            const handleGoalChange = (type, val) => {
-                const clean = cleanNum(val);
-                if (type === 'weight') {
-                    setTargetWeight(parseFloat(clean) || 0);
-                    localStorage.setItem('goal_weight', clean);
-                } else {
-                    setWeeksToGoal(parseInt(clean) || 1);
-                    localStorage.setItem('goal_weeks', clean);
-                }
-            };
-
             return (
                 <div>
-                    <div className="section-title">Timeline Filter</div>
+                    <div className="section-title">Helms Feedback Engine</div>
                     <div className="card shadow-sm border-0 mb-3" style={{background: '#f8f9fa'}}>
-                        <div className="row g-2">
-                            <div className="col-6"><label className="avg-label">From</label><input type="date" className="form-control" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} /></div>
-                            <div className="col-6"><label className="avg-label">To</label><input type="date" className="form-control" value={dateTo} onChange={e=>setDateTo(e.target.value)} /></div>
-                        </div>
-                    </div>
-
-                    <div className="section-title">Helms Pyramid System</div>
-                    <div className="card shadow-sm border-0 mb-3" style={{background: '#f8f9fa'}}>
-                        <div className="row g-2 mb-3">
-                            <div className="col-6">
-                                <label className="avg-label">Target (kg)</label>
-                                <input type="number" step="any" className="form-control" value={targetWeight} onChange={e=>handleGoalChange('weight', e.target.value)} />
-                            </div>
-                            <div className="col-6">
-                                <label className="avg-label">Weeks Left</label>
-                                <input type="number" className="form-control" value={weeksToGoal} onChange={e=>handleGoalChange('weeks', e.target.value)} />
-                            </div>
-                        </div>
-                        {logic.warning && <div className="alert alert-warning py-2 small fw-bold" style={{fontSize: '10px'}}>{logic.warning}</div>}
-                        <div className="coach-box mb-0">
-                            <div className="d-flex justify-content-between">
-                                <span>Status: <strong>{logic.status}</strong></span>
-                                <span>Avg Steps: <strong>{logic.avgSteps}</strong></span>
+                        <label className="avg-label">Target Loss Rate (% BW / Week)</label>
+                        <select className="form-control" value={targetRatePercent} onChange={e => {setTargetRatePercent(e.target.value); localStorage.setItem('goal_rate_pct', e.target.value);}}>
+                            <option value="0.25">Lean (0.25%)</option>
+                            <option value="0.5">Average (0.5%)</option>
+                            <option value="0.75">Standard (0.75%)</option>
+                            <option value="1.0">Aggressive (1.0%)</option>
+                        </select>
+                        
+                        <div className="coach-box mb-0 mt-3">
+                            <div className="d-flex justify-content-between fw-bold">
+                                <span>{logic.status}</span>
+                                <span className="text-primary">{logic.avgWeight} kg (Avg)</span>
                             </div>
                             <hr className="my-2"/>
                             <div className="small">
-                                Target: {logic.reqRate} kg/wk | Actual: {logic.actualRate} kg/wk<br/>
-                                True TDEE: {logic.trueTDEE} kcal
+                                Target: {logic.targetRate} kg/wk | Actual: {logic.actualRate} kg/wk<br/>
+                                <strong>Guidance:</strong> {logic.advice}
                             </div>
                         </div>
                     </div>
 
-                    <div className="section-title">Required Energy Intake</div>
+                    <div className="section-title">Macro Control Knob</div>
                     <div className="card text-center py-3 mb-4">
-                        <div className="avg-label">Recommended Daily Calories</div>
-                        <div className="display-6 fw-bold text-primary">{logic.targetKcal || '---'}</div>
-                        <div className="small text-muted mt-1">Adjusted for activity & goals</div>
+                        <div className="avg-label">Recommended Adjustment</div>
+                        <div className={`display-6 fw-bold ${logic.kcalAdjustment < 0 ? 'text-danger' : logic.kcalAdjustment > 0 ? 'text-success' : 'text-primary'}`}>
+                            {logic.kcalAdjustment === 0 ? "0" : logic.kcalAdjustment > 0 ? `+${logic.kcalAdjustment}` : logic.kcalAdjustment} kcal
+                        </div>
+                        <div className="small text-muted mt-1">Feedback-driven adjustment based on trend</div>
                     </div>
 
                     <div className="card">
-                        <div className="section-title">Weight Trend</div>
+                        <div className="section-title">Weight Trend (Rolling)</div>
                         <div style={{height: '180px'}}><canvas ref={canvasRef}></canvas></div>
                     </div>
                     
-                    <div className="section-title">Daily History (Filtered)</div>
+                    <div className="section-title">Daily History</div>
                     <div className="card p-0 overflow-hidden mb-4">
                         <div className="table-responsive">
                             <table className="table table-sm m-0" style={{fontSize: '11px'}}>
@@ -509,7 +493,7 @@
                                     <tr><th>Date</th><th>KG</th><th>Cal</th><th>P/C/F</th><th>Steps</th></tr>
                                 </thead>
                                 <tbody>
-                                    {logs.map((l, i) => (
+                                    {logs.slice(0,10).map((l, i) => (
                                         <tr key={i}>
                                             <td className="fw-bold">{l.log_date.split('-').slice(1).join('/')}</td>
                                             <td>{l.weight}</td>
