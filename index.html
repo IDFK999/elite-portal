@@ -16,6 +16,8 @@
             --soft-grey: #F5F5F7;
             --border-grey: #E5E5EA;
             --text-main: #1D1D1F;
+            --cut-red: #FF3B30;
+            --bulk-green: #34C759;
         }
 
         body { 
@@ -164,6 +166,17 @@
         .avg-value { font-size: 17px; font-weight: 700; color: var(--text-main); }
         .avg-label { font-size: 9px; color: #86868B; text-transform: uppercase; }
 
+        .strategy-row {
+            padding: 12px 8px;
+            border-bottom: 1px solid var(--border-grey);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .strategy-name { font-weight: 800; font-size: 12px; width: 80px; }
+        .strategy-cal { font-weight: 700; color: var(--accent-blue); }
+        .strategy-macros { font-size: 11px; color: #86868B; }
+
         .date-range-badge { 
             background: var(--soft-grey); 
             color: var(--text-main); 
@@ -175,40 +188,6 @@
             margin-bottom: 20px; 
             text-align: center;
             border: 1px solid var(--border-grey);
-        }
-
-        /* NEW STYLES FOR COACHING LOGIC */
-        .coaching-card {
-            border: 1.5px solid var(--accent-blue);
-            background: #F0F6FF;
-        }
-        .coaching-logic {
-            font-size: 10px;
-            color: #4B4B4B;
-            line-height: 1.4;
-            font-style: italic;
-        }
-        .goal-toggle {
-            display: flex;
-            background: var(--soft-grey);
-            border-radius: 8px;
-            padding: 4px;
-            margin-bottom: 15px;
-        }
-        .goal-btn {
-            flex: 1;
-            border: none;
-            background: none;
-            font-size: 10px;
-            font-weight: 700;
-            padding: 8px;
-            border-radius: 6px;
-            color: #86868B;
-        }
-        .goal-btn.active {
-            background: #FFF;
-            color: var(--text-main);
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
     </style>
 </head>
@@ -265,7 +244,7 @@
                 <div className="container py-4">
                     <div className="d-flex justify-content-between align-items-center mb-3">
                         <h5 className="fw-bold m-0" style={{letterSpacing: '-0.5px'}}>ELITE PERFORMANCE</h5>
-                        <div className="badge rounded-pill text-dark border">v9.3.0</div>
+                        <div className="badge rounded-pill text-dark border">v9.3.2</div>
                     </div>
 
                     {view === 'log' && <DailyLog user={session.user} />}
@@ -417,7 +396,6 @@
         function Stats({ user }) {
             const [logs, setLogs] = useState([]);
             const [metrics, setMetrics] = useState([]);
-            const [goal, setGoal] = useState('CUT');
             const [dateFrom, setDateFrom] = useState(new Date(Date.now() - 13 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
             const [dateTo, setDateTo] = useState(new Date().toISOString().split('T')[0]);
             const [weekFrom, setWeekFrom] = useState(1);
@@ -470,43 +448,32 @@
                 }
             }, [logs]);
 
-            // COACHING ENGINE LOGIC
-            const getRecommendation = () => {
+            const getMacroPathways = () => {
                 if (logs.length < 7) return null;
                 const sorted = [...logs].sort((a,b) => new Date(b.log_date) - new Date(a.log_date));
-                const weekA = sorted.slice(0, 7);
-                const weekB = sorted.slice(7, 14);
+                const week = sorted.slice(0, 7);
+                const avgW = week.reduce((a,b)=>a+b.weight,0) / 7;
+                const avgK = week.reduce((a,b)=>a+(b.protein*4+b.carbs*4+b.fats*9),0) / 7;
+                const avgS = week.reduce((a,b)=>a+(b.steps||0),0) / 7;
 
-                if (weekA.length < 7) return null;
-
-                const avgWeightA = weekA.reduce((a,b)=>a+b.weight,0) / 7;
-                const avgKcalA = weekA.reduce((a,b)=>a+(b.protein*4+b.carbs*4+b.fats*9),0) / 7;
-                const avgStepsA = weekA.reduce((a,b)=>a+(b.steps||0),0) / 7;
-                const avgSleepA = weekA.reduce((a,b)=>a+(b.sleep_hours||0),0) / 7;
-
-                let recommendation = { cal: 0, p: 0, c: 0, f: 0, logic: '' };
+                // True TDEE baseline (Helms Step Adjustment)
+                const tdee = avgK + ((avgS - 8000) * 0.04);
                 
-                // 1. Calculate TDEE Flux (Step adjustment)
-                const stepDiff = avgStepsA - 8000;
-                const activeTDEE = avgKcalA + (stepDiff * 0.04); // Rough metabolic estimate
+                const calcMacros = (cals) => {
+                    const p = Math.round(avgW * 2.0);
+                    const f = Math.round((cals * 0.29) / 9);
+                    const c = Math.round((cals - (p * 4) - (f * 9)) / 4);
+                    return { cal: Math.round(cals), p, c, f };
+                };
 
-                // 2. Goal Decision
-                let targetCal = goal === 'CUT' ? activeTDEE - 150 : activeTDEE + 150;
-                let reason = `Based on your avg ${Math.round(avgKcalA)}kcal intake and ${Math.round(avgStepsA)} steps.`;
-
-                // 3. Sleep / Whoosh Protection
-                if (goal === 'CUT' && avgSleepA < 6.8) {
-                    targetCal = avgKcalA;
-                    reason = "Sleep is low (<6.8h). Holding calories to manage cortisol water retention.";
-                }
-
-                // 4. Level 2 Macros (P: 2.0g/kg, F: 29%, C: Remainder)
-                const protein = Math.round(avgWeightA * 2.0);
-                const fats = Math.round((targetCal * 0.29) / 9);
-                const carbs = Math.round((targetCal - (protein * 4) - (fats * 9)) / 4);
-
-                return { cal: Math.round(targetCal), p: protein, c: carbs, f: fats, logic: reason };
+                return {
+                    bulk: calcMacros(tdee + 200),
+                    maint: calcMacros(tdee),
+                    cut: calcMacros(tdee - 250)
+                };
             };
+
+            const paths = getMacroPathways();
 
             const calculateAverages = () => {
                 if (logs.length === 0) return { loss: 0, kcal: 0, steps: 0, color: '#1D1D1F', sign: '' };
@@ -526,30 +493,14 @@
             };
 
             const stats = calculateAverages();
-            const coach = getRecommendation();
+
+            const applyStrategy = (s) => {
+                localStorage.setItem('macro_targets', JSON.stringify({ p: s.p, c: s.c, f: s.f }));
+                alert(`Pathway Synced to Log Tab: ${s.cal} kcal`);
+            };
 
             return (
                 <div key="stats">
-                    {/* Goal Selector */}
-                    <div className="goal-toggle">
-                        <button className={`goal-btn ${goal === 'CUT' ? 'active' : ''}`} onClick={()=>setGoal('CUT')}>PHASE: CUT</button>
-                        <button className={`goal-btn ${goal === 'BULK' ? 'active' : ''}`} onClick={()=>setGoal('BULK')}>PHASE: BULK</button>
-                    </div>
-
-                    {/* Coaching Engine */}
-                    {coach && (
-                        <div className="card coaching-card">
-                            <div className="section-title" style={{color: 'var(--accent-blue)'}}>Coaching Recommendation</div>
-                            <div className="row text-center mb-2">
-                                <div className="col-3"><div className="avg-label">New Target</div><div className="fw-bold" style={{fontSize:'18px'}}>{coach.cal}</div></div>
-                                <div className="col-3"><div className="avg-label">Prot</div><div className="fw-bold text-primary">{coach.p}g</div></div>
-                                <div className="col-3"><div className="avg-label">Carb</div><div className="fw-bold text-success">{coach.c}g</div></div>
-                                <div className="col-3"><div className="avg-label">Fat</div><div className="fw-bold text-warning">{coach.f}g</div></div>
-                            </div>
-                            <div className="coaching-logic">"{coach.logic}"</div>
-                        </div>
-                    )}
-
                     <div className="card">
                         <div className="section-title">Weight Trend</div>
                         <div className="row g-2 mb-3">
@@ -576,7 +527,7 @@
                         <div className="table-responsive">
                             <table className="table table-sm m-0" style={{fontSize: '11px'}}>
                                 <thead className="table-header-custom">
-                                    <tr><th>Date</th><th>KG</th><th>Cal</th><th>P/C/F</th><th>Steps</th><th>Water</th><th>Sleep</th></tr>
+                                    <tr><th>Date</th><th>KG</th><th>Cal</th><th>P/C/F</th><th>Steps</th></tr>
                                 </thead>
                                 <tbody>
                                     {logs.map((l, i) => (
@@ -586,8 +537,6 @@
                                             <td className="text-primary fw-bold">{(l.protein*4 + l.carbs*4 + l.fats*9) || 0}</td>
                                             <td>{l.protein}/{l.carbs}/{l.fats}</td>
                                             <td>{l.steps?.toLocaleString()}</td>
-                                            <td className="text-info">{l.water_liters || 0}</td>
-                                            <td className="text-secondary">{l.sleep_hours || 0}</td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -596,11 +545,7 @@
                     </div>
 
                     <div className="section-title">Measurement History</div>
-                    <div className="card mb-3">
-                        <div className="row g-2 mb-3">
-                            <div className="col-6"><label className="toggle-label">Week From</label><input type="number" inputMode="numeric" className="form-control" value={weekFrom} onChange={e=>setWeekFrom(e.target.value)} /></div>
-                            <div className="col-6"><label className="toggle-label">Week To</label><input type="number" inputMode="numeric" className="form-control" value={weekTo} onChange={e=>setWeekTo(e.target.value)} /></div>
-                        </div>
+                    <div className="card mb-4">
                         <div className="table-responsive">
                             <table className="table table-sm m-0" style={{fontSize: '11px'}}>
                                 <thead className="table-header-custom">
@@ -619,6 +564,32 @@
                                 </tbody>
                             </table>
                         </div>
+                    </div>
+
+                    {/* NEW STRATEGY TABLE */}
+                    <div className="section-title">Performance Strategy (Eric Helms)</div>
+                    <div className="card p-0 overflow-hidden mb-5">
+                        {paths ? (
+                            <>
+                                <div className="strategy-row" onClick={() => applyStrategy(paths.bulk)}>
+                                    <div className="strategy-name" style={{color: 'var(--bulk-green)'}}>LEAN BULK</div>
+                                    <div className="strategy-cal">{paths.bulk.cal}</div>
+                                    <div className="strategy-macros">P{paths.bulk.p} C{paths.bulk.c} F{paths.bulk.f}</div>
+                                </div>
+                                <div className="strategy-row" onClick={() => applyStrategy(paths.maint)}>
+                                    <div className="strategy-name">MAINTAIN</div>
+                                    <div className="strategy-cal">{paths.maint.cal}</div>
+                                    <div className="strategy-macros">P{paths.maint.p} C{paths.maint.c} F{paths.maint.f}</div>
+                                </div>
+                                <div className="strategy-row border-0" onClick={() => applyStrategy(paths.cut)}>
+                                    <div className="strategy-name" style={{color: 'var(--cut-red)'}}>AGGRESSIVE CUT</div>
+                                    <div className="strategy-cal">{paths.cut.cal}</div>
+                                    <div className="strategy-macros">P{paths.cut.p} C{paths.cut.c} F{paths.cut.f}</div>
+                                </div>
+                            </>
+                        ) : (
+                            <div className="p-3 text-center text-muted" style={{fontSize: '11px'}}>Log 7 days of data to generate strategies.</div>
+                        )}
                     </div>
                 </div>
             );
