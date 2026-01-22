@@ -12,57 +12,34 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
-            --neon-blue: #00d2ff;
-            --deep-blue: #007AFF;
-            --dark-bg: #0a0c10;
-            --card-bg: #161b22;
-            --glass-bg: rgba(22, 27, 34, 0.8);
-            --border-color: #30363d;
-            --text-grey: #8b949e;
+            --accent-blue: #0066FF;
+            --soft-grey: #F5F5F7;
+            --border-grey: #E5E5EA;
+            --text-main: #1D1D1F;
         }
 
         body { 
-            background: var(--dark-bg); 
-            color: #ffffff;
-            font-family: 'Inter', -apple-system, sans-serif; 
+            background: #FFFFFF; 
+            color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             padding-bottom: 110px; 
             -webkit-user-select: none; 
             user-select: none;
-            overflow-x: hidden;
         }
 
-        /* Animated background glow */
-        body::before {
-            content: "";
-            position: fixed;
-            top: -10%;
-            left: -10%;
-            width: 40%;
-            height: 40%;
-            background: radial-gradient(circle, rgba(0, 210, 255, 0.08) 0%, transparent 70%);
-            z-index: -1;
-            animation: pulse 8s infinite alternate;
-        }
-
-        @keyframes pulse {
-            0% { transform: translate(0,0); }
-            100% { transform: translate(20%, 10%); }
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(8px); }
             to { opacity: 1; transform: translateY(0); }
         }
 
         .card { 
-            border-radius: 16px; 
-            border: 1px solid var(--border-color); 
-            box-shadow: 0 8px 32px rgba(0,0,0,0.4); 
-            margin-bottom: 20px; 
-            padding: 24px; 
-            background: var(--card-bg);
-            backdrop-filter: blur(4px);
-            animation: fadeIn 0.5s ease forwards;
+            border-radius: 12px; 
+            border: 1px solid var(--border-grey); 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02); 
+            margin-bottom: 15px; 
+            padding: 20px; 
+            background: #FFFFFF;
+            animation: slideIn 0.4s ease-out;
         }
 
         .nav-bottom { 
@@ -70,130 +47,116 @@
             bottom: 0; 
             left:0; 
             width: 100%; 
-            background: var(--glass-bg); 
-            backdrop-filter: blur(15px); 
+            background: rgba(255,255,255,0.9); 
+            backdrop-filter: blur(20px); 
             display: flex; 
             justify-content: space-around; 
-            padding: 15px 0 35px; 
-            border-top: 1px solid var(--border-color); 
+            padding: 12px 0 35px; 
+            border-top: 1px solid var(--border-grey); 
             z-index: 1000; 
         }
 
         .nav-item { 
-            color: var(--text-grey); 
-            font-weight: 700; 
+            color: #86868B; 
+            font-weight: 600; 
             font-size: 10px; 
             cursor: pointer; 
             text-align: center; 
             text-transform: uppercase;
-            transition: all 0.3s ease;
+            letter-spacing: 0.5px;
+            transition: color 0.2s;
         }
 
         .nav-item.active { 
-            color: var(--neon-blue); 
-            text-shadow: 0 0 10px rgba(0, 210, 255, 0.5);
+            color: var(--text-main); 
         }
 
         .form-control { 
-            background: #0d1117; 
-            border: 1px solid var(--border-color); 
-            color: white;
+            background: var(--soft-grey); 
+            border: 1px solid transparent; 
             border-radius: 10px; 
             padding: 12px; 
+            font-size: 15px;
             margin-bottom: 10px; 
-            transition: border 0.3s ease;
+            transition: all 0.2s;
         }
 
         .form-control:focus { 
-            background: #0d1117; 
-            border-color: var(--neon-blue); 
-            color: white;
-            box-shadow: 0 0 0 0.25rem rgba(0, 210, 255, 0.1); 
+            background: #FFFFFF;
+            border-color: var(--text-main);
+            box-shadow: none;
         }
 
         .btn-primary { 
-            background: linear-gradient(135deg, var(--deep-blue), var(--neon-blue));
+            background: var(--text-main);
             border: none; 
             border-radius: 10px; 
-            padding: 15px; 
-            font-weight: bold; 
+            padding: 14px; 
+            font-weight: 600; 
             width: 100%; 
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            box-shadow: 0 4px 15px rgba(0, 122, 255, 0.3);
+            transition: opacity 0.2s;
         }
 
-        .btn-primary:active {
-            transform: scale(0.98);
-        }
+        .btn-primary:active { opacity: 0.8; transform: scale(0.99); }
 
         .target-pill { 
-            background: linear-gradient(90deg, #161b22, #0d1117); 
+            background: var(--text-main); 
             color: #fff; 
             border-radius: 12px; 
-            padding: 18px 10px; 
+            padding: 16px 10px; 
             margin-bottom: 20px; 
-            cursor: pointer; 
-            border: 1px solid var(--border-color); 
-            transition: border 0.3s;
+            cursor: pointer;
         }
 
-        .target-pill:hover {
-            border-color: var(--neon-blue);
-        }
-
-        .macro-mini-label { font-size: 9px; color: var(--text-grey); text-transform: uppercase; letter-spacing: 1px; }
-        .macro-mini-value { font-size: 16px; font-weight: 800; color: var(--neon-blue); }
+        .macro-mini-label { font-size: 8px; color: #86868B; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
+        .macro-mini-value { font-size: 15px; font-weight: 700; color: #FFFFFF; }
 
         .section-title { 
             font-size: 11px; 
-            font-weight: 800; 
-            color: var(--neon-blue); 
+            font-weight: 700; 
+            color: #86868B; 
             text-transform: uppercase; 
-            margin-bottom: 15px; 
-            margin-top: 10px; 
-            letter-spacing: 1.5px; 
-            border-left: 3px solid var(--neon-blue);
-            padding-left: 10px;
+            margin-bottom: 12px; 
+            margin-top: 5px; 
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .section-title::after {
+            content: "";
+            height: 1px;
+            background: var(--border-grey);
+            flex-grow: 1;
+            margin-left: 10px;
         }
 
-        .toggle-label { font-size: 10px; font-weight: bold; color: var(--text-grey); margin-bottom: 5px; }
+        .toggle-label { font-size: 10px; font-weight: 600; color: #1D1D1F; margin-bottom: 4px; display: block; }
 
         .avg-card { 
-            background: #0d1117; 
-            border-radius: 12px; 
-            padding: 15px; 
+            background: var(--soft-grey); 
+            border-radius: 10px; 
+            padding: 12px; 
             text-align: center; 
-            border: 1px solid var(--border-color); 
         }
 
-        .avg-value { font-size: 18px; font-weight: 800; }
-        .avg-label { font-size: 9px; color: var(--text-grey); text-transform: uppercase; }
+        .avg-value { font-size: 17px; font-weight: 700; color: var(--text-main); }
+        .avg-label { font-size: 9px; color: #86868B; text-transform: uppercase; }
 
-        .table { color: #c9d1d9; border-color: var(--border-color); }
-        .table-dark { background-color: #0d1117; }
+        .table { border-radius: 8px; overflow: hidden; }
+        .table thead { background: var(--text-main); color: #fff; }
         
         .date-range-badge { 
-            background: rgba(0, 210, 255, 0.1); 
-            color: var(--neon-blue); 
-            border: 1px solid var(--neon-blue);
-            font-size: 12px; 
-            padding: 12px; 
+            background: var(--soft-grey); 
+            color: var(--text-main); 
+            font-size: 11px; 
+            padding: 10px; 
             border-radius: 10px; 
-            font-weight: 800; 
+            font-weight: 700; 
             display: block; 
-            margin-bottom: 25px; 
-            text-align: center; 
-        }
-
-        .badge.bg-dark {
-            background: #30363d !important;
-            border: 1px solid #484f58;
-        }
-
-        /* Chart Customization */
-        canvas {
-            filter: drop-shadow(0 0 5px rgba(0, 210, 255, 0.2));
+            margin-bottom: 20px; 
+            text-align: center;
+            border: 1px solid var(--border-grey);
         }
     </style>
 </head>
@@ -236,14 +199,14 @@
                 };
             }, []);
 
-            if (isBooting) return <div className="p-5 text-center text-info">INITIALIZING SYSTEMS...</div>;
+            if (isBooting) return <div className="p-5 text-center text-muted">Syncing...</div>;
             if (!session) return <Login />;
 
             return (
                 <div className="container py-4">
-                    <div className="d-flex justify-content-between align-items-center mb-4">
-                        <h4 className="fw-bold m-0" style={{letterSpacing:'2px'}}>ELITE <span style={{color: 'var(--neon-blue)'}}>PORTAL</span></h4>
-                        <div className="badge bg-dark">SYS_v9.2.3</div>
+                    <div className="d-flex justify-content-between align-items-center mb-3">
+                        <h5 className="fw-bold m-0" style={{letterSpacing: '-0.5px'}}>ELITE PERFORMANCE</h5>
+                        <div className="badge rounded-pill text-dark border">v9.2.3</div>
                     </div>
 
                     {view === 'log' && <DailyLog user={session.user} />}
@@ -251,10 +214,10 @@
                     {view === 'stats' && <Stats user={session.user} />}
                     
                     <div className="nav-bottom">
-                        <div className={`nav-item ${view === 'log' ? 'active' : ''}`} onClick={()=>setView('log')}>Dashboard<br/>LOG</div>
-                        <div className={`nav-item ${view === 'update' ? 'active' : ''}`} onClick={()=>setView('update')}>Check-in<br/>UPDATE</div>
-                        <div className={`nav-item ${view === 'stats' ? 'active' : ''}`} onClick={()=>setView('stats')}>Trends<br/>STATS</div>
-                        <div className="nav-item text-danger" onClick={()=>_supabase.auth.signOut()}>Exit<br/>LOGOUT</div>
+                        <div className={`nav-item ${view === 'log' ? 'active' : ''}`} onClick={()=>setView('log')}>Log</div>
+                        <div className={`nav-item ${view === 'update' ? 'active' : ''}`} onClick={()=>setView('update')}>Update</div>
+                        <div className={`nav-item ${view === 'stats' ? 'active' : ''}`} onClick={()=>setView('stats')}>Stats</div>
+                        <div className="nav-item text-danger" onClick={()=>_supabase.auth.signOut()}>Exit</div>
                     </div>
                 </div>
             );
@@ -275,57 +238,54 @@
             }, [f.date]);
 
             const saveLog = async () => {
-                if (!f.weight || !f.steps) {
-                    alert("Weight and Steps are mandatory fields.");
-                    return;
-                }
+                if (!f.weight || !f.steps) return alert("Weight and Steps are required.");
                 const { error } = await _supabase.from('daily_logs').upsert({
                     user_id: user.id, log_date: f.date, weight: parseFloat(f.weight),
                     protein: parseInt(f.p)||0, carbs: parseInt(f.c)||0, fats: parseInt(f.f)||0,
                     steps: parseInt(f.steps), water_liters: parseFloat(f.water)||0, sleep_hours: parseFloat(f.sleep)||0
                 }, { onConflict: 'user_id,log_date' });
-                if (error) alert(error.message); else alert("Data Uplink Successful");
+                if (error) alert(error.message); else alert("Saved Successfully");
             };
 
             return (
-                <div key="view-log">
+                <div key="daily">
                     {!editTargets ? (
                         <div className="target-pill" onClick={() => setEditTargets(true)}>
-                            <div className="macro-container">
-                                <div className="macro-box"><span className="macro-mini-label">Protein</span><span className="macro-mini-value">{targets.p}g</span></div>
-                                <div className="macro-box"><span className="macro-mini-label">Carbs</span><span className="macro-mini-value">{targets.c}g</span></div>
-                                <div className="macro-box"><span className="macro-mini-label">Fats</span><span className="macro-mini-value">{targets.f}g</span></div>
+                            <div className="macro-container d-flex justify-content-around text-center">
+                                <div className="macro-box"><span className="macro-mini-label">Protein</span><br/><span className="macro-mini-value">{targets.p}g</span></div>
+                                <div className="macro-box"><span className="macro-mini-label">Carbs</span><br/><span className="macro-mini-value">{targets.c}g</span></div>
+                                <div className="macro-box"><span className="macro-mini-label">Fats</span><br/><span className="macro-mini-value">{targets.f}g</span></div>
                             </div>
                         </div>
                     ) : (
-                        <div className="card mb-3 p-3">
+                        <div className="card mb-3" style={{background: '#F5F5F7'}}>
                             <div className="row g-2">
                                 <div className="col-4"><label className="macro-mini-label">P (g)</label><input className="form-control" type="number" inputMode="numeric" value={targets.p} onChange={e=>setTargets({...targets, p: cleanNum(e.target.value)})} /></div>
                                 <div className="col-4"><label className="macro-mini-label">C (g)</label><input className="form-control" type="number" inputMode="numeric" value={targets.c} onChange={e=>setTargets({...targets, c: cleanNum(e.target.value)})} /></div>
                                 <div className="col-4"><label className="macro-mini-label">F (g)</label><input className="form-control" type="number" inputMode="numeric" value={targets.f} onChange={e=>setTargets({...targets, f: cleanNum(e.target.value)})} /></div>
                             </div>
-                            <button className="btn btn-sm btn-outline-info w-100 mt-2 fw-bold" onClick={() => setEditTargets(false)}>Update Command</button>
+                            <button className="btn btn-dark btn-sm w-100 mt-2" onClick={() => setEditTargets(false)}>Save Targets</button>
                         </div>
                     )}
                     <div className="card">
-                        <input type="date" className="form-control mb-3" value={f.date} onChange={e=>setF({...f, date:e.target.value})} />
-                        <div className="section-title">Biometrics</div>
+                        <input type="date" className="form-control mb-3 fw-bold" value={f.date} onChange={e=>setF({...f, date:e.target.value})} />
+                        <div className="section-title">Core Metrics</div>
                         <div className="row g-2">
                             <div className="col-6"><label className="toggle-label">Weight (kg) *</label><input type="number" inputMode="decimal" className="form-control" value={f.weight} onChange={e=>setF({...f, weight: cleanNum(e.target.value)})} /></div>
                             <div className="col-6"><label className="toggle-label">Steps *</label><input type="number" inputMode="numeric" className="form-control" value={f.steps} onChange={e=>setF({...f, steps: cleanNum(e.target.value)})} /></div>
                         </div>
-                        <div className="section-title mt-2">Macro Analysis</div>
+                        <div className="section-title mt-2">Nutrient Intake</div>
                         <div className="row g-2">
                             <div className="col-4"><label className="toggle-label">P</label><input type="number" inputMode="numeric" className="form-control" value={f.p} onChange={e=>setF({...f, p: cleanNum(e.target.value)})} /></div>
                             <div className="col-4"><label className="toggle-label">C</label><input type="number" inputMode="numeric" className="form-control" value={f.c} onChange={e=>setF({...f, c: cleanNum(e.target.value)})} /></div>
                             <div className="col-4"><label className="toggle-label">F</label><input type="number" inputMode="numeric" className="form-control" value={f.f} onChange={e=>setF({...f, f: cleanNum(e.target.value)})} /></div>
                         </div>
-                        <div className="section-title mt-2">Hydration & Recovery</div>
+                        <div className="section-title mt-2">Recovery</div>
                         <div className="row g-2">
                             <div className="col-6"><label className="toggle-label">Water (L)</label><input type="number" inputMode="decimal" className="form-control" value={f.water} onChange={e=>setF({...f, water: cleanNum(e.target.value)})} /></div>
                             <div className="col-6"><label className="toggle-label">Sleep (H)</label><input type="number" inputMode="decimal" className="form-control" value={f.sleep} onChange={e=>setF({...f, sleep: cleanNum(e.target.value)})} /></div>
                         </div>
-                        <button className="btn btn-primary mt-3" onClick={saveLog}>Sync Daily Log</button>
+                        <button className="btn btn-primary mt-3" onClick={saveLog}>Save Daily Record</button>
                     </div>
                 </div>
             );
@@ -351,30 +311,26 @@
             const weekInfo = getWeekInfo();
 
             const submitCheckin = async () => {
-                if (!f.waist || !f.chest) {
-                    alert("Waist and Chest are mandatory for check-in.");
-                    return;
-                }
+                if (!f.waist || !f.chest) return alert("Waist and Chest are mandatory.");
                 const { error } = await _supabase.from('weekly_metrics').upsert({
                     user_id: user.id, week_number: weekInfo.num,
                     chest: parseFloat(f.chest), waist: parseFloat(f.waist), glute: parseFloat(f.glute)||0,
                     left_arm: parseFloat(f.larm)||0, right_arm: parseFloat(f.rarm)||0,
                     left_thigh: parseFloat(f.lthigh)||0, right_thigh: parseFloat(f.rthigh)||0
                 });
-                if (error) alert(error.message); else alert(`Cycle ${weekInfo.num} Locked`);
+                if (error) alert(error.message); else alert(`Week ${weekInfo.num} Updated`);
             };
 
             return (
                 <div className="card">
-                    <label className="toggle-label">System Start</label>
+                    <label className="toggle-label">Program Start Date</label>
                     <input type="date" className="form-control mb-3" value={startDate} onChange={e=>{setStartDate(e.target.value); localStorage.setItem('coach_start_date', e.target.value);}} />
-                    <div className="date-range-badge">PHASE {weekInfo.num}<br/><span style={{fontSize:'10px', opacity:0.8, letterSpacing:'1px'}}>{weekInfo.range}</span></div>
-                    <div className="section-title">Core Dimensions</div>
+                    <div className="date-range-badge">WEEK {weekInfo.num}<br/><span style={{fontSize:'10px', opacity:0.6}}>{weekInfo.range}</span></div>
+                    <div className="section-title">Measurements</div>
                     <div className="row g-2 mb-2">
                         <div className="col-6"><label className="toggle-label">Waist *</label><input type="number" inputMode="decimal" className="form-control" value={f.waist} onChange={e=>setF({...f, waist: cleanNum(e.target.value)})} /></div>
                         <div className="col-6"><label className="toggle-label">Chest *</label><input type="number" inputMode="decimal" className="form-control" value={f.chest} onChange={e=>setF({...f, chest: cleanNum(e.target.value)})} /></div>
                     </div>
-                    <div className="section-title">Limb Metrics</div>
                     <div className="row g-2 mb-2">
                         <div className="col-6"><label className="toggle-label">Left Arm</label><input type="number" inputMode="decimal" className="form-control" value={f.larm} onChange={e=>setF({...f, larm: cleanNum(e.target.value)})} /></div>
                         <div className="col-6"><label className="toggle-label">Right Arm</label><input type="number" inputMode="decimal" className="form-control" value={f.rarm} onChange={e=>setF({...f, rarm: cleanNum(e.target.value)})} /></div>
@@ -386,7 +342,7 @@
                         <div className="col-6"><label className="toggle-label">Left Thigh</label><input type="number" inputMode="decimal" className="form-control" value={f.lthigh} onChange={e=>setF({...f, lthigh: cleanNum(e.target.value)})} /></div>
                         <div className="col-6"><label className="toggle-label">Right Thigh</label><input type="number" inputMode="decimal" className="form-control" value={f.rthigh} onChange={e=>setF({...f, rthigh: cleanNum(e.target.value)})} /></div>
                     </div>
-                    <button className="btn btn-primary mt-2" onClick={submitCheckin}>Execute Weekly Update</button>
+                    <button className="btn btn-primary mt-2" onClick={submitCheckin}>Submit Weekly Stats</button>
                 </div>
             );
         }
@@ -421,13 +377,12 @@
                             datasets: [{ 
                                 label: 'Weight', 
                                 data: sorted.map(l => l.weight), 
-                                borderColor: '#00d2ff', 
-                                tension: 0.4, 
-                                backgroundColor: 'rgba(0,210,255,0.1)', 
+                                borderColor: '#0066FF', 
+                                tension: 0.3, 
+                                backgroundColor: 'rgba(0,102,255,0.05)', 
                                 fill: true,
-                                borderWidth: 3,
-                                pointRadius: 4,
-                                pointBackgroundColor: '#00d2ff'
+                                borderWidth: 2,
+                                pointRadius: 3
                             }] 
                         },
                         options: { 
@@ -435,8 +390,8 @@
                             maintainAspectRatio: false, 
                             plugins: { legend: { display: false } }, 
                             scales: { 
-                                x: { grid: { color: '#30363d' }, ticks: { color: '#8b949e' } }, 
-                                y: { position: 'right', grid: { color: '#30363d' }, ticks: { color: '#8b949e' } } 
+                                x: { grid: { display: false }, ticks: { font: { size: 10 } } }, 
+                                y: { position: 'right', grid: { color: '#F2F2F7' }, ticks: { font: { size: 10 } } } 
                             } 
                         }
                     });
@@ -444,7 +399,7 @@
             }, [logs]);
 
             const calculateAverages = () => {
-                if (logs.length === 0) return { loss: 0, kcal: 0, steps: 0, color: '#8b949e', sign: '' };
+                if (logs.length === 0) return { loss: 0, kcal: 0, steps: 0, color: '#1D1D1F', sign: '' };
                 const sorted = [...logs].sort((a,b) => new Date(a.log_date) - new Date(b.log_date));
                 const startWeight = sorted[0].weight;
                 const endWeight = sorted[sorted.length - 1].weight;
@@ -457,7 +412,7 @@
                     loss: Math.abs(weightDiff), 
                     kcal: Math.round(totalKcal / logs.length), 
                     steps: Math.round(totalSteps / logs.length),
-                    color: weightDiff > 0 ? '#3fb950' : weightDiff < 0 ? '#f85149' : '#8b949e',
+                    color: weightDiff > 0 ? '#34C759' : weightDiff < 0 ? '#FF3B30' : '#1D1D1F',
                     sign: weightDiff > 0 ? '+' : weightDiff < 0 ? '-' : ''
                 };
             };
@@ -465,27 +420,27 @@
             const stats = calculateAverages();
 
             return (
-                <div key="view-stats">
+                <div key="stats">
                     <div className="card">
-                        <div className="section-title">Telemetry Window</div>
+                        <div className="section-title">Weight Trend</div>
                         <div className="row g-2 mb-3">
-                            <div className="col-6"><label className="toggle-label">Start</label><input type="date" className="form-control" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} /></div>
-                            <div className="col-6"><label className="toggle-label">End</label><input type="date" className="form-control" value={dateTo} onChange={e=>setDateTo(e.target.value)} /></div>
+                            <div className="col-6"><label className="toggle-label">From</label><input type="date" className="form-control" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} /></div>
+                            <div className="col-6"><label className="toggle-label">To</label><input type="date" className="form-control" value={dateTo} onChange={e=>setDateTo(e.target.value)} /></div>
                         </div>
                         <div style={{height: '180px'}}><canvas ref={canvasRef}></canvas></div>
                     </div>
-                    <div className="section-title">Performance Analytics</div>
+                    <div className="section-title">Period Averages</div>
                     <div className="row g-2 mb-3">
                         <div className="col-4">
                             <div className="avg-card">
-                                <div className="avg-label">Delta</div>
+                                <div className="avg-label">Trend</div>
                                 <div className="avg-value" style={{ color: stats.color }}>{stats.sign}{stats.loss}kg</div>
                             </div>
                         </div>
-                        <div className="col-4"><div className="avg-card"><div className="avg-label">Avg Kcal</div><div className="avg-value">{stats.kcal}</div></div></div>
-                        <div className="col-4"><div className="avg-card"><div className="avg-label">Avg Steps</div><div className="avg-value">{stats.steps}</div></div></div>
+                        <div className="col-4"><div className="avg-card"><div className="avg-label">Kcal</div><div className="avg-value">{stats.kcal}</div></div></div>
+                        <div className="col-4"><div className="avg-card"><div className="avg-label">Steps</div><div className="avg-value">{stats.steps}</div></div></div>
                     </div>
-                    <div className="section-title">Raw Log Stream</div>
+                    <div className="section-title">History</div>
                     <div className="card p-0 overflow-hidden mb-4">
                         <div className="table-responsive">
                             <table className="table table-hover table-sm m-0" style={{fontSize: '11px'}}>
@@ -497,35 +452,9 @@
                                         <tr key={i}>
                                             <td className="fw-bold">{l.log_date.split('-').slice(1).join('/')}</td>
                                             <td>{l.weight}</td>
-                                            <td style={{color: 'var(--neon-blue)'}} className="fw-bold">{(l.protein*4 + l.carbs*4 + l.fats*9) || 0}</td>
+                                            <td className="text-primary fw-bold">{(l.protein*4 + l.carbs*4 + l.fats*9) || 0}</td>
                                             <td>{l.protein}/{l.carbs}/{l.fats}</td>
                                             <td>{l.steps?.toLocaleString()}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                    <div className="section-title">Morphology Tracking</div>
-                    <div className="card">
-                        <div className="row g-2 mb-2">
-                            <div className="col-6"><label className="toggle-label">Ph From</label><input type="number" inputMode="numeric" className="form-control" value={weekFrom} onChange={e=>setWeekFrom(e.target.value)} /></div>
-                            <div className="col-6"><label className="toggle-label">Ph To</label><input type="number" inputMode="numeric" className="form-control" value={weekTo} onChange={e=>setWeekTo(e.target.value)} /></div>
-                        </div>
-                        <div className="table-responsive">
-                            <table className="table table-sm m-0" style={{fontSize: '11px', minWidth: '400px'}}>
-                                <thead>
-                                    <tr><th>Phase</th><th>Waist</th><th>Chest</th><th>Arms</th><th>Glute</th><th>Thighs</th></tr>
-                                </thead>
-                                <tbody>
-                                    {metrics.map((m, i) => (
-                                        <tr key={i}>
-                                            <td className="fw-bold text-info">P{m.week_number}</td>
-                                            <td>{m.waist}</td>
-                                            <td>{m.chest}</td>
-                                            <td>{m.left_arm}/{m.right_arm}</td>
-                                            <td>{m.glute}</td>
-                                            <td>{m.left_thigh}/{m.right_thigh}</td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -542,13 +471,13 @@
             return (
                 <div className="container vh-100 d-flex align-items-center">
                     <div className="card w-100 text-center py-5">
-                        <h2 className="fw-bold mb-4" style={{letterSpacing: '4px'}}>ELITE <span style={{color:'var(--neon-blue)'}}>SYSTEMS</span></h2>
-                        <input className="form-control" placeholder="ACCESS_ID" onChange={e=>setEmail(e.target.value)} />
-                        <input className="form-control" type="password" placeholder="SEC_PASS" onChange={e=>setPass(e.target.value)} />
+                        <h2 className="fw-bold mb-4" style={{letterSpacing: '-1px'}}>ELITE PERFORMANCE</h2>
+                        <input className="form-control" placeholder="Email Address" onChange={e=>setEmail(e.target.value)} />
+                        <input className="form-control" type="password" placeholder="Password" onChange={e=>setPass(e.target.value)} />
                         <button className="btn btn-primary mt-3" onClick={async () => {
                             const { error } = await _supabase.auth.signInWithPassword({ email, password: pass });
-                            if (error) alert("Access Denied: " + error.message);
-                        }}>INITIALIZE SESSION</button>
+                            if (error) alert(error.message);
+                        }}>Sign In</button>
                     </div>
                 </div>
             );
