@@ -43,6 +43,13 @@
             animation: slideIn 0.4s ease-out;
         }
 
+        /* Prevent grey hover background on tables */
+        .table > :not(caption) > * > * {
+            background-color: transparent !important;
+            --bs-table-accent-bg: transparent !important;
+            box-shadow: none !important;
+        }
+
         .nav-bottom { 
             position: fixed; 
             bottom: 0; 
@@ -67,7 +74,6 @@
             letter-spacing: 0.5px;
             transition: color 0.2s;
             -webkit-tap-highlight-color: transparent;
-            /* Ensure tap responsiveness on mobile */
             touch-action: manipulation;
         }
 
@@ -199,7 +205,6 @@
                     await _supabase.auth.signOut();
                     localStorage.clear();
                     sessionStorage.clear();
-                    // Hard redirect to clear React state and prevent back-navigation issues
                     window.location.replace(window.location.origin + window.location.pathname);
                 } catch (err) {
                     console.error(err);
@@ -460,7 +465,7 @@
                     <div className="section-title">Daily History</div>
                     <div className="card p-0 overflow-hidden mb-4">
                         <div className="table-responsive">
-                            <table className="table table-hover table-sm m-0" style={{fontSize: '11px'}}>
+                            <table className="table table-sm m-0" style={{fontSize: '11px'}}>
                                 <thead className="table-dark">
                                     <tr><th>Date</th><th>KG</th><th>Kcal</th><th>P/C/F</th><th>Steps</th></tr>
                                 </thead>
