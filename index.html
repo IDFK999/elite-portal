@@ -426,14 +426,8 @@
                 
                 let advice = "No change needed. Stay the course.";
                 let kcalAdjustment = 0;
-                let status = Math.abs(currentRate - targetKgPerWeek) < 0.2 ? "ON TARGET" : "ADJUSTING";
-
-                // Fix: Goal weight integration
-                if (goalWeight && Math.abs(currentWeight - parseFloat(goalWeight)) < 0.5) {
-                    advice = "Goal reached. Transitioning to maintenance mode.";
-                    kcalAdjustment = 0;
-                    status = "MAINTENANCE";
-                } else if (currentRate > targetKgPerWeek + 0.15) { 
+                
+                if (currentRate > targetKgPerWeek + 0.15) { 
                     advice = "Loss too slow. Reduce intake to push trend.";
                     kcalAdjustment = -200;
                 } else if (currentRate < targetKgPerWeek - 0.25) { 
@@ -447,7 +441,7 @@
                     targetRate: targetKgPerWeek.toFixed(2),
                     advice,
                     kcalAdjustment,
-                    status
+                    status: Math.abs(currentRate - targetKgPerWeek) < 0.2 ? "ON TARGET" : "ADJUSTING"
                 };
             };
 
@@ -492,6 +486,28 @@
                         <div className="avg-label">Recommended Adjustment</div>
                         <div className={`display-6 fw-bold ${logic.kcalAdjustment < 0 ? 'text-danger' : logic.kcalAdjustment > 0 ? 'text-success' : 'text-primary'}`}>
                             {logic.kcalAdjustment === 0 ? "0" : logic.kcalAdjustment > 0 ? `+${logic.kcalAdjustment}` : logic.kcalAdjustment} kcal
+                        </div>
+                    </div>
+
+                    <div className="section-title">Daily History</div>
+                    <div className="card p-0 overflow-hidden mb-4">
+                        <div className="table-responsive">
+                            <table className="table table-sm m-0" style={{fontSize: '11px'}}>
+                                <thead className="table-header-custom">
+                                    <tr><th>Date</th><th>KG</th><th>Cal</th><th>P/C/F</th><th>Steps</th></tr>
+                                </thead>
+                                <tbody>
+                                    {logs.slice(0, 10).map((l, i) => (
+                                        <tr key={i}>
+                                            <td className="fw-bold">{l.log_date.split('-').slice(1).join('/')}</td>
+                                            <td>{l.weight}</td>
+                                            <td className="text-primary fw-bold">{(l.protein * 4 + l.carbs * 4 + l.fats * 9) || 0}</td>
+                                            <td>{l.protein}/{l.carbs}/{l.fats}</td>
+                                            <td>{l.steps?.toLocaleString()}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
 
