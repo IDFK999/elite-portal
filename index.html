@@ -189,6 +189,16 @@
             text-align: center;
             border: 1px solid var(--border-grey);
         }
+
+        .coach-box {
+            background: #F2F2F7;
+            border-left: 4px solid var(--accent-blue);
+            padding: 15px;
+            border-radius: 0 10px 10px 0;
+            font-size: 13px;
+            line-height: 1.5;
+            margin-bottom: 20px;
+        }
     </style>
 </head>
 <body>
@@ -244,7 +254,7 @@
                 <div className="container py-4">
                     <div className="d-flex justify-content-between align-items-center mb-3">
                         <h5 className="fw-bold m-0" style={{letterSpacing: '-0.5px'}}>ELITE PERFORMANCE</h5>
-                        <div className="badge rounded-pill text-dark border">v9.4.0</div>
+                        <div className="badge rounded-pill text-dark border">v9.5.0</div>
                     </div>
 
                     {view === 'log' && <DailyLog user={session.user} />}
@@ -468,25 +478,33 @@
                 return {
                     bulk: calcMacros(tdee + 200),
                     maint: calcMacros(tdee),
-                    cut: calcMacros(tdee - 250)
+                    cut: calcMacros(tdee - 150)
                 };
             };
 
-            const getTrendComparison = () => {
-                if (logs.length < 14) return null;
+            const getCoachRecommendation = () => {
+                if (logs.length < 7) return "Log 7 days of data for a personalized recommendation.";
                 const sorted = [...logs].sort((a,b) => new Date(b.log_date) - new Date(a.log_date));
-                const thisWeek = sorted.slice(0, 7).reduce((a,b)=>a+b.weight,0) / 7;
-                const lastWeek = sorted.slice(7, 14).reduce((a,b)=>a+b.weight,0) / 7;
-                const diff = (thisWeek - lastWeek).toFixed(2);
-                return {
-                    current: thisWeek.toFixed(1),
-                    diff: diff,
-                    color: diff > 0 ? 'var(--bulk-green)' : diff < 0 ? 'var(--cut-red)' : 'var(--text-main)'
-                };
+                const thisWeekAvg = sorted.slice(0, 7).reduce((a,b)=>a+b.weight,0) / 7;
+                const lastWeekAvg = logs.length >= 14 ? sorted.slice(7, 14).reduce((a,b)=>a+b.weight,0) / 7 : thisWeekAvg;
+                const weightChange = thisWeekAvg - lastWeekAvg;
+
+                const avgCals = sorted.slice(0, 7).reduce((a,b)=>a+(b.protein*4+b.carbs*4+b.fats*9),0) / 7;
+                const avgSteps = sorted.slice(0, 7).reduce((a,b)=>a+(b.steps||0),0) / 7;
+
+                // Whoosh Logic: Calories are low, steps high, but weight is flat/up
+                if (avgCals < 2000 && avgSteps > 10000 && weightChange >= 0) {
+                    return "Potential Whoosh Detected: Your data suggests fat loss is happening despite the scale. Stay consistent with water and salt intake; the drop is coming.";
+                }
+
+                if (weightChange < -0.8) return "Fast Drop: You are losing weight quickly. Ensure protein stays high and consider moving to the Maintenance pathway if fatigue increases.";
+                if (weightChange > 0.5) return "Growth Phase: You are in a clear surplus. Ensure your training intensity matches the weight gain to prioritize muscle over fat.";
+                
+                return "Steady Progress: Your 7-day average is moving optimally. Stick to the current pathway and prioritize sleep for recovery.";
             };
 
             const paths = getMacroPathways();
-            const trend = getTrendComparison();
+            const recommendation = getCoachRecommendation();
 
             const calculateAverages = () => {
                 if (logs.length === 0) return { loss: 0, kcal: 0, steps: 0, color: '#1D1D1F', sign: '' };
@@ -514,6 +532,9 @@
 
             return (
                 <div key="stats">
+                    <div className="section-title">Coach Recommendation</div>
+                    <div className="coach-box">{recommendation}</div>
+
                     <div className="card">
                         <div className="section-title">Weight Trend</div>
                         <div className="row g-2 mb-3">
@@ -522,27 +543,12 @@
                         </div>
                         <div style={{height: '180px'}}><canvas ref={canvasRef}></canvas></div>
                     </div>
-
-                    {trend && (
-                        <div className="card mb-3" style={{background: 'var(--soft-grey)', border: 'none'}}>
-                            <div className="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <div className="avg-label" style={{textAlign:'left'}}>7-Day Average</div>
-                                    <div className="avg-value" style={{textAlign:'left'}}>{trend.current} kg</div>
-                                </div>
-                                <div className="text-end">
-                                    <div className="avg-label">Weekly Delta</div>
-                                    <div className="avg-value" style={{color: trend.color}}>{trend.diff > 0 ? '+' : ''}{trend.diff} kg</div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
                     
                     <div className="section-title">Period Averages</div>
                     <div className="row g-2 mb-3">
                         <div className="col-4">
                             <div className="avg-card">
-                                <div className="avg-label">Net Change</div>
+                                <div className="avg-label">Trend</div>
                                 <div className="avg-value" style={{ color: stats.color }}>{stats.sign}{stats.loss}kg</div>
                             </div>
                         </div>
@@ -609,7 +615,7 @@
                                     <div className="strategy-macros">P{paths.maint.p} C{paths.maint.c} F{paths.maint.f}</div>
                                 </div>
                                 <div className="strategy-row border-0" onClick={() => applyStrategy(paths.cut)}>
-                                    <div className="strategy-name" style={{color: 'var(--cut-red)'}}>AGGRESSIVE CUT</div>
+                                    <div className="strategy-name" style={{color: 'var(--cut-red)'}}>SUSTAINABLE CUT</div>
                                     <div className="strategy-cal">{paths.cut.cal}</div>
                                     <div className="strategy-macros">P{paths.cut.p} C{paths.cut.c} F{paths.cut.f}</div>
                                 </div>
