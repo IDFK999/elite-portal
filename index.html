@@ -156,14 +156,6 @@
 
         .toggle-label { font-size: 10px; font-weight: 600; color: #1D1D1F; margin-bottom: 4px; display: block; }
 
-        .avg-card { 
-            background: var(--soft-grey); 
-            border-radius: 10px; 
-            padding: 12px; 
-            text-align: center; 
-        }
-
-        .avg-value { font-size: 17px; font-weight: 700; color: var(--text-main); }
         .avg-label { font-size: 9px; color: #86868B; text-transform: uppercase; }
 
         .coach-box {
@@ -357,7 +349,7 @@
                 <div className="card">
                     <label className="toggle-label">Program Start Date</label>
                     <input type="date" className="form-control mb-3" value={startDate} onChange={e=>{setStartDate(e.target.value); localStorage.setItem('coach_start_date', e.target.value);}} />
-                    <div className="date-range-badge">WEEK {weekInfo.num}<br/><span style={{fontSize:'10px', opacity:0.6}}>{weekInfo.range}</span></div>
+                    <div className="date-range-badge" style={{ background: 'var(--soft-grey)', textAlign: 'center', padding: '10px', borderRadius: '10px', marginBottom: '20px', fontWeight: '700' }}>WEEK {weekInfo.num}<br/><span style={{fontSize:'10px', opacity:0.6}}>{weekInfo.range}</span></div>
                     <div className="section-title">Measurements</div>
                     <div className="row g-2 mb-2">
                         <div className="col-6"><label className="toggle-label">Waist *</label><input type="number" step="any" inputMode="decimal" className="form-control" value={f.waist} onChange={e=>setF({...f, waist: cleanNum(e.target.value)})} /></div>
@@ -382,19 +374,31 @@
         function Stats({ user }) {
             const [logs, setLogs] = useState([]);
             const [metrics, setMetrics] = useState([]);
-            const [dateFrom, setDateFrom] = useState(new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
+            
+            // Date Filter State
+            const [dateFrom, setDateFrom] = useState(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
             const [dateTo, setDateTo] = useState(new Date().toISOString().split('T')[0]);
             
-            // Goal Decision Mandatory Inputs
-            const [targetWeight, setTargetWeight] = useState(64); 
-            const [weeksToGoal, setWeeksToGoal] = useState(8);    
+            // Editable Goal Inputs (State persisted in LocalStorage)
+            const [targetWeight, setTargetWeight] = useState(() => parseFloat(localStorage.getItem('goal_weight')) || 64); 
+            const [weeksToGoal, setWeeksToGoal] = useState(() => parseInt(localStorage.getItem('goal_weeks')) || 8);    
             
             const canvasRef = useRef(null);
             const chartInstance = useRef(null);
 
             const loadData = async () => {
-                const { data: logData } = await _supabase.from('daily_logs').select('*').eq('user_id', user.id).gte('log_date', dateFrom).lte('log_date', dateTo).order('log_date', {ascending: false});
-                const { data: metricData } = await _supabase.from('weekly_metrics').select('*').eq('user_id', user.id).order('week_number', {ascending: false});
+                const { data: logData } = await _supabase.from('daily_logs')
+                    .select('*')
+                    .eq('user_id', user.id)
+                    .gte('log_date', dateFrom)
+                    .lte('log_date', dateTo)
+                    .order('log_date', {ascending: false});
+                
+                const { data: metricData } = await _supabase.from('weekly_metrics')
+                    .select('*')
+                    .eq('user_id', user.id)
+                    .order('week_number', {ascending: false});
+
                 setLogs(logData || []);
                 setMetrics(metricData || []);
             };
@@ -417,34 +421,27 @@
             }, [logs]);
 
             const runCoreLogic = () => {
-                if (logs.length < 14) return { status: "Awaiting Data", msg: "Log 14 days for high-confidence analysis." };
+                if (logs.length < 2) return { status: "Awaiting Data", msg: "Log more entries for analysis." };
                 
                 const sorted = [...logs].sort((a,b) => new Date(a.log_date) - new Date(b.log_date));
                 const currentW = sorted[sorted.length - 1].weight;
                 const startW = sorted[0].weight;
                 
-                // Calculate required rate
-                const reqRate = (targetWeight - currentW) / weeksToGoal;
-                
-                // Classify goal
+                const reqRate = (targetWeight - currentW) / (weeksToGoal || 1);
                 const goalClass = reqRate > 0.05 ? "Weight Gain" : reqRate < -0.05 ? "Weight Loss" : "Maintenance";
                 
-                // Validate feasibility
                 let warning = "";
                 if (goalClass === "Weight Gain" && reqRate > 0.4) warning = "AGGRESSIVE: Lean gain target is +0.2 to +0.4 kg/week.";
                 if (goalClass === "Weight Loss" && reqRate < -0.7) warning = "AGGRESSIVE: Fat loss target is -0.3 to -0.7 kg/week.";
 
-                // Estimate True TDEE using trend data
                 const weightDelta = currentW - startW;
                 const trendGap = (weightDelta * 7700) / logs.length;
                 const avgKcal = logs.reduce((acc, l) => acc + (l.protein*4 + l.carbs*4 + l.fats*9), 0) / logs.length;
                 const trueTDEE = Math.round(avgKcal - trendGap);
 
-                // Strategy calculation (~7700 kcal/kg)
                 const targetKcal = Math.round(trueTDEE + (reqRate * 7700 / 7));
-                const clampedKcal = Math.max(targetKcal, trueTDEE - 600); // Safety Clamp
+                const clampedKcal = Math.max(targetKcal, trueTDEE - 800);
                 
-                // Progress evaluation
                 const actualRate = (weightDelta / (logs.length / 7));
                 const status = Math.abs(actualRate - reqRate) < 0.15 ? "ON TRACK" : actualRate > reqRate ? "TOO FAST" : "TOO SLOW";
 
@@ -453,18 +450,37 @@
 
             const logic = runCoreLogic();
 
+            const handleGoalChange = (type, val) => {
+                const clean = cleanNum(val);
+                if (type === 'weight') {
+                    setTargetWeight(parseFloat(clean) || 0);
+                    localStorage.setItem('goal_weight', clean);
+                } else {
+                    setWeeksToGoal(parseInt(clean) || 1);
+                    localStorage.setItem('goal_weeks', clean);
+                }
+            };
+
             return (
                 <div>
+                    <div className="section-title">Timeline Filter</div>
+                    <div className="card shadow-sm border-0 mb-3" style={{background: '#f8f9fa'}}>
+                        <div className="row g-2">
+                            <div className="col-6"><label className="avg-label">From</label><input type="date" className="form-control" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} /></div>
+                            <div className="col-6"><label className="avg-label">To</label><input type="date" className="form-control" value={dateTo} onChange={e=>setDateTo(e.target.value)} /></div>
+                        </div>
+                    </div>
+
                     <div className="section-title">Goal-Driven Decision System</div>
                     <div className="card shadow-sm border-0 mb-3" style={{background: '#f8f9fa'}}>
                         <div className="row g-2 mb-3">
                             <div className="col-6">
                                 <label className="avg-label">Target (kg)</label>
-                                <input type="number" className="form-control" value={targetWeight} onChange={e=>setTargetWeight(parseFloat(e.target.value))} />
+                                <input type="number" step="any" className="form-control" value={targetWeight} onChange={e=>handleGoalChange('weight', e.target.value)} />
                             </div>
                             <div className="col-6">
                                 <label className="avg-label">Weeks Left</label>
-                                <input type="number" className="form-control" value={weeksToGoal} onChange={e=>setWeeksToGoal(parseInt(e.target.value))} />
+                                <input type="number" className="form-control" value={weeksToGoal} onChange={e=>handleGoalChange('weeks', e.target.value)} />
                             </div>
                         </div>
                         
@@ -487,7 +503,7 @@
                     <div className="card text-center py-3 mb-4">
                         <div className="avg-label">Recommended Daily Calories</div>
                         <div className="display-6 fw-bold text-primary">{logic.targetKcal || '---'}</div>
-                        <div className="small text-muted mt-1">Trade-off: {logic.goalClass === "Weight Loss" ? "Performance Risk" : "Fat Gain Risk"}</div>
+                        <div className="small text-muted mt-1">Goal: {logic.goalClass}</div>
                     </div>
 
                     <div className="card">
@@ -495,7 +511,7 @@
                         <div style={{height: '180px'}}><canvas ref={canvasRef}></canvas></div>
                     </div>
                     
-                    <div className="section-title">Daily History</div>
+                    <div className="section-title">Daily History (Filtered)</div>
                     <div className="card p-0 overflow-hidden mb-4">
                         <div className="table-responsive">
                             <table className="table table-sm m-0" style={{fontSize: '11px'}}>
