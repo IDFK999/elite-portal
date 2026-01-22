@@ -250,6 +250,21 @@
 
         const cleanNum = (val) => val.toString().replace(/[^0-9.]/g, '');
 
+        const getHelmsMacros = (weightKg, goal) => {
+            const kcalPerKg = goal === 'bulk' ? 32 : goal === 'maintain' ? 30 : 27;
+            const fatPct = goal === 'bulk' ? 0.30 : 0.25;
+            const totalCalories = weightKg * kcalPerKg;
+            const protein = weightKg * 2.4;
+            const fat = (totalCalories * fatPct) / 9;
+            const carbs = (totalCalories - (protein * 4) - (fat * 9)) / 4;
+            return { 
+                protein: Math.round(protein), 
+                carbs: Math.round(carbs), 
+                fat: Math.round(fat), 
+                totalCalories: Math.round(totalCalories) 
+            };
+        };
+
         function App() {
             const [view, setView] = useState('stats');
             const [session, setSession] = useState(null);
@@ -531,7 +546,7 @@
 
             const getMacroPathways = () => {
                 if (logs.length < 7) return null;
-                const sorted = [...logs].sort((a,b) => new Date(b.log_date) - new Date(a.log_date));
+                const sorted = [...logs].sort((a,b) => new Date(a.log_date) - new Date(a.log_date));
                 const week = sorted.slice(0, 7);
                 const avgW = week.reduce((a,b)=>a+b.weight,0) / 7;
                 const avgK = week.reduce((a,b)=>a+(b.protein*4+b.carbs*4+b.fats*9),0) / 7;
@@ -543,6 +558,7 @@
             };
 
             const paths = getMacroPathways();
+            const helmsMacros = paths ? getHelmsMacros(paths.currentWeight, goal) : null;
             const recommendation = getCoachRecommendation();
 
             const calculateAverages = () => {
