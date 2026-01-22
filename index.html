@@ -402,7 +402,7 @@
                     chartInstance.current = new Chart(canvasRef.current, {
                         type: 'line',
                         data: { 
-                            labels: sorted.map(l => l.log_date.split('-').slice(1).reverse().join('/')), 
+                            labels: sorted.map(l => l.log_date.split('-').slice(2).concat(l.log_date.split('-').slice(1,2)).join('/')), 
                             datasets: [{ label: 'Weight', data: sorted.map(l => l.weight), borderColor: '#0066FF', tension: 0.3, backgroundColor: 'rgba(0,102,255,0.05)', fill: true, borderWidth: 2, pointRadius: 3 }] 
                         },
                         options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { position: 'left', grid: { color: '#F2F2F7' } } } }
@@ -413,9 +413,9 @@
             const runPyramidLogic = () => {
                 if (logs.length < 14) return { status: "Observing", msg: "Log 14 days to establish trend-based maintenance." };
                 
-                const sorted = [...logs].sort((a,b) => new Date(b.log_date) - new Date(a.log_date)); 
-                const week1 = sorted.slice(0, 7);
-                const week2 = sorted.slice(7, 14);
+                const sortedLogs = [...logs].sort((a,b) => new Date(b.log_date) - new Date(a.log_date)); 
+                const week1 = sortedLogs.slice(0, 7);
+                const week2 = sortedLogs.slice(7, 14);
                 
                 const avgW1 = week1.reduce((acc, l) => acc + l.weight, 0) / week1.length;
                 const avgW2 = week2.reduce((acc, l) => acc + l.weight, 0) / week2.length;
@@ -427,10 +427,10 @@
                 let advice = "No change needed. Stay the course.";
                 let kcalAdjustment = 0;
                 
-                if (currentRate > targetKgPerWeek + 0.15) { 
+                if (currentRate > targetKgPerWeek + 0.1) { 
                     advice = "Loss too slow. Reduce intake to push trend.";
                     kcalAdjustment = -200;
-                } else if (currentRate < targetKgPerWeek - 0.25) { 
+                } else if (currentRate < targetKgPerWeek - 0.2) { 
                     advice = "Loss too aggressive. Increase intake to protect muscle.";
                     kcalAdjustment = 150;
                 }
@@ -455,7 +455,7 @@
                         <div className="row g-2 mb-2">
                             <div className="col-6">
                                 <label className="avg-label">Target Rate (% BW)</label>
-                                <select className="form-control" value={targetRatePercent} onChange={e => {setTargetRatePercent(e.target.value); localStorage.setItem('goal_rate_pct', e.target.value);}}>
+                                <select className="form-control" value={targetRatePercent} onChange={e => {setTargetRatePercent(parseFloat(e.target.value)); localStorage.setItem('goal_rate_pct', e.target.value);}}>
                                     <option value="0.25">0.25%</option>
                                     <option value="0.5">0.5%</option>
                                     <option value="0.75">0.75%</option>
@@ -499,10 +499,10 @@
                                 <tbody>
                                     {logs.slice(0, 10).map((l, i) => (
                                         <tr key={i}>
-                                            <td className="fw-bold">{l.log_date.split('-').slice(1).join('/')}</td>
+                                            <td className="fw-bold">{l.log_date.split('-').slice(1).reverse().join('/')}</td>
                                             <td>{l.weight}</td>
-                                            <td className="text-primary fw-bold">{(l.protein * 4 + l.carbs * 4 + l.fats * 9) || 0}</td>
-                                            <td>{l.protein}/{l.carbs}/{l.fats}</td>
+                                            <td className="text-primary fw-bold">{( (parseInt(l.protein)||0) * 4 + (parseInt(l.carbs)||0) * 4 + (parseInt(l.fats)||0) * 9) || 0}</td>
+                                            <td>{l.protein||0}/{l.carbs||0}/{l.fats||0}</td>
                                             <td>{l.steps?.toLocaleString()}</td>
                                         </tr>
                                     ))}
