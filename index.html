@@ -206,7 +206,7 @@
                 <div className="container py-4">
                     <div className="d-flex justify-content-between align-items-center mb-3">
                         <h5 className="fw-bold m-0" style={{letterSpacing: '-0.5px'}}>ELITE PERFORMANCE</h5>
-                        <div className="badge rounded-pill text-dark border">v9.2.3</div>
+                        <div className="badge rounded-pill text-dark border">v9.2.4</div>
                     </div>
 
                     {view === 'log' && <DailyLog user={session.user} />}
@@ -404,10 +404,8 @@
                 const startWeight = sorted[0].weight;
                 const endWeight = sorted[sorted.length - 1].weight;
                 const weightDiff = (endWeight - startWeight).toFixed(1);
-                
                 const totalKcal = logs.reduce((acc, l) => acc + (l.protein*4 + l.carbs*4 + l.fats*9), 0);
                 const totalSteps = logs.reduce((acc, l) => acc + (l.steps || 0), 0);
-                
                 return { 
                     loss: Math.abs(weightDiff), 
                     kcal: Math.round(totalKcal / logs.length), 
@@ -440,7 +438,34 @@
                         <div className="col-4"><div className="avg-card"><div className="avg-label">Kcal</div><div className="avg-value">{stats.kcal}</div></div></div>
                         <div className="col-4"><div className="avg-card"><div className="avg-label">Steps</div><div className="avg-value">{stats.steps}</div></div></div>
                     </div>
-                    <div className="section-title">History</div>
+
+                    <div className="section-title">Measurement History</div>
+                    <div className="card mb-3">
+                        <div className="row g-2 mb-3">
+                            <div className="col-6"><label className="toggle-label">Week From</label><input type="number" className="form-control" value={weekFrom} onChange={e=>setWeekFrom(e.target.value)} /></div>
+                            <div className="col-6"><label className="toggle-label">Week To</label><input type="number" className="form-control" value={weekTo} onChange={e=>setWeekTo(e.target.value)} /></div>
+                        </div>
+                        <div className="table-responsive">
+                            <table className="table table-sm m-0" style={{fontSize: '11px'}}>
+                                <thead className="table-dark">
+                                    <tr><th>WK</th><th>Waist</th><th>Chest</th><th>Arms</th><th>Thighs</th></tr>
+                                </thead>
+                                <tbody>
+                                    {metrics.map((m, i) => (
+                                        <tr key={i}>
+                                            <td className="fw-bold">{m.week_number}</td>
+                                            <td>{m.waist}</td>
+                                            <td>{m.chest}</td>
+                                            <td>{m.left_arm}/{m.right_arm}</td>
+                                            <td>{m.left_thigh}/{m.right_thigh}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div className="section-title">Daily History</div>
                     <div className="card p-0 overflow-hidden mb-4">
                         <div className="table-responsive">
                             <table className="table table-hover table-sm m-0" style={{fontSize: '11px'}}>
