@@ -166,6 +166,30 @@
         .avg-value { font-size: 17px; font-weight: 700; color: var(--text-main); }
         .avg-label { font-size: 9px; color: #86868B; text-transform: uppercase; }
 
+        .strategy-row {
+            padding: 12px 8px;
+            border-bottom: 1px solid var(--border-grey);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .strategy-name { font-weight: 800; font-size: 12px; width: 80px; }
+        .strategy-cal { font-weight: 700; color: var(--accent-blue); }
+        .strategy-macros { font-size: 11px; color: #86868B; }
+
+        .date-range-badge { 
+            background: var(--soft-grey); 
+            color: var(--text-main); 
+            font-size: 11px; 
+            padding: 10px; 
+            border-radius: 10px; 
+            font-weight: 700; 
+            display: block; 
+            margin-bottom: 20px; 
+            text-align: center;
+            border: 1px solid var(--border-grey);
+        }
+
         .coach-box {
             background: #F2F2F7;
             border-left: 4px solid var(--accent-blue);
@@ -382,19 +406,27 @@
         function Stats({ user }) {
             const [logs, setLogs] = useState([]);
             const [metrics, setMetrics] = useState([]);
+            // Default range: Last 20 days
             const [dateFrom, setDateFrom] = useState(new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
             const [dateTo, setDateTo] = useState(new Date().toISOString().split('T')[0]);
-            
-            // Goal Decision Mandatory Inputs
-            const [targetWeight, setTargetWeight] = useState(64); 
-            const [weeksToGoal, setWeeksToGoal] = useState(8);    
-            
             const canvasRef = useRef(null);
             const chartInstance = useRef(null);
 
             const loadData = async () => {
-                const { data: logData } = await _supabase.from('daily_logs').select('*').eq('user_id', user.id).gte('log_date', dateFrom).lte('log_date', dateTo).order('log_date', {ascending: false});
-                const { data: metricData } = await _supabase.from('weekly_metrics').select('*').eq('user_id', user.id).order('week_number', {ascending: false});
+                // Fetch daily logs within date range
+                const { data: logData } = await _supabase.from('daily_logs')
+                    .select('*')
+                    .eq('user_id', user.id)
+                    .gte('log_date', dateFrom)
+                    .lte('log_date', dateTo)
+                    .order('log_date', {ascending: false});
+                
+                // Fetch all metrics for history
+                const { data: metricData } = await _supabase.from('weekly_metrics')
+                    .select('*')
+                    .eq('user_id', user.id)
+                    .order('week_number', {ascending: false});
+                
                 setLogs(logData || []);
                 setMetrics(metricData || []);
             };
@@ -416,91 +448,87 @@
                 }
             }, [logs]);
 
-            const runCoreLogic = () => {
-                if (logs.length < 14) return { status: "Awaiting Data", msg: "Log 14 days for high-confidence analysis." };
+            const getCoachRecommendation = () => {
+                if (logs.length < 14) return "Log 14 days of data for high-confidence strategy analysis.";
                 
-                const sorted = [...logs].sort((a,b) => new Date(a.log_date) - new Date(b.log_date));
-                const currentW = sorted[sorted.length - 1].weight;
-                const startW = sorted[0].weight;
-                
-                // Calculate required rate
-                const reqRate = (targetWeight - currentW) / weeksToGoal;
-                
-                // Classify goal
-                const goalClass = reqRate > 0.05 ? "Weight Gain" : reqRate < -0.05 ? "Weight Loss" : "Maintenance";
-                
-                // Validate feasibility
-                let warning = "";
-                if (goalClass === "Weight Gain" && reqRate > 0.4) warning = "AGGRESSIVE: Lean gain target is +0.2 to +0.4 kg/week.";
-                if (goalClass === "Weight Loss" && reqRate < -0.7) warning = "AGGRESSIVE: Fat loss target is -0.3 to -0.7 kg/week.";
+                const sorted = [...logs].sort((a,b) => new Date(b.log_date) - new Date(a.log_date));
+                const week1Avg = sorted.slice(0, 7).reduce((a,b)=>a+b.weight, 0) / 7;
+                const week2Avg = sorted.slice(7, 14).reduce((a,b)=>a+b.weight, 0) / 7;
+                const weightChange = week1Avg - week2Avg;
 
-                // Estimate True TDEE using trend data
-                const weightDelta = currentW - startW;
-                const trendGap = (weightDelta * 7700) / logs.length;
-                const avgKcal = logs.reduce((acc, l) => acc + (l.protein*4 + l.carbs*4 + l.fats*9), 0) / logs.length;
-                const trueTDEE = Math.round(avgKcal - trendGap);
+                const avgCals = sorted.slice(0, 7).reduce((a,b)=>a+(b.protein*4+b.carbs*4+b.fats*9), 0) / 7;
+                const avgSteps = sorted.slice(0, 7).reduce((a,b)=>a+(b.steps||0), 0) / 7;
 
-                // Strategy calculation (~7700 kcal/kg)
-                const targetKcal = Math.round(trueTDEE + (reqRate * 7700 / 7));
-                const clampedKcal = Math.max(targetKcal, trueTDEE - 600); // Safety Clamp
+                if (avgCals < 2100 && avgSteps > 9500 && weightChange >= 0) {
+                    return "WHOOSH ALERT: Activity is high and calories are managed, but weight is flat over 14 days. This is likely water masking fat loss. Do not adjust calories yet.";
+                }
+
+                if (weightChange < -0.6) return "Pace Warning: Weight is dropping fast. Monitor gym performance; consider a slight calorie bump if fatigue is high.";
+                if (weightChange > 0.4) return "Surplus Phase: Weight is rising optimally for the Lean Bulk strategy.";
                 
-                // Progress evaluation
-                const actualRate = (weightDelta / (logs.length / 7));
-                const status = Math.abs(actualRate - reqRate) < 0.15 ? "ON TRACK" : actualRate > reqRate ? "TOO FAST" : "TOO SLOW";
-
-                return { reqRate: reqRate.toFixed(2), goalClass, warning, trueTDEE, targetKcal: clampedKcal, actualRate: actualRate.toFixed(2), status };
+                return "Precision Phase: 14-day data confirms you are within the optimal adjustment window. Stay consistent.";
             };
 
-            const logic = runCoreLogic();
+            const getMacroPathways = () => {
+                if (logs.length < 14) return null;
+                const sorted = [...logs].sort((a,b) => new Date(b.log_date) - new Date(a.log_date));
+                const week = sorted.slice(0, 7);
+                const avgW = week.reduce((a,b)=>a+b.weight,0) / 7;
+                const avgK = week.reduce((a,b)=>a+(b.protein*4+b.carbs*4+b.fats*9),0) / 7;
+                const avgS = week.reduce((a,b)=>a+(b.steps||0),0) / 7;
+                const tdee = avgK + ((avgS - 8000) * 0.04);
+                
+                const calc = (c) => ({ cal: Math.round(c), p: Math.round(avgW*2), f: Math.round((c*0.29)/9), c: Math.round((c-(avgW*2*4)-((c*0.29)/9*9))/4) });
+                return { bulk: calc(tdee+150), maint: calc(tdee), cut: calc(tdee-150) };
+            };
+
+            const paths = getMacroPathways();
+            const recommendation = getCoachRecommendation();
+
+            const calculateAverages = () => {
+                if (logs.length === 0) return { loss: 0, kcal: 0, steps: 0, color: '#1D1D1F', sign: '' };
+                const sorted = [...logs].sort((a,b) => new Date(a.log_date) - new Date(b.log_date));
+                const weightDiff = (sorted[sorted.length - 1].weight - sorted[0].weight).toFixed(1);
+                const totalKcal = logs.reduce((acc, l) => acc + (l.protein*4 + l.carbs*4 + l.fats*9), 0);
+                const totalSteps = logs.reduce((acc, l) => acc + (l.steps || 0), 0);
+                return { loss: Math.abs(weightDiff), kcal: Math.round(totalKcal / logs.length), steps: Math.round(totalSteps / logs.length), color: weightDiff > 0 ? '#34C759' : weightDiff < 0 ? '#FF3B30' : '#1D1D1F', sign: weightDiff > 0 ? '+' : weightDiff < 0 ? '-' : '' };
+            };
+
+            const stats = calculateAverages();
+
+            const applyStrategy = (s) => {
+                localStorage.setItem('macro_targets', JSON.stringify({ p: s.p, c: s.c, f: s.f }));
+                alert(`Pathway Synced: ${s.cal} kcal`);
+            };
 
             return (
                 <div>
-                    <div className="section-title">Goal-Driven Decision System</div>
-                    <div className="card shadow-sm border-0 mb-3" style={{background: '#f8f9fa'}}>
-                        <div className="row g-2 mb-3">
-                            <div className="col-6">
-                                <label className="avg-label">Target (kg)</label>
-                                <input type="number" className="form-control" value={targetWeight} onChange={e=>setTargetWeight(parseFloat(e.target.value))} />
-                            </div>
-                            <div className="col-6">
-                                <label className="avg-label">Weeks Left</label>
-                                <input type="number" className="form-control" value={weeksToGoal} onChange={e=>setWeeksToGoal(parseInt(e.target.value))} />
-                            </div>
-                        </div>
-                        
-                        {logic.warning && <div className="alert alert-danger py-2 small fw-bold">{logic.warning}</div>}
-                        
-                        <div className="coach-box mb-0">
-                            <div className="d-flex justify-content-between">
-                                <span>Status: <strong>{logic.status}</strong></span>
-                                <span>Mode: <strong>{logic.goalClass}</strong></span>
-                            </div>
-                            <hr className="my-2"/>
-                            <div className="small">
-                                Required: {logic.reqRate} kg/wk | Actual: {logic.actualRate} kg/wk<br/>
-                                Estimated TDEE: {logic.trueTDEE} kcal
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="section-title">Required Strategy</div>
-                    <div className="card text-center py-3 mb-4">
-                        <div className="avg-label">Recommended Daily Calories</div>
-                        <div className="display-6 fw-bold text-primary">{logic.targetKcal || '---'}</div>
-                        <div className="small text-muted mt-1">Trade-off: {logic.goalClass === "Weight Loss" ? "Performance Risk" : "Fat Gain Risk"}</div>
-                    </div>
+                    <div className="section-title">Coach Recommendation</div>
+                    <div className="coach-box">{recommendation}</div>
 
                     <div className="card">
+                        <div className="section-title">Timeline Audit</div>
+                        <div className="row g-2 mb-3">
+                            <div className="col-6"><label className="toggle-label">From</label><input type="date" className="form-control" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} /></div>
+                            <div className="col-6"><label className="toggle-label">To</label><input type="date" className="form-control" value={dateTo} onChange={e=>setDateTo(e.target.value)} /></div>
+                        </div>
                         <div className="section-title">Weight Trend</div>
                         <div style={{height: '180px'}}><canvas ref={canvasRef}></canvas></div>
                     </div>
                     
+                    <div className="section-title">Period Averages</div>
+                    <div className="row g-2 mb-3">
+                        <div className="col-4"><div className="avg-card"><div className="avg-label">Trend</div><div className="avg-value" style={{ color: stats.color }}>{stats.sign}{stats.loss}kg</div></div></div>
+                        <div className="col-4"><div className="avg-card"><div className="avg-label">Kcal</div><div className="avg-value">{stats.kcal}</div></div></div>
+                        <div className="col-4"><div className="avg-card"><div className="avg-label">Steps</div><div className="avg-value">{stats.steps}</div></div></div>
+                    </div>
+
                     <div className="section-title">Daily History</div>
                     <div className="card p-0 overflow-hidden mb-4">
                         <div className="table-responsive">
                             <table className="table table-sm m-0" style={{fontSize: '11px'}}>
                                 <thead className="table-header-custom">
-                                    <tr><th>Date</th><th>KG</th><th>Cal</th><th>P/C/F</th><th>Steps</th></tr>
+                                    <tr><th>Date</th><th>KG</th><th>Cal</th><th>P/C/F</th><th>Steps</th><th>Wtr</th><th>Slp</th></tr>
                                 </thead>
                                 <tbody>
                                     {logs.map((l, i) => (
@@ -510,6 +538,8 @@
                                             <td className="text-primary fw-bold">{(l.protein*4 + l.carbs*4 + l.fats*9) || 0}</td>
                                             <td>{l.protein}/{l.carbs}/{l.fats}</td>
                                             <td>{l.steps?.toLocaleString()}</td>
+                                            <td>{l.water_liters}L</td>
+                                            <td>{l.sleep_hours}H</td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -537,6 +567,29 @@
                                 </tbody>
                             </table>
                         </div>
+                    </div>
+
+                    <div className="section-title">Performance Strategies</div>
+                    <div className="card p-0 overflow-hidden mb-5">
+                        {paths ? (
+                            <>
+                                <div className="strategy-row" style={{cursor:'pointer'}} onClick={()=>applyStrategy(paths.bulk)}>
+                                    <div className="strategy-name" style={{color:'var(--bulk-green)'}}>LEAN BULK</div>
+                                    <div className="strategy-cal">{paths.bulk.cal}</div>
+                                    <div className="strategy-macros">P{paths.bulk.p} C{paths.bulk.c} f{paths.bulk.f}</div>
+                                </div>
+                                <div className="strategy-row" style={{cursor:'pointer'}} onClick={()=>applyStrategy(paths.maint)}>
+                                    <div className="strategy-name">MAINTAIN</div>
+                                    <div className="strategy-cal">{paths.maint.cal}</div>
+                                    <div className="strategy-macros">P{paths.maint.p} C{paths.maint.c} f{paths.maint.f}</div>
+                                </div>
+                                <div className="strategy-row border-0" style={{cursor:'pointer'}} onClick={()=>applyStrategy(paths.cut)}>
+                                    <div className="strategy-name" style={{color:'var(--cut-red)'}}>SUSTAINABLE CUT</div>
+                                    <div className="strategy-cal">{paths.cut.cal}</div>
+                                    <div className="strategy-macros">P{paths.cut.p} C{paths.cut.c} f{paths.cut.f}</div>
+                                </div>
+                            </>
+                        ) : <div className="p-3 text-center text-muted">Log 14 days of data to generate strategies.</div>}
                     </div>
                 </div>
             );
