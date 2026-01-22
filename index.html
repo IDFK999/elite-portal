@@ -222,7 +222,7 @@
                 <div className="container py-4">
                     <div className="d-flex justify-content-between align-items-center mb-3">
                         <h5 className="fw-bold m-0" style={{letterSpacing: '-0.5px'}}>ELITE PERFORMANCE</h5>
-                        <div className="badge rounded-pill text-dark border">v9.8.1</div>
+                        <div className="badge rounded-pill text-dark border">v9.9.0-PYRAMID</div>
                     </div>
 
                     {view === 'log' && <DailyLog user={session.user} />}
@@ -376,27 +376,14 @@
             const [metrics, setMetrics] = useState([]);
             const [dateFrom, setDateFrom] = useState(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
             const [dateTo, setDateTo] = useState(new Date().toISOString().split('T')[0]);
-            
-            // Goals set to 62kg in 6 weeks as requested
-            const [targetWeight, setTargetWeight] = useState(() => parseFloat(localStorage.getItem('goal_weight')) || 62); 
-            const [weeksToGoal, setWeeksToGoal] = useState(() => parseInt(localStorage.getItem('goal_weeks')) || 6);    
-            
+            const [targetWeight, setTargetWeight] = useState(() => parseFloat(localStorage.getItem('goal_weight')) || 64); 
+            const [weeksToGoal, setWeeksToGoal] = useState(() => parseInt(localStorage.getItem('goal_weeks')) || 8);    
             const canvasRef = useRef(null);
             const chartInstance = useRef(null);
 
             const loadData = async () => {
-                const { data: logData } = await _supabase.from('daily_logs')
-                    .select('*')
-                    .eq('user_id', user.id)
-                    .gte('log_date', dateFrom)
-                    .lte('log_date', dateTo)
-                    .order('log_date', {ascending: false});
-                
-                const { data: metricData } = await _supabase.from('weekly_metrics')
-                    .select('*')
-                    .eq('user_id', user.id)
-                    .order('week_number', {ascending: false});
-
+                const { data: logData } = await _supabase.from('daily_logs').select('*').eq('user_id', user.id).gte('log_date', dateFrom).lte('log_date', dateTo).order('log_date', {ascending: false});
+                const { data: metricData } = await _supabase.from('weekly_metrics').select('*').eq('user_id', user.id).order('week_number', {ascending: false});
                 setLogs(logData || []);
                 setMetrics(metricData || []);
             };
@@ -418,44 +405,42 @@
                 }
             }, [logs]);
 
-            const runCoreLogic = () => {
-                if (logs.length < 2) return { status: "Awaiting Data", targetKcal: '---', trueTDEE: '---', reqRate: 0, actualRate: 0, goalClass: 'Maintenance' };
+            const runPyramidLogic = () => {
+                if (logs.length < 2) return { status: "Awaiting Data", msg: "Log more entries for analysis." };
                 
                 const sorted = [...logs].sort((a,b) => new Date(a.log_date) - new Date(b.log_date));
                 const currentW = sorted[sorted.length - 1].weight;
                 const startW = sorted[0].weight;
-                const daysInPeriod = Math.max(1, (new Date(sorted[sorted.length-1].log_date) - new Date(sorted[0].log_date)) / (1000*60*60*24));
-
-                // 1. Calculate Required Rate to hit goal (kg/week)
-                const totalWeightToLose = currentW - targetWeight;
-                const reqRate = (targetWeight - currentW) / (weeksToGoal || 1); 
-                const goalClass = reqRate > 0.05 ? "Weight Gain" : reqRate < -0.05 ? "Weight Loss" : "Maintenance";
-
-                // 2. Calculate True TDEE based on data
                 const weightDelta = currentW - startW;
-                const trendGap = (weightDelta * 7700) / daysInPeriod;
+
+                // Helms Level 1: Energy Balance (Step-Aware Multiplier)
+                const avgSteps = logs.reduce((acc, l) => acc + (l.steps || 0), 0) / logs.length;
+                let stepMultiplier = 1.2;
+                if (avgSteps > 12000) stepMultiplier = 1.6;
+                else if (avgSteps > 8000) stepMultiplier = 1.45;
+                else if (avgSteps > 5000) stepMultiplier = 1.3;
+
                 const avgKcal = logs.reduce((acc, l) => acc + (l.protein*4 + l.carbs*4 + l.fats*9), 0) / logs.length;
-                const trueTDEE = Math.round(avgKcal - trendGap);
+                const trueTDEE = Math.round(avgKcal - ((weightDelta * 7700) / logs.length));
 
-                // 3. Calculate Strategy
-                // Deficit needed (7700 kcal per kg)
-                const dailyDeficitNeeded = (reqRate * 7700) / 7; 
-                const targetKcal = Math.round(trueTDEE + dailyDeficitNeeded);
-                
-                // 4. Safety Constraints
-                const clampedKcal = Math.max(targetKcal, trueTDEE - 1000, 1200); 
-                
-                const actualRate = (weightDelta / (daysInPeriod / 7));
-                const status = Math.abs(actualRate - reqRate) < 0.2 ? "ON TRACK" : (goalClass === "Weight Loss" ? (actualRate > reqRate ? "TOO SLOW" : "TOO FAST") : (actualRate < reqRate ? "TOO SLOW" : "TOO FAST"));
-
+                // Helms Level 2: Rate of Change (Muscle Preservation)
+                const reqRate = (targetWeight - currentW) / (weeksToGoal || 1);
+                const percentLossPerWeek = (Math.abs(reqRate) / currentW) * 100;
                 let warning = "";
-                if (reqRate < -1.0) warning = "CRITICAL: Losing >1kg/week is highly aggressive.";
-                else if (reqRate < -0.7) warning = "AGGRESSIVE: Fat loss target is high.";
+                if (reqRate < 0 && percentLossPerWeek > 1.0) {
+                    warning = `HELMS ALERT: Rate of ${percentLossPerWeek.toFixed(1)}%/wk is aggressive. Maintain 2g/kg protein.`;
+                }
 
-                return { reqRate: reqRate.toFixed(2), goalClass, warning, trueTDEE, targetKcal: clampedKcal, actualRate: actualRate.toFixed(2), status };
+                const targetKcal = Math.round(trueTDEE + (reqRate * 7700 / 7));
+                const stepBuffer = avgSteps > 10000 ? 150 : 0;
+                
+                const actualRate = (weightDelta / (logs.length / 7));
+                const status = Math.abs(actualRate - reqRate) < 0.15 ? "ON TRACK" : actualRate > reqRate ? "ADJUSTING" : "ON TRACK";
+
+                return { reqRate: reqRate.toFixed(2), warning, trueTDEE, targetKcal: Math.max(targetKcal + stepBuffer, 1200), actualRate: actualRate.toFixed(2), status, avgSteps: Math.round(avgSteps) };
             };
 
-            const logic = runCoreLogic();
+            const logic = runPyramidLogic();
 
             const handleGoalChange = (type, val) => {
                 const clean = cleanNum(val);
@@ -478,7 +463,7 @@
                         </div>
                     </div>
 
-                    <div className="section-title">Goal-Driven Decision System</div>
+                    <div className="section-title">Helms Pyramid System</div>
                     <div className="card shadow-sm border-0 mb-3" style={{background: '#f8f9fa'}}>
                         <div className="row g-2 mb-3">
                             <div className="col-6">
@@ -490,27 +475,25 @@
                                 <input type="number" className="form-control" value={weeksToGoal} onChange={e=>handleGoalChange('weeks', e.target.value)} />
                             </div>
                         </div>
-                        
-                        {logic.warning && <div className="alert alert-warning py-2 small fw-bold">{logic.warning}</div>}
-                        
+                        {logic.warning && <div className="alert alert-warning py-2 small fw-bold" style={{fontSize: '10px'}}>{logic.warning}</div>}
                         <div className="coach-box mb-0">
                             <div className="d-flex justify-content-between">
-                                <span>Status: <strong className={logic.status === 'ON TRACK' ? 'text-success' : 'text-danger'}>{logic.status}</strong></span>
-                                <span>Mode: <strong>{logic.goalClass}</strong></span>
+                                <span>Status: <strong>{logic.status}</strong></span>
+                                <span>Avg Steps: <strong>{logic.avgSteps}</strong></span>
                             </div>
                             <hr className="my-2"/>
                             <div className="small">
-                                Required: {Math.abs(logic.reqRate)} kg/wk<br/>
-                                Est. Maintenance (TDEE): {logic.trueTDEE} kcal
+                                Target: {logic.reqRate} kg/wk | Actual: {logic.actualRate} kg/wk<br/>
+                                True TDEE: {logic.trueTDEE} kcal
                             </div>
                         </div>
                     </div>
 
-                    <div className="section-title">Target Intake (Based on Data)</div>
+                    <div className="section-title">Required Energy Intake</div>
                     <div className="card text-center py-3 mb-4">
                         <div className="avg-label">Recommended Daily Calories</div>
-                        <div className="display-6 fw-bold text-primary">{logic.targetKcal}</div>
-                        <div className="small text-muted mt-1">Calculated from your {logs.length} logged days</div>
+                        <div className="display-6 fw-bold text-primary">{logic.targetKcal || '---'}</div>
+                        <div className="small text-muted mt-1">Adjusted for activity & goals</div>
                     </div>
 
                     <div className="card">
