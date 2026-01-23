@@ -404,13 +404,21 @@
 
                     <div className="d-grid gap-2">
                         {day.exercises.map(ex => {
-                            const lastSet = ex.sets[ex.sets.length - 1];
-                            const prevSet = (ex.history && ex.history.length > 0) ? ex.history[ex.sets.length - 1] : null;
-                            const bestSet = [...ex.sets].sort((a,b) => calc1RM(b.weight, b.reps) - calc1RM(a.weight, a.reps))[0];
+                            // TOTAL CALCULATIONS FOR CURRENT SESSION
+                            const currentTotalReps = ex.sets.reduce((sum, s) => sum + (Number(s.reps) || 0), 0);
+                            const currentTotalWeight = ex.sets.reduce((sum, s) => sum + (Number(s.weight) || 0), 0);
                             
-                            const rDelta = (lastSet && prevSet) ? lastSet.reps - prevSet.reps : 0;
-                            const wDelta = (lastSet && prevSet) ? lastSet.weight - prevSet.weight : 0;
-                            const setDelta = (ex.history) ? ex.sets.length - ex.history.length : 0;
+                            // TOTAL CALCULATIONS FOR HISTORY (PREVIOUS SESSION)
+                            const hasHistory = ex.history && ex.history.length > 0;
+                            const prevTotalReps = hasHistory ? ex.history.reduce((sum, s) => sum + (Number(s.reps) || 0), 0) : 0;
+                            const prevTotalWeight = hasHistory ? ex.history.reduce((sum, s) => sum + (Number(s.weight) || 0), 0) : 0;
+
+                            // DELTAS
+                            const rDelta = hasHistory ? currentTotalReps - prevTotalReps : 0;
+                            const wDelta = hasHistory ? currentTotalWeight - prevTotalWeight : 0;
+                            const setDelta = hasHistory ? ex.sets.length - ex.history.length : 0;
+
+                            const bestSet = [...ex.sets].sort((a,b) => calc1RM(b.weight, b.reps) - calc1RM(a.weight, a.reps))[0];
 
                             return (
                                 <div key={ex.id} className="bg-light rounded-3 p-2 border-start border-3">
@@ -418,11 +426,6 @@
                                         <div style={{flex: 1}} onClick={() => setExpandedEx({...expandedEx, [ex.id]: !expandedEx[ex.id]})}>
                                             <div className="d-flex align-items-center gap-2">
                                                 <div className="fw-800 text-uppercase" style={{fontSize: '11px'}}>{expandedEx[ex.id] ? '▼' : '▶'} {ex.name}</div>
-                                                <button className="btn btn-sm p-0 text-muted" onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    const newExName = prompt("Edit Exercise Name:", ex.name);
-                                                    if (newExName) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(eItem => eItem.id === ex.id ? {...eItem, name: newExName} : eItem)} : d));
-                                                }} style={{fontSize: '10px'}}>✎</button>
                                             </div>
                                             
                                             <div className="d-flex gap-1 flex-wrap mt-1 align-items-center">
@@ -433,29 +436,29 @@
                                                     </span>
                                                 )}
                                                 
-                                                {/* 1. SETS BADGE */}
+                                                {/* 1. TOTAL SETS BADGE */}
                                                 <span className="badge fw-800 bg-white border text-dark" style={{fontSize: '9px', padding: '4px 6px'}}>
-                                                    {ex.sets.length} SETS {setDelta > 0 ? `(+${setDelta})` : setDelta < 0 ? `(${setDelta})` : ''}
+                                                    {ex.sets.length} SETS {hasHistory && setDelta !== 0 ? `(${setDelta > 0 ? '+' : ''}${setDelta})` : ''}
                                                 </span>
 
-                                                {/* 2. REPS BADGE */}
+                                                {/* 2. TOTAL REPS BADGE */}
                                                 <span className="badge fw-800" style={{
                                                     fontSize: '9px', padding: '4px 6px',
                                                     backgroundColor: rDelta > 0 ? '#eafaf1' : rDelta < 0 ? '#fdedec' : '#ffffff',
                                                     color: rDelta > 0 ? '#27ae60' : rDelta < 0 ? '#e74c3c' : '#666',
                                                     border: `1px solid ${rDelta > 0 ? '#27ae60' : rDelta < 0 ? '#e74c3c' : '#ddd'}`
                                                 }}>
-                                                    {lastSet?.reps || 0} REPS {rDelta > 0 ? '↑' : rDelta < 0 ? '↓' : '—'}
+                                                    {currentTotalReps} REPS {rDelta > 0 ? '↑' : rDelta < 0 ? '↓' : '—'}
                                                 </span>
 
-                                                {/* 3. WEIGHT BADGE */}
+                                                {/* 3. TOTAL WEIGHT BADGE */}
                                                 <span className="badge fw-800" style={{
                                                     fontSize: '9px', padding: '4px 6px',
                                                     backgroundColor: wDelta > 0 ? '#fef5e7' : wDelta < 0 ? '#fdedec' : '#ffffff',
                                                     color: wDelta > 0 ? '#e67e22' : wDelta < 0 ? '#e74c3c' : '#666',
                                                     border: `1px solid ${wDelta > 0 ? '#e67e22' : wDelta < 0 ? '#e74c3c' : '#ddd'}`
                                                 }}>
-                                                    {lastSet?.weight || 0}KG {wDelta > 0 ? '↑' : wDelta < 0 ? '↓' : '—'}
+                                                    {currentTotalWeight}KG {wDelta > 0 ? '↑' : wDelta < 0 ? '↓' : '—'}
                                                 </span>
                                             </div>
                                         </div>
