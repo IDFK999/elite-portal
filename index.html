@@ -404,16 +404,12 @@
 
                     <div className="d-grid gap-2">
                         {day.exercises.map(ex => {
-                            // TOTAL CALCULATIONS FOR CURRENT SESSION
                             const currentTotalReps = ex.sets.reduce((sum, s) => sum + (Number(s.reps) || 0), 0);
                             const currentTotalWeight = ex.sets.reduce((sum, s) => sum + (Number(s.weight) || 0), 0);
-                            
-                            // TOTAL CALCULATIONS FOR HISTORY (PREVIOUS SESSION)
                             const hasHistory = ex.history && ex.history.length > 0;
                             const prevTotalReps = hasHistory ? ex.history.reduce((sum, s) => sum + (Number(s.reps) || 0), 0) : 0;
                             const prevTotalWeight = hasHistory ? ex.history.reduce((sum, s) => sum + (Number(s.weight) || 0), 0) : 0;
 
-                            // DELTAS
                             const rDelta = hasHistory ? currentTotalReps - prevTotalReps : 0;
                             const wDelta = hasHistory ? currentTotalWeight - prevTotalWeight : 0;
                             const setDelta = hasHistory ? ex.sets.length - ex.history.length : 0;
@@ -424,24 +420,32 @@
                                 <div key={ex.id} className="bg-light rounded-3 p-2 border-start border-3">
                                     <div className="d-flex justify-content-between align-items-start">
                                         <div style={{flex: 1}} onClick={() => setExpandedEx({...expandedEx, [ex.id]: !expandedEx[ex.id]})}>
-                                            <div className="d-flex align-items-center gap-2">
-                                                <div className="fw-800 text-uppercase" style={{fontSize: '11px'}}>{expandedEx[ex.id] ? '▼' : '▶'} {ex.name}</div>
+                                            <div className="d-flex align-items-center justify-content-between">
+                                                <div className="fw-800 text-uppercase" style={{fontSize: '11px'}}>
+                                                    {expandedEx[ex.id] ? '▼' : '▶'} {ex.name}
+                                                </div>
+                                                
+                                                {/* NEW: EDITABLE TARGET BADGE */}
+                                                <div className="badge bg-dark text-white fw-800" style={{fontSize: '9px', cursor: 'pointer'}} onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    const target = prompt("Set Goal (e.g. 3x12):", ex.target || "");
+                                                    saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(eItem => eItem.id === ex.id ? {...eItem, target} : eItem)} : d));
+                                                }}>
+                                                    GOAL: {ex.target || 'SET'}
+                                                </div>
                                             </div>
                                             
                                             <div className="d-flex gap-1 flex-wrap mt-1 align-items-center">
-                                                {/* 1RM BADGE */}
                                                 {bestSet && (
                                                     <span className="badge bg-white text-primary border fw-800" style={{fontSize: '9px', padding: '4px 6px'}}>
                                                         1RM: {calc1RM(bestSet.weight, bestSet.reps)}kg
                                                     </span>
                                                 )}
                                                 
-                                                {/* 1. TOTAL SETS BADGE */}
                                                 <span className="badge fw-800 bg-white border text-dark" style={{fontSize: '9px', padding: '4px 6px'}}>
                                                     {ex.sets.length} SETS {hasHistory && setDelta !== 0 ? `(${setDelta > 0 ? '+' : ''}${setDelta})` : ''}
                                                 </span>
 
-                                                {/* 2. TOTAL REPS BADGE */}
                                                 <span className="badge fw-800" style={{
                                                     fontSize: '9px', padding: '4px 6px',
                                                     backgroundColor: rDelta > 0 ? '#eafaf1' : rDelta < 0 ? '#fdedec' : '#ffffff',
@@ -451,7 +455,6 @@
                                                     {currentTotalReps} REPS {rDelta > 0 ? '↑' : rDelta < 0 ? '↓' : '—'}
                                                 </span>
 
-                                                {/* 3. TOTAL WEIGHT BADGE */}
                                                 <span className="badge fw-800" style={{
                                                     fontSize: '9px', padding: '4px 6px',
                                                     backgroundColor: wDelta > 0 ? '#fef5e7' : wDelta < 0 ? '#fdedec' : '#ffffff',
@@ -462,7 +465,7 @@
                                                 </span>
                                             </div>
                                         </div>
-                                        <button className="btn btn-sm text-danger p-0" onClick={(e) => { e.stopPropagation(); if(confirm("Delete Exercise?")) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.filter(e => e.id !== ex.id)} : d)); }}>✕</button>
+                                        <button className="btn btn-sm text-danger p-0 ms-2" onClick={(e) => { e.stopPropagation(); if(confirm("Delete Exercise?")) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.filter(e => e.id !== ex.id)} : d)); }}>✕</button>
                                     </div>
 
                                     {expandedEx[ex.id] && (
@@ -495,7 +498,7 @@
                     </div>
                     <button className="btn btn-primary btn-sm w-100 mt-3 fw-bold py-2" onClick={() => {
                         const name = prompt("Exercise Name:");
-                        if (name) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: [...d.exercises, { id: Date.now(), name, sets: [], history: [] }]} : d));
+                        if (name) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: [...d.exercises, { id: Date.now(), name, sets: [], history: [], target: "" }]} : d));
                     }}>+ ADD EXERCISE</button>
                 </div>
             ))}
