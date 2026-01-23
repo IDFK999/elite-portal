@@ -318,17 +318,22 @@
                 localStorage.setItem(`workouts_${user.id}`, JSON.stringify(days));
             }, [days, user.id]);
 
-            const getDaysAgo = (sets) => {
-                if (!sets || sets.length === 0) return null;
-                const latestSet = [...sets].sort((a, b) => new Date(b.fullDate) - new Date(a.fullDate))[0];
-                if (!latestSet || !latestSet.fullDate) return null;
-                const diffDays = Math.floor((new Date().setHours(0,0,0,0) - new Date(latestSet.fullDate).setHours(0,0,0,0)) / 86400000);
-                return diffDays === 0 ? "Today" : diffDays === 1 ? "Yesterday" : `${diffDays} days ago`;
-            };
-
+            // CRUD FUNCTIONS
             const addDay = () => {
                 const name = prompt("Workout Day Name:");
                 if (name) setDays([...days, { id: Date.now(), name, exercises: [] }]);
+            };
+
+            const editDay = (dayId) => {
+                const day = days.find(d => d.id === dayId);
+                const newName = prompt("Edit Workout Day Name:", day.name);
+                if (newName) setDays(days.map(d => d.id === dayId ? {...d, name: newName} : d));
+            };
+
+            const deleteDay = (dayId) => {
+                if (confirm("Delete this entire workout day?")) {
+                    setDays(days.filter(d => d.id !== dayId));
+                }
             };
 
             const addExercise = (dayId) => {
@@ -337,6 +342,19 @@
                     const id = Date.now();
                     setDays(days.map(d => d.id === dayId ? {...d, exercises: [...d.exercises, { id, name, sets: [] }]} : d));
                     setExpandedEx(prev => ({...prev, [id]: true}));
+                }
+            };
+
+            const editExercise = (dayId, exId) => {
+                const day = days.find(d => d.id === dayId);
+                const ex = day.exercises.find(e => e.id === exId);
+                const newName = prompt("Rename Exercise:", ex.name);
+                if (newName) setDays(days.map(d => d.id === dayId ? {...d, exercises: d.exercises.map(e => e.id === exId ? {...e, name: newName} : e)} : d));
+            };
+
+            const deleteExercise = (dayId, exId) => {
+                if (confirm("Delete this exercise and all its sets?")) {
+                    setDays(days.map(d => d.id === dayId ? {...d, exercises: d.exercises.filter(e => e.id !== exId)} : d));
                 }
             };
 
@@ -373,56 +391,52 @@
                     {days.map(day => (
                         <div key={day.id} className="card border-0 mb-4" style={{borderLeft: '4px solid var(--accent-blue)'}}>
                             <div className="d-flex justify-content-between align-items-center mb-3">
-                                <h6 className="fw-800 m-0" style={{fontWeight:800}}>{day.name}</h6>
-                                <button className="btn btn-sm btn-outline-secondary border-0 fw-bold" style={{fontSize:'10px'}} onClick={() => addExercise(day.id)}>+ Exercise</button>
+                                <div onClick={() => editDay(day.id)} style={{cursor: 'pointer'}}>
+                                    <h6 className="fw-800 m-0" style={{fontWeight:800}}>{day.name} ✎</h6>
+                                </div>
+                                <div className="d-flex gap-2">
+                                    <button className="btn btn-sm btn-outline-secondary border-0 fw-bold" style={{fontSize:'10px'}} onClick={() => addExercise(day.id)}>+ EXERCISE</button>
+                                    <button className="btn btn-sm text-danger border-0" style={{fontSize:'10px'}} onClick={() => deleteDay(day.id)}>✕</button>
+                                </div>
                             </div>
+
                             {day.exercises.map(ex => {
                                 const volume = ex.sets.reduce((acc, s) => acc + (s.reps * s.weight), 0);
-                                const bestSet = [...ex.sets].sort((a,b) => calc1RM(b.weight, b.reps) - calc1RM(a.weight, a.reps))[0];
                                 const isExpanded = expandedEx[ex.id];
-                                const daysAgo = getDaysAgo(ex.sets);
-
-                                // Find unique workout sessions for this specific exercise
                                 const sessionDates = Array.from(new Set(ex.sets.map(s => s.fullDate?.split('T')[0]))).sort();
 
                                 return (
                                     <div key={ex.id} className="mb-3 ps-2 border-start">
-                                        <div className="d-flex justify-content-between align-items-center cursor-pointer" onClick={() => setExpandedEx({...expandedEx, [ex.id]: !isExpanded})}>
-                                            <div style={{flex: 1}}>
+                                        <div className="d-flex justify-content-between align-items-center">
+                                            <div onClick={() => setExpandedEx({...expandedEx, [ex.id]: !isExpanded})} style={{flex: 1, cursor: 'pointer'}}>
                                                 <div className="fw-800 text-uppercase" style={{fontSize:'11px', fontWeight:800}}>{isExpanded ? '▼ ' : '▶ '} {ex.name}</div>
-                                                <div className="d-flex gap-2">
-                                                    {bestSet && <div style={{fontSize: '9px', color: 'var(--bulk-green)', fontWeight:700}}>EST. 1RM: {calc1RM(bestSet.weight, bestSet.reps)}kg</div>}
-                                                    {daysAgo && <div style={{fontSize: '9px', color: '#86868B'}}>• {daysAgo}</div>}
-                                                </div>
+                                                <div style={{fontSize: '9px', color: '#86868B'}}>VOL: {volume}kg</div>
                                             </div>
-                                            <div className="text-end">
-                                                <span className="badge bg-light text-dark" style={{fontSize: '9px'}}>VOL: {volume}kg</span>
+                                            <div className="d-flex gap-2">
+                                                <button className="btn btn-link btn-sm p-0 text-muted" onClick={() => editExercise(day.id, ex.id)}>✎</button>
+                                                <button className="btn btn-link btn-sm p-0 text-danger" onClick={() => deleteExercise(day.id, ex.id)}>✕</button>
                                             </div>
                                         </div>
 
                                         {isExpanded && (
                                             <div className="mt-2">
                                                 {ex.sets.map((s, i) => {
-                                                    // SESSION ISOLATION LOGIC
                                                     const thisSetDate = s.fullDate?.split('T')[0];
-                                                    const prevSessionDate = sessionDates.filter(d => d < thisSetDate).pop();
+                                                    const prevDate = sessionDates.filter(d => d < thisSetDate).pop();
+                                                    const setsToday = ex.sets.filter(set => set.fullDate?.startsWith(thisSetDate));
+                                                    const setIndex = setsToday.findIndex(set => set.id === s.id);
                                                     
-                                                    // Find index of this set within its own day's session
-                                                    const setsInThisSession = ex.sets.filter(set => set.fullDate?.startsWith(thisSetDate));
-                                                    const setIndex = setsInThisSession.findIndex(set => set.id === s.id);
-                                                    
-                                                    let improvementLabel = null;
+                                                    let label = null;
                                                     let isImp = false;
 
-                                                    if (prevSessionDate && setIndex !== -1) {
-                                                        const prevSets = ex.sets.filter(set => set.fullDate?.startsWith(prevSessionDate));
+                                                    if (prevDate && setIndex !== -1) {
+                                                        const prevSets = ex.sets.filter(set => set.fullDate?.startsWith(prevDate));
                                                         const match = prevSets[setIndex];
                                                         if (match) {
                                                             const rDiff = s.reps - match.reps;
-                                                            // Improvement: More reps with same/more weight OR more weight
                                                             if ((rDiff > 0 && s.weight >= match.weight) || (s.weight > match.weight)) {
                                                                 isImp = true;
-                                                                improvementLabel = rDiff > 0 ? `+${rDiff} Rep` : `+${(s.weight - match.weight).toFixed(1)}kg`;
+                                                                label = rDiff > 0 ? `+${rDiff} Rep` : `+${(s.weight - match.weight).toFixed(1)}kg`;
                                                             }
                                                         }
                                                     }
@@ -431,13 +445,13 @@
                                                         <div key={s.id} className="d-flex align-items-center gap-2 mb-2 p-1 rounded" style={{background: isImp ? 'rgba(52, 199, 89, 0.1)' : '#F9F9FB'}}>
                                                             <div style={{width: '55px', fontSize: '8px', lineHeight: '1.2'}}>
                                                                 <b>SET {setIndex + 1}</b><br/>{s.loggedAt}
-                                                                {improvementLabel && <div style={{color: 'var(--bulk-green)', fontWeight: 800, fontSize: '7px'}}>{improvementLabel}</div>}
+                                                                {label && <div style={{color: 'var(--bulk-green)', fontWeight: 800, fontSize: '7px'}}>{label}</div>}
                                                             </div>
                                                             <input type="number" inputMode="numeric" className="form-control form-control-sm text-center fw-bold border-0 bg-transparent m-0 p-0" style={{color: 'var(--bulk-green)'}} value={s.reps} onChange={e => updateSet(day.id, ex.id, s.id, 'reps', e.target.value)} />
                                                             <span className="text-muted small">×</span>
                                                             <input type="number" inputMode="decimal" className="form-control form-control-sm text-center fw-bold border-0 bg-transparent m-0 p-0" style={{color: '#E67E22'}} value={s.weight} onChange={e => updateSet(day.id, ex.id, s.id, 'weight', e.target.value)} />
                                                             <div className="text-muted" style={{fontSize: '9px', width: '20px'}}>kg</div>
-                                                            <button className="btn btn-link btn-sm p-0 text-danger text-decoration-none" onClick={() => deleteSet(day.id, ex.id, s.id)}>×</button>
+                                                            <button className="btn btn-link btn-sm p-0 text-danger text-decoration-none" onClick={() => deleteSet(day.id, ex.id, s.id)}>✕</button>
                                                         </div>
                                                     );
                                                 })}
