@@ -651,28 +651,6 @@
                         <div className="col-4"><div className="avg-card"><div className="avg-label">Steps</div><div className="avg-value">{stats.steps}</div></div></div>
                     </div>
 
-                    <div className="section-title">Measurement History</div>
-                    <div className="card mb-4">
-                        <div className="table-responsive">
-                            <table className="table table-sm m-0" style={{fontSize: '11px'}}>
-                                <thead className="table-header-custom">
-                                    <tr><th>WK</th><th>Waist</th><th>Chest</th><th>Arms</th><th>Thighs</th></tr>
-                                </thead>
-                                <tbody>
-                                    {metrics.map((m, i) => (
-                                        <tr key={i}>
-                                            <td className="fw-bold">{m.week_number}</td>
-                                            <td>{m.waist}</td>
-                                            <td>{m.chest}</td>
-                                            <td>{m.left_arm}/{m.right_arm}</td>
-                                            <td>{m.left_thigh}/{m.right_thigh}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
                     <div className="section-title">Daily History</div>
                     <div className="card p-0 overflow-hidden mb-5">
                         <div className="table-responsive">
@@ -695,6 +673,29 @@
                         </div>
                     </div>
                 </div>
+
+                    <div className="section-title">Measurement History</div>
+                    <div className="card mb-4">
+                        <div className="table-responsive">
+                            <table className="table table-sm m-0" style={{fontSize: '11px'}}>
+                                <thead className="table-header-custom">
+                                    <tr><th>WK</th><th>Waist</th><th>Chest</th><th>Arms</th><th>Thighs</th></tr>
+                                </thead>
+                                <tbody>
+                                    {metrics.map((m, i) => (
+                                        <tr key={i}>
+                                            <td className="fw-bold">{m.week_number}</td>
+                                            <td>{m.waist}</td>
+                                            <td>{m.chest}</td>
+                                            <td>{m.left_arm}/{m.right_arm}</td>
+                                            <td>{m.left_thigh}/{m.right_thigh}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
             );
         }
 
