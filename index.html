@@ -427,16 +427,17 @@
                                                 
                                                 {/* NEW: EDITABLE TARGET BADGE */}
                                                 <div 
-                                                    className="fw-800 text-dark"tyle={{fontSize: '12px', cursor: 'pointer'}} 
-                                                    onClick={(e) => { e.stopPropagation();
-                                                        const input = prompt("Enter Notes (e.g. 3x12, slow tempo):", ex.target || "");
+                                                    className="fw-800 text-dark" style={{fontSize: '12px', cursor: 'pointer'}} 
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        const newNote = prompt("Enter Notes:", ex.target || "");
                                                         
-                                                        // This check prevents the text from being deleted if you press Cancel
-                                                        if (input !== null) {
+                                                        // This is the "shield" that protects your database from being cleared on cancel
+                                                        if (newNote !== null) {
                                                             saveAndSync(days.map(d => d.id === day.id ? {
                                                                 ...d, 
                                                                 exercises: d.exercises.map(eItem => 
-                                                                    eItem.id === ex.id ? {...eItem, target: input} : eItem
+                                                                    eItem.id === ex.id ? {...eItem, target: newNote} : eItem
                                                                 )
                                                             } : d));
                                                         }
