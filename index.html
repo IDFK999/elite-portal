@@ -405,7 +405,7 @@
                     <div className="d-grid gap-2">
                         {day.exercises.map(ex => {
                             const lastSet = ex.sets[ex.sets.length - 1];
-                            const prevSet = ex.history ? ex.history[ex.sets.length - 1] : null;
+                            const prevSet = (ex.history && ex.history.length > 0) ? ex.history[ex.sets.length - 1] : null;
                             const bestSet = [...ex.sets].sort((a,b) => calc1RM(b.weight, b.reps) - calc1RM(a.weight, a.reps))[0];
                             
                             const rDelta = (lastSet && prevSet) ? lastSet.reps - prevSet.reps : 0;
@@ -432,30 +432,28 @@
                                                     </span>
                                                 )}
                                                 
-                                                {/* REPS DELTA BADGE */}
-                                                {prevSet && rDelta !== 0 && (
-                                                    <span className="badge fw-800" style={{
-                                                        fontSize: '9px', 
-                                                        padding: '4px 6px',
-                                                        backgroundColor: rDelta > 0 ? '#eafaf1' : '#fdedec',
-                                                        color: rDelta > 0 ? '#27ae60' : '#e74c3c',
-                                                        border: `1px solid ${rDelta > 0 ? '#27ae60' : '#e74c3c'}`
-                                                    }}>
-                                                        {rDelta > 0 ? `+${rDelta}` : rDelta} REPS {rDelta > 0 ? '↑' : '↓'}
-                                                    </span>
-                                                )}
-
-                                                {/* WEIGHT DELTA BADGE */}
-                                                {prevSet && wDelta !== 0 && (
-                                                    <span className="badge fw-800" style={{
-                                                        fontSize: '9px', 
-                                                        padding: '4px 6px',
-                                                        backgroundColor: wDelta > 0 ? '#fef5e7' : '#fdedec',
-                                                        color: wDelta > 0 ? '#e67e22' : '#e74c3c',
-                                                        border: `1px solid ${wDelta > 0 ? '#e67e22' : '#e74c3c'}`
-                                                    }}>
-                                                        {wDelta > 0 ? `+${wDelta}` : wDelta}KG {wDelta > 0 ? '↑' : '↓'}
-                                                    </span>
+                                                {/* PROGRESS BADGES */}
+                                                {prevSet ? (
+                                                    <>
+                                                        <span className="badge fw-800" style={{
+                                                            fontSize: '9px', padding: '4px 6px',
+                                                            backgroundColor: rDelta >= 0 ? '#eafaf1' : '#fdedec',
+                                                            color: rDelta >= 0 ? '#27ae60' : '#e74c3c',
+                                                            border: `1px solid ${rDelta >= 0 ? '#27ae60' : '#e74c3c'}`
+                                                        }}>
+                                                            {rDelta >= 0 ? `+${rDelta}` : rDelta} REPS {rDelta >= 0 ? '↑' : '↓'}
+                                                        </span>
+                                                        <span className="badge fw-800" style={{
+                                                            fontSize: '9px', padding: '4px 6px',
+                                                            backgroundColor: wDelta >= 0 ? '#fef5e7' : '#fdedec',
+                                                            color: wDelta >= 0 ? '#e67e22' : '#e74c3c',
+                                                            border: `1px solid ${wDelta >= 0 ? '#e67e22' : '#e74c3c'}`
+                                                        }}>
+                                                            {wDelta >= 0 ? `+${wDelta}` : wDelta}KG {wDelta >= 0 ? '↑' : '↓'}
+                                                        </span>
+                                                    </>
+                                                ) : (
+                                                    <span className="badge bg-white text-muted border fw-800" style={{fontSize: '9px', padding: '4px 6px'}}>NEW</span>
                                                 )}
                                             </div>
                                         </div>
