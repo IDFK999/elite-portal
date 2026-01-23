@@ -254,7 +254,7 @@
             const fatPct = goal === 'bulk' ? 0.30 : 0.25;
             const baseCalories = weightKg * kcalPerKg;
             const totalCalories = baseCalories + bonusCalories;
-            const protein = weightKg * 2.4;
+            const protein = weightKg * 2.0; // Updated to 2.0 for Eric Helms split
             const fat = (totalCalories * fatPct) / 9;
             const carbs = (totalCalories - (protein * 4) - (fat * 9)) / 4;
             return { 
@@ -380,7 +380,7 @@
                         <div className="section-title mt-2">Nutrient Intake</div>
                         <div className="row g-2">
                             <div className="col-4"><label className="toggle-label">P</label><input type="number" inputMode="numeric" className="form-control" value={f.p} onChange={e=>setF({...f, p: cleanNum(e.target.value)})} /></div>
-                            <div className="col-4"><label className="toggle-label">C</label><input type="number" inputMode="numeric" className="form-control" value={f.p} onChange={e=>setF({...f, c: cleanNum(e.target.value)})} /></div>
+                            <div className="col-4"><label className="toggle-label">C</label><input type="number" inputMode="numeric" className="form-control" value={f.c} onChange={e=>setF({...f, c: cleanNum(e.target.value)})} /></div>
                             <div className="col-4"><label className="toggle-label">F</label><input type="number" inputMode="numeric" className="form-control" value={f.f} onChange={e=>setF({...f, f: cleanNum(e.target.value)})} /></div>
                         </div>
                         <div className="section-title mt-2">Recovery</div>
@@ -510,9 +510,6 @@
                         <div style={{fontSize: '11px', opacity: 0.9, marginBottom: '8px'}}>
                             <b>Helms Strategy ({goal}):</b> {helms.totalCalories} kcal | {helms.protein}P | {helms.carbs}C | {helms.fat}F
                         </div>
-                        <div style={{fontSize: '10px', opacity: 0.7, fontStyle: 'italic', lineHeight: '1.4'}}>
-                            Note: The calculations above automatically incorporate a 200-calorie allowance linked to your 7,000-step baseline. Any physical activity performed beyond this 7,000-step threshold is not added to your intake; instead, it serves as a metabolic driver to accelerate fat loss and improve cardiovascular efficiency.
-                        </div>
                     </div>
                 );
                 
@@ -579,11 +576,14 @@
                 
                 const calc = (c, isAdjusted = true) => {
                     const finalCal = isAdjusted ? c + stepBonus : c;
+                    const protein = avgW * 2.0; // Updated to 2.0
+                    const fat = (finalCal * 0.29) / 9;
+                    const carbs = (finalCal - (protein * 4) - (fat * 9)) / 4;
                     return { 
                         cal: Math.round(finalCal), 
-                        p: Math.round(avgW*2), 
-                        f: Math.round((finalCal*0.29)/9), 
-                        c: Math.round((finalCal-(avgW*2*4)-((finalCal*0.29)/9*9))/4) 
+                        p: Math.round(protein), 
+                        f: Math.round(fat), 
+                        c: Math.round(carbs) 
                     };
                 };
 
