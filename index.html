@@ -307,6 +307,7 @@
             );
         }
 
+
         function WorkoutManager({ user }) {
     const [days, setDays] = useState([]);
     const [expandedEx, setExpandedEx] = useState({});
@@ -326,7 +327,6 @@
         await _supabase.from('user_settings').upsert({ user_id: user.id, workout_data: newData }, { onConflict: 'user_id' });
     };
 
-    // --- THE 1RM CALCULATION FUNCTION ---
     const calc1RM = (w, r) => {
         if (!w || !r) return 0;
         return r === 1 ? w : Math.round(w / (1.0278 - (0.0278 * r)));
@@ -342,7 +342,6 @@
         return diffDays === 0 ? "Today" : diffDays === 1 ? "Yesterday" : `${diffDays}d ago`;
     };
 
-    // --- THE DELETE DAY FUNCTION ---
     const deleteDay = (dayId) => {
         if (confirm("Permanently delete this entire workout day?")) {
             saveAndSync(days.filter(d => d.id !== dayId));
@@ -391,7 +390,6 @@
                     <div className="d-flex justify-content-between align-items-center mb-1">
                         <div className="d-flex align-items-center gap-2">
                             <h6 className="fw-800 m-0" style={{fontSize:'16px'}}>{day.name}</h6>
-                            {/* --- EDIT DAY NAME BUTTON --- */}
                             <button className="btn btn-sm p-0 text-muted" onClick={() => {
                                 const newName = prompt("Edit Day Name:", day.name);
                                 if (newName) saveAndSync(days.map(d => d.id === day.id ? {...d, name: newName} : d));
@@ -406,7 +404,6 @@
 
                     <div className="d-grid gap-2">
                         {day.exercises.map(ex => {
-                            // --- DELTA CALCULATIONS ---
                             const lastSet = ex.sets[ex.sets.length - 1];
                             const prevSet = ex.history ? ex.history[ex.sets.length - 1] : null;
                             const bestSet = [...ex.sets].sort((a,b) => calc1RM(b.weight, b.reps) - calc1RM(a.weight, a.reps))[0];
@@ -420,7 +417,6 @@
                                         <div style={{flex: 1}} onClick={() => setExpandedEx({...expandedEx, [ex.id]: !expandedEx[ex.id]})}>
                                             <div className="d-flex align-items-center gap-2">
                                                 <div className="fw-800 text-uppercase" style={{fontSize: '11px'}}>{expandedEx[ex.id] ? '▼' : '▶'} {ex.name}</div>
-                                                {/* --- EDIT EXERCISE NAME BUTTON --- */}
                                                 <button className="btn btn-sm p-0 text-muted" onClick={(e) => {
                                                     e.stopPropagation();
                                                     const newExName = prompt("Edit Exercise Name:", ex.name);
@@ -428,24 +424,41 @@
                                                 }} style={{fontSize: '10px'}}>✎</button>
                                             </div>
                                             
-                                            <div className="d-flex gap-2 flex-wrap mt-1 align-items-center">
-                                                {/* --- 1RM DISPLAY --- */}
-                                                {bestSet && <span className="text-primary fw-800" style={{fontSize: '9px'}}>1RM: {calc1RM(bestSet.weight, bestSet.reps)}kg</span>}
+                                            <div className="d-flex gap-1 flex-wrap mt-1 align-items-center">
+                                                {/* 1RM BADGE */}
+                                                {bestSet && (
+                                                    <span className="badge bg-white text-primary border fw-800" style={{fontSize: '9px', padding: '4px 6px'}}>
+                                                        1RM: {calc1RM(bestSet.weight, bestSet.reps)}kg
+                                                    </span>
+                                                )}
                                                 
-                                                {/* --- COMPARISON DELTAS (Moved here as requested) --- */}
-                                                {prevSet && (
-                                                    <div className="d-flex gap-2 fw-800" style={{fontSize: '9px'}}>
-                                                        <span style={{color: rDelta >= 0 ? '#27ae60' : '#e74c3c'}}>
-                                                            {rDelta > 0 ? `+${rDelta}` : rDelta} rep {rDelta >= 0 ? '↑' : '↓'}
-                                                        </span>
-                                                        <span style={{color: wDelta >= 0 ? '#27ae60' : '#e74c3c'}}>
-                                                            {wDelta > 0 ? `+${wDelta}` : wDelta}kg {wDelta >= 0 ? '↑' : '↓'}
-                                                        </span>
-                                                    </div>
+                                                {/* REPS DELTA BADGE */}
+                                                {prevSet && rDelta !== 0 && (
+                                                    <span className="badge fw-800" style={{
+                                                        fontSize: '9px', 
+                                                        padding: '4px 6px',
+                                                        backgroundColor: rDelta > 0 ? '#eafaf1' : '#fdedec',
+                                                        color: rDelta > 0 ? '#27ae60' : '#e74c3c',
+                                                        border: `1px solid ${rDelta > 0 ? '#27ae60' : '#e74c3c'}`
+                                                    }}>
+                                                        {rDelta > 0 ? `+${rDelta}` : rDelta} REPS {rDelta > 0 ? '↑' : '↓'}
+                                                    </span>
+                                                )}
+
+                                                {/* WEIGHT DELTA BADGE */}
+                                                {prevSet && wDelta !== 0 && (
+                                                    <span className="badge fw-800" style={{
+                                                        fontSize: '9px', 
+                                                        padding: '4px 6px',
+                                                        backgroundColor: wDelta > 0 ? '#fef5e7' : '#fdedec',
+                                                        color: wDelta > 0 ? '#e67e22' : '#e74c3c',
+                                                        border: `1px solid ${wDelta > 0 ? '#e67e22' : '#e74c3c'}`
+                                                    }}>
+                                                        {wDelta > 0 ? `+${wDelta}` : wDelta}KG {wDelta > 0 ? '↑' : '↓'}
+                                                    </span>
                                                 )}
                                             </div>
                                         </div>
-                                        {/* --- DELETE EXERCISE BUTTON --- */}
                                         <button className="btn btn-sm text-danger p-0" onClick={(e) => { e.stopPropagation(); if(confirm("Delete Exercise?")) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.filter(e => e.id !== ex.id)} : d)); }}>✕</button>
                                     </div>
 
@@ -486,6 +499,7 @@
         </div>
     );
 }
+        
         function DailyLog({ user }) {
             const [f, setF] = useState({ date: new Date().toISOString().split('T')[0], weight:'', steps:'', p:'', c:'', f:'', water:'', sleep:'' });
             const [targets, setTargets] = useState(() => {
