@@ -410,6 +410,7 @@
                             
                             const rDelta = (lastSet && prevSet) ? lastSet.reps - prevSet.reps : 0;
                             const wDelta = (lastSet && prevSet) ? lastSet.weight - prevSet.weight : 0;
+                            const setDelta = (ex.history) ? ex.sets.length - ex.history.length : 0;
 
                             return (
                                 <div key={ex.id} className="bg-light rounded-3 p-2 border-start border-3">
@@ -432,29 +433,30 @@
                                                     </span>
                                                 )}
                                                 
-                                                {/* PROGRESS BADGES */}
-                                                {prevSet ? (
-                                                    <>
-                                                        <span className="badge fw-800" style={{
-                                                            fontSize: '9px', padding: '4px 6px',
-                                                            backgroundColor: rDelta >= 0 ? '#eafaf1' : '#fdedec',
-                                                            color: rDelta >= 0 ? '#27ae60' : '#e74c3c',
-                                                            border: `1px solid ${rDelta >= 0 ? '#27ae60' : '#e74c3c'}`
-                                                        }}>
-                                                            {rDelta >= 0 ? `+${rDelta}` : rDelta} REPS {rDelta >= 0 ? '↑' : '↓'}
-                                                        </span>
-                                                        <span className="badge fw-800" style={{
-                                                            fontSize: '9px', padding: '4px 6px',
-                                                            backgroundColor: wDelta >= 0 ? '#fef5e7' : '#fdedec',
-                                                            color: wDelta >= 0 ? '#e67e22' : '#e74c3c',
-                                                            border: `1px solid ${wDelta >= 0 ? '#e67e22' : '#e74c3c'}`
-                                                        }}>
-                                                            {wDelta >= 0 ? `+${wDelta}` : wDelta}KG {wDelta >= 0 ? '↑' : '↓'}
-                                                        </span>
-                                                    </>
-                                                ) : (
-                                                    <span className="badge bg-white text-muted border fw-800" style={{fontSize: '9px', padding: '4px 6px'}}>NEW</span>
-                                                )}
+                                                {/* 1. SETS BADGE */}
+                                                <span className="badge fw-800 bg-white border text-dark" style={{fontSize: '9px', padding: '4px 6px'}}>
+                                                    {ex.sets.length} SETS {setDelta > 0 ? `(+${setDelta})` : setDelta < 0 ? `(${setDelta})` : ''}
+                                                </span>
+
+                                                {/* 2. REPS BADGE */}
+                                                <span className="badge fw-800" style={{
+                                                    fontSize: '9px', padding: '4px 6px',
+                                                    backgroundColor: rDelta > 0 ? '#eafaf1' : rDelta < 0 ? '#fdedec' : '#ffffff',
+                                                    color: rDelta > 0 ? '#27ae60' : rDelta < 0 ? '#e74c3c' : '#666',
+                                                    border: `1px solid ${rDelta > 0 ? '#27ae60' : rDelta < 0 ? '#e74c3c' : '#ddd'}`
+                                                }}>
+                                                    {lastSet?.reps || 0} REPS {rDelta > 0 ? '↑' : rDelta < 0 ? '↓' : '—'}
+                                                </span>
+
+                                                {/* 3. WEIGHT BADGE */}
+                                                <span className="badge fw-800" style={{
+                                                    fontSize: '9px', padding: '4px 6px',
+                                                    backgroundColor: wDelta > 0 ? '#fef5e7' : wDelta < 0 ? '#fdedec' : '#ffffff',
+                                                    color: wDelta > 0 ? '#e67e22' : wDelta < 0 ? '#e74c3c' : '#666',
+                                                    border: `1px solid ${wDelta > 0 ? '#e67e22' : wDelta < 0 ? '#e74c3c' : '#ddd'}`
+                                                }}>
+                                                    {lastSet?.weight || 0}KG {wDelta > 0 ? '↑' : wDelta < 0 ? '↓' : '—'}
+                                                </span>
                                             </div>
                                         </div>
                                         <button className="btn btn-sm text-danger p-0" onClick={(e) => { e.stopPropagation(); if(confirm("Delete Exercise?")) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.filter(e => e.id !== ex.id)} : d)); }}>✕</button>
