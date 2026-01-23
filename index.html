@@ -249,10 +249,11 @@
 
         const cleanNum = (val) => val.toString().replace(/[^0-9.]/g, '');
 
-        const getHelmsMacros = (weightKg, goal) => {
+        const getHelmsMacros = (weightKg, goal, bonusCalories = 0) => {
             const kcalPerKg = goal === 'bulk' ? 32 : goal === 'maintain' ? 30 : 27;
             const fatPct = goal === 'bulk' ? 0.30 : 0.25;
-            const totalCalories = weightKg * kcalPerKg;
+            const baseCalories = weightKg * kcalPerKg;
+            const totalCalories = baseCalories + bonusCalories;
             const protein = weightKg * 2.4;
             const fat = (totalCalories * fatPct) / 9;
             const carbs = (totalCalories - (protein * 4) - (fat * 9)) / 4;
@@ -305,7 +306,7 @@
                 <div className="container py-4">
                     <div className="d-flex justify-content-between align-items-center mb-3">
                         <h5 className="fw-bold m-0" style={{letterSpacing: '-0.5px'}}>ELITE PERFORMANCE</h5>
-                        <div className="badge rounded-pill text-dark border">v9.9.5</div>
+                        <div className="badge rounded-pill text-dark border">v9.9.4</div>
                     </div>
 
                     {view === 'log' && <DailyLog user={session.user} />}
@@ -497,17 +498,18 @@
                 const sorted = [...logs].sort((a,b) => new Date(b.log_date) - new Date(a.log_date));
                 const week1 = sorted.slice(0, 7);
                 const week1Avg = week1.reduce((a,b)=>a+b.weight, 0) / 7;
+                const avgSteps = week1.reduce((a,b)=>a+(b.steps||0),0) / 7;
 
-                const helms = getHelmsMacros(week1Avg, goal);
+                // Step adjustment logic applied directly to Helms strategy
+                const bonusSteps = Math.min(avgSteps, 7000);
+                const bonusCals = (bonusSteps / 7000) * 200;
                 
-                // Logic integration for step threshold
+                const helms = getHelmsMacros(week1Avg, goal, bonusCals);
+                
                 const helmsDisplay = (
                     <div className="mt-2 pt-2 border-top">
                         <div style={{fontSize: '11px', opacity: 0.9, marginBottom: '8px'}}>
                             <b>Helms Strategy ({goal}):</b> {helms.totalCalories} kcal | {helms.protein}P | {helms.carbs}C | {helms.fat}F
-                        </div>
-                        <div style={{fontSize: '10px', opacity: 0.7, fontStyle: 'italic', lineHeight: '1.3'}}>
-                            You set a minimum step threshold of 7,000 steps. Any steps up to this threshold are considered “bonus activity” that allows you to add calories to your daily intake while staying in a deficit. Steps above 7,000 are treated as extra burned calories and do not increase your intake—they just increase your total energy expenditure. The system calculates the added calories proportionally to your body weight.
                         </div>
                     </div>
                 );
@@ -526,7 +528,6 @@
                 const delta = week1Avg - week2Avg;
 
                 const avgCals = week1.reduce((a,b)=>a+(b.protein*4+b.carbs*4+b.fats*9),0) / 7;
-                const avgSteps = week1.reduce((a,b)=>a+(b.steps||0),0) / 7;
 
                 let feedback;
                 if (goal === 'cut') {
