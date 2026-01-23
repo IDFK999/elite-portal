@@ -500,7 +500,7 @@
 
                 const helms = getHelmsMacros(week1Avg, goal);
                 
-                // Added step threshold logic as requested
+                // Logic integration for step threshold
                 const helmsDisplay = (
                     <div className="mt-2 pt-2 border-top">
                         <div style={{fontSize: '11px', opacity: 0.9, marginBottom: '8px'}}>
@@ -568,10 +568,32 @@
                 const avgW = week.reduce((a,b)=>a+b.weight,0) / 7;
                 const avgK = week.reduce((a,b)=>a+(b.protein*4+b.carbs*4+b.fats*9),0) / 7;
                 const avgS = week.reduce((a,b)=>a+(b.steps||0),0) / 7;
-                const tdee = avgK + ((avgS - 8000) * 0.04);
                 
-                const calc = (c) => ({ cal: Math.round(c), p: Math.round(avgW*2), f: Math.round((c*0.29)/9), c: Math.round((c-(avgW*2*4)-((c*0.29)/9*9))/4) });
-                return { bulk: calc(tdee+150), maint: calc(tdee), cut: calc(tdee-150), tdeeVal: Math.round(tdee), currentWeight: avgW };
+                // Adjusted TDEE logic: 
+                // Any steps up to 7000 are "bonus activity" that adds up to 200 calories (proportionally)
+                // Steps above 7000 don't increase intake but increase TDEE.
+                const bonusSteps = Math.min(avgS, 7000);
+                const stepBonus = (bonusSteps / 7000) * 200;
+                
+                const baseTdee = avgK + ((avgS - 8000) * 0.04);
+                
+                const calc = (c, isAdjusted = true) => {
+                    const finalCal = isAdjusted ? c + stepBonus : c;
+                    return { 
+                        cal: Math.round(finalCal), 
+                        p: Math.round(avgW*2), 
+                        f: Math.round((finalCal*0.29)/9), 
+                        c: Math.round((finalCal-(avgW*2*4)-((finalCal*0.29)/9*9))/4) 
+                    };
+                };
+
+                return { 
+                    bulk: calc(baseTdee+150), 
+                    maint: calc(baseTdee), 
+                    cut: calc(baseTdee-150), 
+                    tdeeVal: Math.round(baseTdee + (avgS > 7000 ? (avgS - 7000) * 0.04 : 0)), 
+                    currentWeight: avgW 
+                };
             };
 
             const paths = getMacroPathways();
