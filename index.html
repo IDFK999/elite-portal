@@ -306,7 +306,7 @@
                 <div className="container py-4">
                     <div className="d-flex justify-content-between align-items-center mb-3">
                         <h5 className="fw-bold m-0" style={{letterSpacing: '-0.5px'}}>ELITE PERFORMANCE</h5>
-                        <div className="badge rounded-pill text-dark border">v10.4.1</div>
+                        <div className="badge rounded-pill text-dark border">v10.1.0</div>
                     </div>
 
                     {view === 'log' && <DailyLog user={session.user} />}
@@ -460,20 +460,24 @@
             const [metrics, setMetrics] = useState([]);
             const [dateFrom, setDateFrom] = useState(new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
             const [dateTo, setDateTo] = useState(new Date().toISOString().split('T')[0]);
-            const [historyFrom, setHistoryFrom] = useState(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
-            const [historyTo, setHistoryTo] = useState(new Date().toISOString().split('T')[0]);
+            
+            // New filters specifically for measurements
+            const [measureFrom, setMeasureFrom] = useState(new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
+            const [measureTo, setMeasureTo] = useState(new Date().toISOString().split('T')[0]);
+            const [startDate, setStartDate] = useState(localStorage.getItem('coach_start_date') || '2026-01-21');
+            
             const [goal, setGoal] = useState(() => localStorage.getItem('coach_goal') || 'cut');
             const canvasRef = useRef(null);
             const chartInstance = useRef(null);
 
             const loadData = async () => {
-                const { data: logData } = await _supabase.from('daily_logs').select('*').eq('user_id', user.id).gte('log_date', historyFrom).lte('log_date', historyTo).order('log_date', {ascending: false});
+                const { data: logData } = await _supabase.from('daily_logs').select('*').eq('user_id', user.id).gte('log_date', dateFrom).lte('log_date', dateTo).order('log_date', {ascending: false});
                 const { data: metricData } = await _supabase.from('weekly_metrics').select('*').eq('user_id', user.id).order('week_number', {ascending: false});
                 setLogs(logData || []);
                 setMetrics(metricData || []);
             };
 
-            useEffect(() => { loadData(); }, [historyFrom, historyTo]);
+            useEffect(() => { loadData(); }, [dateFrom, dateTo]);
 
             useEffect(() => {
                 localStorage.setItem('coach_goal', goal);
@@ -481,8 +485,7 @@
 
             useEffect(() => {
                 if (canvasRef.current && logs.length > 0) {
-                    const chartLogs = logs.filter(l => l.log_date >= dateFrom && l.log_date <= dateTo);
-                    const sorted = [...chartLogs].sort((a,b) => new Date(a.log_date) - new Date(b.log_date));
+                    const sorted = [...logs].sort((a,b) => new Date(a.log_date) - new Date(b.log_date));
                     if (chartInstance.current) chartInstance.current.destroy();
                     chartInstance.current = new Chart(canvasRef.current, {
                         type: 'line',
@@ -493,7 +496,7 @@
                         options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { position: 'left', grid: { color: '#F2F2F7' } } } }
                     });
                 }
-            }, [logs, dateFrom, dateTo]);
+            }, [logs]);
 
             const getCoachRecommendation = () => {
                 if (logs.length < 7) return "Log 7 days of data for high-confidence analysis.";
@@ -541,16 +544,24 @@
             };
 
             const calculateAverages = () => {
-                const rangeLogs = logs.filter(l => l.log_date >= dateFrom && l.log_date <= dateTo);
-                if (rangeLogs.length === 0) return { loss: 0, kcal: 0, steps: 0, color: '#1D1D1F', sign: '' };
-                const sorted = [...rangeLogs].sort((a,b) => new Date(a.log_date) - new Date(b.log_date));
+                if (logs.length === 0) return { loss: 0, kcal: 0, steps: 0, color: '#1D1D1F', sign: '' };
+                const sorted = [...logs].sort((a,b) => new Date(a.log_date) - new Date(b.log_date));
                 const weightDiff = (sorted[sorted.length - 1].weight - sorted[0].weight).toFixed(1);
-                const totalKcal = rangeLogs.reduce((acc, l) => acc + (l.protein*4 + l.carbs*4 + l.fats*9), 0);
-                const totalSteps = rangeLogs.reduce((acc, l) => acc + (l.steps || 0), 0);
-                return { loss: Math.abs(weightDiff), kcal: Math.round(totalKcal / rangeLogs.length), steps: Math.round(totalSteps / rangeLogs.length), color: weightDiff > 0 ? '#34C759' : weightDiff < 0 ? '#FF3B30' : '#1D1D1F', sign: weightDiff > 0 ? '+' : weightDiff < 0 ? '-' : '' };
+                const totalKcal = logs.reduce((acc, l) => acc + (l.protein*4 + l.carbs*4 + l.fats*9), 0);
+                const totalSteps = logs.reduce((acc, l) => acc + (l.steps || 0), 0);
+                return { loss: Math.abs(weightDiff), kcal: Math.round(totalKcal / logs.length), steps: Math.round(totalSteps / logs.length), color: weightDiff > 0 ? '#34C759' : weightDiff < 0 ? '#FF3B30' : '#1D1D1F', sign: weightDiff > 0 ? '+' : weightDiff < 0 ? '-' : '' };
             };
 
             const stats = calculateAverages();
+
+            // Filter metrics based on start date and specific range
+            const filteredMetrics = metrics.filter(m => {
+                const s = new Date(startDate);
+                const weekDate = new Date(s);
+                weekDate.setDate(s.getDate() + (m.week_number - 1) * 7);
+                const isoDate = weekDate.toISOString().split('T')[0];
+                return isoDate >= measureFrom && isoDate <= measureTo;
+            });
 
             return (
                 <div>
@@ -581,14 +592,18 @@
                     </div>
 
                     <div className="section-title">Measurement History</div>
-                    <div className="card mb-4">
+                    <div className="card">
+                        <div className="row g-2 mb-3">
+                            <div className="col-6"><label className="toggle-label">Measure From</label><input type="date" className="form-control" value={measureFrom} onChange={e=>setMeasureFrom(e.target.value)} /></div>
+                            <div className="col-6"><label className="toggle-label">Measure To</label><input type="date" className="form-control" value={measureTo} onChange={e=>setMeasureTo(e.target.value)} /></div>
+                        </div>
                         <div className="table-responsive">
                             <table className="table table-sm m-0" style={{fontSize: '11px'}}>
                                 <thead className="table-header-custom">
                                     <tr><th>WK</th><th>Waist</th><th>Chest</th><th>Arms</th><th>Thighs</th></tr>
                                 </thead>
                                 <tbody>
-                                    {metrics.map((m, i) => (
+                                    {filteredMetrics.map((m, i) => (
                                         <tr key={i}>
                                             <td className="fw-bold">{m.week_number}</td>
                                             <td>{m.waist}</td>
@@ -600,12 +615,6 @@
                                 </tbody>
                             </table>
                         </div>
-                    </div>
-
-                    <div className="section-title">Daily History Filters</div>
-                    <div className="row g-2 mb-3">
-                        <div className="col-6"><label className="toggle-label">History From</label><input type="date" className="form-control" value={historyFrom} onChange={e=>setHistoryFrom(e.target.value)} /></div>
-                        <div className="col-6"><label className="toggle-label">History To</label><input type="date" className="form-control" value={historyTo} onChange={e=>setHistoryTo(e.target.value)} /></div>
                     </div>
 
                     <div className="section-title">Daily History</div>
