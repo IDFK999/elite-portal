@@ -251,12 +251,11 @@
 
         const getHelmsMacros = (weightKg, goal, bonusCalories = 0) => {
             const kcalPerKg = goal === 'bulk' ? 32 : goal === 'maintain' ? 30 : 27;
-            // Updated Fat % for Cut to 27% (previously 25%)
             const fatPct = goal === 'bulk' ? 0.30 : goal === 'cut' ? 0.27 : 0.25;
             const baseCalories = weightKg * kcalPerKg;
             const totalCalories = baseCalories + bonusCalories;
-            // Updated Protein to 2.0 (previously 2.4)
-            const protein = weightKg * 2.0; 
+            // Updated Protein to 2.1
+            const protein = weightKg * 2.1; 
             const fat = (totalCalories * fatPct) / 9;
             const carbs = (totalCalories - (protein * 4) - (fat * 9)) / 4;
             return { 
@@ -308,7 +307,7 @@
                 <div className="container py-4">
                     <div className="d-flex justify-content-between align-items-center mb-3">
                         <h5 className="fw-bold m-0" style={{letterSpacing: '-0.5px'}}>ELITE PERFORMANCE</h5>
-                        <div className="badge rounded-pill text-dark border">v10.0.0</div>
+                        <div className="badge rounded-pill text-dark border">v10.0.1</div>
                     </div>
 
                     {view === 'log' && <DailyLog user={session.user} />}
@@ -578,8 +577,7 @@
                 
                 const calc = (c, mode) => {
                     const finalCal = c + stepBonus;
-                    const protein = avgW * 2.0;
-                    // Fat logic: Cut gets 27%, others remain at previous logic (approx 29%)
+                    const protein = avgW * 2.1; // Updated to 2.1
                     const fatPct = mode === 'cut' ? 0.27 : 0.29;
                     const fat = (finalCal * fatPct) / 9;
                     const carbs = (finalCal - (protein * 4) - (fat * 9)) / 4;
