@@ -318,6 +318,29 @@
                 localStorage.setItem(`workouts_${user.id}`, JSON.stringify(days));
             }, [days, user.id]);
 
+            // Helper to calculate days since the last set was performed
+            const getDaysAgo = (sets) => {
+                if (!sets || sets.length === 0) return null;
+                
+                // Find the set with the most recent timestamp
+                const latestSet = [...sets].sort((a, b) => new Date(b.fullDate) - new Date(a.fullDate))[0];
+                if (!latestSet || !latestSet.fullDate) return null;
+
+                const lastDate = new Date(latestSet.fullDate);
+                const today = new Date();
+                
+                // Compare dates by normalizing time to midnight
+                lastDate.setHours(0, 0, 0, 0);
+                today.setHours(0, 0, 0, 0);
+
+                const diffTime = today - lastDate;
+                const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+                if (diffDays === 0) return "Today";
+                if (diffDays === 1) return "Yesterday";
+                return `${diffDays} days ago`;
+            };
+
             const addDay = () => {
                 const name = prompt("Workout Day Name (e.g. Day 1: Push):");
                 if (name) setDays([...days, { id: Date.now(), name, exercises: [] }]);
@@ -360,7 +383,8 @@
                             id: Date.now(), 
                             reps: prev.reps, 
                             weight: prev.weight,
-                            loggedAt: `${dateStr} ${timeStr}`
+                            loggedAt: `${dateStr} ${timeStr}`,
+                            fullDate: now.toISOString() // Added to track exact date for calculation
                         }]};
                     }
                     return ex;
@@ -397,6 +421,7 @@
                                 const volume = ex.sets.reduce((acc, s) => acc + (s.reps * s.weight), 0);
                                 const bestSet = [...ex.sets].sort((a,b) => calc1RM(b.weight, b.reps) - calc1RM(a.weight, a.reps))[0];
                                 const isExpanded = expandedEx[ex.id];
+                                const daysAgo = getDaysAgo(ex.sets); // Logic to determine last training day
                                 
                                 return (
                                     <div key={ex.id} className="mb-3 ps-2 border-start">
@@ -405,7 +430,10 @@
                                                 <div className="fw-800 text-uppercase" style={{letterSpacing: '0.5px', fontWeight:800, fontSize:'11px'}}>
                                                     {isExpanded ? '▼ ' : '▶ '} {ex.name}
                                                 </div>
-                                                {bestSet && <div style={{fontSize: '9px', color: 'var(--bulk-green)', fontWeight:700}}>EST. 1RM: {calc1RM(bestSet.weight, bestSet.reps)}kg</div>}
+                                                <div className="d-flex gap-2 align-items-center">
+                                                    {bestSet && <div style={{fontSize: '9px', color: 'var(--bulk-green)', fontWeight:700}}>EST. 1RM: {calc1RM(bestSet.weight, bestSet.reps)}kg</div>}
+                                                    {daysAgo && <div style={{fontSize: '9px', color: '#86868B', fontWeight:600}}>• {daysAgo}</div>}
+                                                </div>
                                             </div>
                                             <div className="text-end">
                                                 <span className="badge bg-light text-dark me-2" style={{fontSize: '9px'}}>VOL: {volume}kg</span>
