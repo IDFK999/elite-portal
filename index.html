@@ -328,9 +328,17 @@
 
             const calc1RM = (w, r) => r === 1 ? w : Math.round(w / (1.0278 - (0.0278 * r)));
 
+            // Helper for "Days Ago" logic
+            const getDaysAgo = (dateStr) => {
+                if (!dateStr) return "";
+                const diffTime = Math.abs(new Date() - new Date(dateStr));
+                const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                return diffDays === 0 ? "Today" : `${diffDays}d ago`;
+            };
+
             const addDay = () => {
                 const name = prompt("Day Name (e.g. Upper Body):");
-                if (name) saveAndSync([...days, { id: Date.now(), name, exercises: [] }]);
+                if (name) saveAndSync([...days, { id: Date.now(), name, lastPerformed: new Date().toISOString().split('T')[0], exercises: [] }]);
             };
 
             const addExercise = (dayId) => {
@@ -344,16 +352,21 @@
 
             const addSet = (dayId, exId) => {
                 const now = new Date();
-                saveAndSync(days.map(d => d.id === dayId ? {...d, exercises: d.exercises.map(ex => {
-                    if (ex.id === exId) {
-                        const prev = ex.sets[ex.sets.length - 1] || { reps: 10, weight: 50 };
-                        return {...ex, sets: [...ex.sets, { 
-                            id: Date.now(), reps: prev.reps, weight: prev.weight,
-                            loggedAt: now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})
-                        }]};
-                    }
-                    return ex;
-                })} : d));
+                const today = now.toISOString().split('T')[0];
+                saveAndSync(days.map(d => d.id === dayId ? {
+                    ...d, 
+                    lastPerformed: today, // Update last performed when a set is added
+                    exercises: d.exercises.map(ex => {
+                        if (ex.id === exId) {
+                            const prev = ex.sets[ex.sets.length - 1] || { reps: 10, weight: 50 };
+                            return {...ex, sets: [...ex.sets, { 
+                                id: Date.now(), reps: prev.reps, weight: prev.weight,
+                                loggedAt: now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})
+                            }]};
+                        }
+                        return ex;
+                    })
+                } : d));
             };
 
             const updateSet = (dayId, exId, setId, field, val) => {
@@ -370,16 +383,18 @@
                     <button className="btn btn-dark w-100 mb-3 fw-bold py-3 shadow-sm" onClick={addDay}>+ NEW WORKOUT DAY</button>
                     {days.map(day => (
                         <div key={day.id} className="card border-0 mb-4 shadow-sm" style={{borderLeft: '4px solid var(--accent-blue)'}}>
-                            <div className="d-flex justify-content-between align-items-center mb-3">
+                            <div className="d-flex justify-content-between align-items-center mb-1">
                                 <h6 className="fw-800 m-0" onClick={() => {
                                     const n = prompt("Rename Day:", day.name);
                                     if(n) saveAndSync(days.map(d => d.id === day.id ? {...d, name:n} : d));
                                 }}>{day.name} ✎</h6>
-                                <div className="d-flex gap-2">
+                                <div className="d-flex gap-2 align-items-center">
+                                    <span className="badge bg-light text-dark fw-bold" style={{fontSize: '9px'}}>{getDaysAgo(day.lastPerformed)}</span>
                                     <button className="btn btn-sm btn-outline-primary fw-bold" style={{fontSize: '9px'}} onClick={() => addExercise(day.id)}>+ EXERCISE</button>
                                     <button className="btn btn-sm text-danger" onClick={() => confirm("Delete Day?") && saveAndSync(days.filter(d => d.id !== day.id))}>✕</button>
                                 </div>
                             </div>
+                            <div className="text-muted mb-3" style={{fontSize: '10px', fontWeight: '600'}}>LAST: {day.lastPerformed || 'Never'}</div>
 
                             {day.exercises.map(ex => {
                                 const isExp = expandedEx[ex.id];
