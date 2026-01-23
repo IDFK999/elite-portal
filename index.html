@@ -336,6 +336,14 @@
                 return diffDays === 0 ? "Today" : diffDays === 1 ? "Yesterday" : `${diffDays}d ago`;
             };
 
+            // ADDED: Delete Day Function
+            const deleteDay = (dayId) => {
+                if (confirm("Delete this workout day and all its exercises?")) {
+                    const updatedDays = days.filter(d => d.id !== dayId);
+                    saveAndSync(updatedDays);
+                }
+            };
+
             const addSet = (dayId, exId) => {
                 const now = new Date();
                 const todayStr = now.toISOString().split('T')[0];
@@ -371,84 +379,56 @@
                         <div key={day.id} className="card border-0 mb-4 shadow-sm" style={{borderLeft: '4px solid var(--accent-blue)', borderRadius: '12px'}}>
                             <div className="d-flex justify-content-between align-items-center mb-1">
                                 <h6 className="fw-800 m-0" style={{fontSize:'16px'}}>{day.name}</h6>
-                                <span className="badge rounded-pill bg-light text-primary border fw-bold" style={{fontSize: '10px'}}>{getDaysAgo(day.lastPerformed)}</span>
+                                <div className="d-flex align-items-center gap-2">
+                                    <span className="badge rounded-pill bg-light text-primary border fw-bold" style={{fontSize: '10px'}}>{getDaysAgo(day.lastPerformed)}</span>
+                                    {/* ADDED: Delete Button */}
+                                    <button className="btn btn-sm text-danger p-0 border-0 bg-transparent" onClick={() => deleteDay(day.id)} style={{fontSize: '14px', lineHeight: '1'}}>✕</button>
+                                </div>
                             </div>
                             <div className="text-muted mb-3" style={{fontSize: '10px', fontWeight: '700'}}>LAST: {day.lastPerformed || 'NONE'}</div>
 
                             <div className="d-grid gap-2">
-                                {day.exercises.map(ex => {
-                                    // Current Session Stats
-                                    const currSetsCount = ex.sets.length;
-                                    const currRepsCount = ex.sets.reduce((a, s) => a + (parseInt(s.reps) || 0), 0);
-                                    const currVol = ex.sets.reduce((a, s) => a + ((parseInt(s.reps) || 0) * (parseFloat(s.weight) || 0)), 0);
-                                    
-                                    // Previous Session Stats
-                                    const prevSetsCount = (ex.history || []).length;
-                                    const prevRepsCount = (ex.history || []).reduce((a, s) => a + (parseInt(s.reps) || 0), 0);
-                                    const prevVol = (ex.history || []).reduce((a, s) => a + ((parseInt(s.reps) || 0) * (parseFloat(s.weight) || 0)), 0);
-
-                                    // Deltas
-                                    const volDelta = currVol - prevVol;
-                                    const repsDelta = currRepsCount - prevRepsCount;
-                                    const setsDelta = currSetsCount - prevSetsCount;
-
-                                    return (
-                                        <div key={ex.id} className="bg-light rounded-3 p-2 border-start border-3">
-                                            <div className="d-flex justify-content-between align-items-start px-1" onClick={() => setExpandedEx({...expandedEx, [ex.id]: !expandedEx[ex.id]})}>
-                                                <div style={{flex: 1}}>
-                                                    <div className="fw-800 text-uppercase mb-1" style={{fontSize: '12px'}}>{expandedEx[ex.id] ? '▼' : '▶'} {ex.name}</div>
-                                                    
-                                                    {/* TOP SUMMARY LIST */}
-                                                    <div className="d-flex flex-wrap gap-2 mb-1">
-                                                        <div className="badge bg-white text-dark border py-1 px-2" style={{fontSize: '9px'}}>
-                                                            SETS: {currSetsCount} <span style={{color: setsDelta >= 0 ? 'var(--bulk-green)' : 'var(--cut-red)'}}>{setsDelta !== 0 && (setsDelta > 0 ? `+${setsDelta}` : setsDelta)}</span>
-                                                        </div>
-                                                        <div className="badge bg-white text-dark border py-1 px-2" style={{fontSize: '9px'}}>
-                                                            REPS: {currRepsCount} <span style={{color: repsDelta >= 0 ? 'var(--bulk-green)' : 'var(--cut-red)'}}>{repsDelta !== 0 && (repsDelta > 0 ? `+${repsDelta}` : repsDelta)}</span>
-                                                        </div>
-                                                        <div className="badge bg-white text-dark border py-1 px-2" style={{fontSize: '9px'}}>
-                                                            VOL: {currVol}kg <span style={{color: volDelta >= 0 ? 'var(--bulk-green)' : 'var(--cut-red)'}}>{volDelta !== 0 && (volDelta > 0 ? `+${volDelta}` : volDelta)}</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <button className="btn btn-sm text-danger p-0" onClick={(e) => { e.stopPropagation(); if(confirm("Delete?")) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.filter(e => e.id !== ex.id)} : d)); }}>✕</button>
-                                            </div>
-
-                                            {expandedEx[ex.id] && (
-                                                <div className="mt-2 pt-2 border-top">
-                                                    {ex.sets.map((s, i) => {
-                                                        const prevSet = ex.history?.[i];
-                                                        return (
-                                                            <div key={s.id} className="mb-2">
-                                                                <div className="d-flex align-items-center gap-2 bg-white p-2 rounded shadow-sm">
-                                                                    <div className="fw-800 text-muted" style={{fontSize: '9px', minWidth: '20px'}}>S{i+1}</div>
-                                                                    <div className="d-flex align-items-center flex-grow-1 gap-1">
-                                                                        <input type="number" inputMode="numeric" className="form-control form-control-sm text-center fw-bold border-0 bg-light" style={{color: 'var(--bulk-green)'}} value={s.reps} onChange={e => {
-                                                                            const val = e.target.value === '' ? '' : parseInt(e.target.value);
-                                                                            saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(exItem => exItem.id === ex.id ? {...exItem, sets: exItem.sets.map(setItem => setItem.id === s.id ? {...setItem, reps: val} : setItem)} : exItem)} : d));
-                                                                        }} />
-                                                                        <span className="text-muted small">×</span>
-                                                                        <input type="number" inputMode="decimal" className="form-control form-control-sm text-center fw-bold border-0 bg-light" style={{color: '#E67E22'}} value={s.weight} onChange={e => {
-                                                                            const val = e.target.value === '' ? '' : parseFloat(e.target.value);
-                                                                            saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(exItem => exItem.id === ex.id ? {...exItem, sets: exItem.sets.map(setItem => setItem.id === s.id ? {...setItem, weight: val} : setItem)} : exItem)} : d));
-                                                                        }} />
-                                                                    </div>
-                                                                    <button className="btn btn-sm p-0 text-danger" onClick={() => saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(e => e.id === ex.id ? {...e, sets: e.sets.filter(st => st.id !== s.id)} : e)} : d))}>✕</button>
-                                                                </div>
-                                                                {prevSet && (
-                                                                    <div className="px-4 mt-1 d-flex gap-3 text-muted fw-bold" style={{fontSize: '8px'}}>
-                                                                        PREV: {prevSet.reps} × {prevSet.weight}kg
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        );
-                                                    })}
-                                                    <button className="btn btn-outline-primary btn-sm w-100 fw-bold mt-1" style={{fontSize: '10px', borderStyle: 'dashed'}} onClick={() => addSet(day.id, ex.id)}>+ ADD SET</button>
-                                                </div>
-                                            )}
+                                {day.exercises.map(ex => (
+                                    <div key={ex.id} className="bg-light rounded-3 p-2 border-start border-3">
+                                        <div className="d-flex justify-content-between align-items-center" onClick={() => setExpandedEx({...expandedEx, [ex.id]: !expandedEx[ex.id]})}>
+                                            <div className="fw-800 text-uppercase" style={{fontSize: '11px'}}>{expandedEx[ex.id] ? '▼' : '▶'} {ex.name}</div>
+                                            <button className="btn btn-sm text-danger p-0" onClick={(e) => { e.stopPropagation(); if(confirm("Delete?")) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.filter(e => e.id !== ex.id)} : d)); }}>✕</button>
                                         </div>
-                                    );
-                                })}
+
+                                        {expandedEx[ex.id] && (
+                                            <div className="mt-2 pt-2 border-top">
+                                                {ex.sets.map((s, i) => {
+                                                    const prevSet = ex.history?.[i];
+                                                    return (
+                                                        <div key={s.id} className="mb-2">
+                                                            <div className="d-flex align-items-center gap-2 bg-white p-2 rounded shadow-sm">
+                                                                <div className="fw-800 text-muted" style={{fontSize: '9px', minWidth: '20px'}}>S{i+1}</div>
+                                                                <div className="d-flex align-items-center flex-grow-1 gap-1">
+                                                                    <input type="number" inputMode="numeric" className="form-control form-control-sm text-center fw-bold border-0 bg-light" style={{color: 'var(--bulk-green)'}} value={s.reps} onChange={e => {
+                                                                        const val = e.target.value === '' ? '' : parseInt(e.target.value);
+                                                                        saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(exItem => exItem.id === ex.id ? {...exItem, sets: exItem.sets.map(setItem => setItem.id === s.id ? {...setItem, reps: val} : setItem)} : exItem)} : d));
+                                                                    }} />
+                                                                    <span className="text-muted small">×</span>
+                                                                    <input type="number" inputMode="decimal" className="form-control form-control-sm text-center fw-bold border-0 bg-light" style={{color: '#E67E22'}} value={s.weight} onChange={e => {
+                                                                        const val = e.target.value === '' ? '' : parseFloat(e.target.value);
+                                                                        saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(exItem => exItem.id === ex.id ? {...exItem, sets: exItem.sets.map(setItem => setItem.id === s.id ? {...setItem, weight: val} : setItem)} : exItem)} : d));
+                                                                    }} />
+                                                                </div>
+                                                                <button className="btn btn-sm p-0 text-danger" onClick={() => saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(e => e.id === ex.id ? {...e, sets: e.sets.filter(st => st.id !== s.id)} : e)} : d))}>✕</button>
+                                                            </div>
+                                                            {prevSet && (
+                                                                <div className="px-4 mt-1 d-flex gap-3 text-muted fw-bold" style={{fontSize: '8px'}}>
+                                                                    PREV: {prevSet.reps} × {prevSet.weight}kg
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })}
+                                                <button className="btn btn-outline-primary btn-sm w-100 fw-bold mt-1" style={{fontSize: '10px', borderStyle: 'dashed'}} onClick={() => addSet(day.id, ex.id)}>+ ADD SET</button>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
                             </div>
                             <button className="btn btn-primary btn-sm w-100 mt-3 fw-bold py-2" onClick={() => {
                                 const name = prompt("Exercise Name:");
