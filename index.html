@@ -426,11 +426,22 @@
                                                 </div>
                                                 
                                                 {/* NEW: EDITABLE TARGET BADGE */}
-                                                <div className="fw-800 text-dark" style={{fontSize: '12px', cursor: 'pointer'}} onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    const target = prompt("Enter Notes (e.g. 3x12, slow tempo):", ex.target || "");
-                                                    saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(eItem => eItem.id === ex.id ? {...eItem, target} : eItem)} : d));
-                                                }}>
+                                                <div 
+                                                    className="fw-800 text-dark"tyle={{fontSize: '12px', cursor: 'pointer'}} 
+                                                    onClick={(e) => { e.stopPropagation();
+                                                        const input = prompt("Enter Notes (e.g. 3x12, slow tempo):", ex.target || "");
+                                                        
+                                                        // This check prevents the text from being deleted if you press Cancel
+                                                        if (input !== null) {
+                                                            saveAndSync(days.map(d => d.id === day.id ? {
+                                                                ...d, 
+                                                                exercises: d.exercises.map(eItem => 
+                                                                    eItem.id === ex.id ? {...eItem, target: input} : eItem
+                                                                )
+                                                            } : d));
+                                                        }
+                                                    }}
+                                                >
                                                     {ex.target || 'ADD'}
                                                 </div>
                                             </div>
