@@ -166,18 +166,6 @@
         .avg-value { font-size: 17px; font-weight: 700; color: var(--text-main); }
         .avg-label { font-size: 9px; color: #86868B; text-transform: uppercase; }
 
-        .strategy-row {
-            padding: 12px 8px;
-            border-bottom: 1px solid var(--border-grey);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            cursor: pointer;
-        }
-        .strategy-name { font-weight: 800; font-size: 12px; width: 80px; }
-        .strategy-cal { font-weight: 700; color: var(--accent-blue); }
-        .strategy-macros { font-size: 11px; color: #86868B; }
-
         .date-range-badge { 
             background: var(--soft-grey); 
             color: var(--text-main); 
@@ -300,7 +288,7 @@
                 <div className="container py-4">
                     <div className="d-flex justify-content-between align-items-center mb-3">
                         <h5 className="fw-bold m-0" style={{letterSpacing: '-0.5px'}}>ELITE PERFORMANCE</h5>
-                        <div className="badge rounded-pill text-dark border">v11.5.0</div>
+                        <div className="badge rounded-pill text-dark border">v11.5.1</div>
                     </div>
 
                     {view === 'workout' && <WorkoutManager user={session.user} />}
@@ -622,6 +610,15 @@
                 }
             }, [logs]);
 
+            const calculateAverages = () => {
+                if (logs.length === 0) return { loss: 0, kcal: 0, steps: 0, color: '#1D1D1F', sign: '' };
+                const sorted = [...logs].sort((a,b) => new Date(a.log_date) - new Date(b.log_date));
+                const weightDiff = (sorted[sorted.length - 1].weight - sorted[0].weight).toFixed(1);
+                const totalKcal = logs.reduce((acc, l) => acc + (l.protein*4 + l.carbs*4 + l.fats*9), 0);
+                const totalSteps = logs.reduce((acc, l) => acc + (l.steps || 0), 0);
+                return { loss: Math.abs(weightDiff), kcal: Math.round(totalKcal / logs.length), steps: Math.round(totalSteps / logs.length), color: weightDiff > 0 ? '#34C759' : weightDiff < 0 ? '#FF3B30' : '#1D1D1F', sign: weightDiff > 0 ? '+' : weightDiff < 0 ? '-' : '' };
+            };
+
             const getCoachRecommendation = () => {
                 if (logs.length < 7) return "Log 7 days of data for high-confidence analysis.";
                 
@@ -629,10 +626,8 @@
                 const week1 = sorted.slice(0, 7);
                 const week1Avg = week1.reduce((a,b)=>a+b.weight, 0) / 7;
                 const avgSteps = week1.reduce((a,b)=>a+(b.steps||0),0) / 7;
-
                 const bonusSteps = Math.min(avgSteps, 7000);
                 const bonusCals = (bonusSteps / 7000) * 200;
-                
                 const helms = getHelmsMacros(week1Avg, goal, bonusCals);
                 
                 const helmsDisplay = (
@@ -646,7 +641,7 @@
                 if (logs.length < 14) {
                     return (
                         <div>
-                            Baseline Set: 7-day average is {week1Avg.toFixed(2)}kg. Continue logging for 7 more days to confirm your 14-day trend.
+                            Baseline Set: 7-day average is {week1Avg.toFixed(2)}kg. Continue logging.
                             {helmsDisplay}
                         </div>
                     );
@@ -655,52 +650,35 @@
                 const week2 = sorted.slice(7, 14);
                 const week2Avg = week2.reduce((a,b)=>a+b.weight, 0) / 7;
                 const delta = week1Avg - week2Avg;
-
                 const avgCals = week1.reduce((a,b)=>a+(b.protein*4+b.carbs*4+b.fats*9),0) / 7;
 
                 let feedback;
                 if (goal === 'cut') {
                     if (avgCals < 2100 && avgSteps > 9500 && delta >= 0) {
-                        feedback = <span><b className="decision-highlight">HOLD POSITION</b> Potential "Whoosh" detected. Activity is high and calories are controlled, but water is masking fat loss. Do not adjust yet.</span>;
+                        feedback = <span><b className="decision-highlight">HOLD POSITION</b> "Whoosh" likely.</span>;
                     } else if (Math.abs(delta) < 0.1) {
-                        feedback = <span><b className="decision-highlight">ACTION: PLATEAU CONFIRMED</b> Weight is flat. Apply a 150kcal shift below to resume progress.</span>;
+                        feedback = <span><b className="decision-highlight">ACTION: PLATEAU</b> Adjust -150kcal.</span>;
                     } else if (delta <= -0.4) {
-                        feedback = <span><b className="decision-highlight">SUSTAIN: ON TRACK</b> You are losing ~{Math.abs(delta).toFixed(2)}kg per week. This is optimal for muscle retention. Stay the course.</span>;
+                        feedback = <span><b className="decision-highlight">SUSTAIN</b> Good progress (~{Math.abs(delta).toFixed(2)}kg).</span>;
                     }
                 } else if (goal === 'bulk') {
                     if (delta >= 0.1 && delta <= 0.3) {
-                        feedback = <span><b className="decision-highlight">PERFECT GAIN RATE</b> You are gaining ~{delta.toFixed(2)}kg per week. Muscle growth is prioritized with minimal fat.</span>;
+                        feedback = <span><b className="decision-highlight">PERFECT GAIN</b> Growing well.</span>;
                     } else if (delta < 0.1) {
-                        feedback = <span><b className="decision-highlight">ACTION: INCREASE CALORIES</b> Growth is stalled. Shift +150kcal to enter a surplus.</span>;
-                    } else if (delta > 0.4) {
-                        feedback = <span><b className="decision-highlight">ACTION: SCALE BACK</b> Gaining too fast. Reduce surplus to avoid unnecessary fat accumulation.</span>;
-                    }
-                } else if (goal === 'maintain') {
-                    if (Math.abs(delta) <= 0.2) {
-                        feedback = <span><b className="decision-highlight">STABLE</b> Maintenance successful. Metabolic rate is balanced with intake.</span>;
-                    } else {
-                        feedback = <span><b className="decision-highlight">ADJUSTMENT NEEDED</b> Weight is drifting. Re-sync to maintenance pathway.</span>;
+                        feedback = <span><b className="decision-highlight">ACTION: INCREASE</b> Growth stalled. Adjust +150kcal.</span>;
                     }
                 }
 
                 return (
                     <div>
-                        {feedback || `14-Day Trend: ${delta > 0 ? '+' : ''}${delta.toFixed(2)}kg. Metabolic rate is adapting. Precision phase active.`}
+                        {feedback || `14-Day Trend: ${delta > 0 ? '+' : ''}${delta.toFixed(2)}kg. Phase Active.`}
                         {helmsDisplay}
                     </div>
                 );
             };
 
-            const calculateAverages = () => {
-                if (logs.length === 0) return { loss: 0, kcal: 0, steps: 0, color: '#1D1D1F', sign: '' };
-                const sorted = [...logs].sort((a,b) => new Date(a.log_date) - new Date(b.log_date));
-                const weightDiff = (sorted[sorted.length - 1].weight - sorted[0].weight).toFixed(1);
-                const totalKcal = logs.reduce((acc, l) => acc + (l.protein*4 + l.carbs*4 + l.fats*9), 0);
-                const totalSteps = logs.reduce((acc, l) => acc + (l.steps || 0), 0);
-                return { loss: Math.abs(weightDiff), kcal: Math.round(totalKcal / logs.length), steps: Math.round(totalSteps / logs.length), color: weightDiff > 0 ? '#34C759' : weightDiff < 0 ? '#FF3B30' : '#1D1D1F', sign: weightDiff > 0 ? '+' : weightDiff < 0 ? '-' : '' };
-            };
-
             const stats = calculateAverages();
+            const recommendation = getCoachRecommendation();
             const filteredMetrics = metrics.filter(m => m.week_number >= weekFrom && m.week_number <= weekTo);
 
             return (
