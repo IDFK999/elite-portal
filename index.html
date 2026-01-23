@@ -254,6 +254,7 @@
             const fatPct = goal === 'bulk' ? 0.30 : goal === 'cut' ? 0.27 : 0.25;
             const baseCalories = weightKg * kcalPerKg;
             const totalCalories = baseCalories + bonusCalories;
+            // Updated Protein to 2.1
             const protein = weightKg * 2.1; 
             const fat = (totalCalories * fatPct) / 9;
             const carbs = (totalCalories - (protein * 4) - (fat * 9)) / 4;
@@ -306,7 +307,7 @@
                 <div className="container py-4">
                     <div className="d-flex justify-content-between align-items-center mb-3">
                         <h5 className="fw-bold m-0" style={{letterSpacing: '-0.5px'}}>ELITE PERFORMANCE</h5>
-                        <div className="badge rounded-pill text-dark border">v10.1.0</div>
+                        <div className="badge rounded-pill text-dark border">v10.0.0</div>
                     </div>
 
                     {view === 'log' && <DailyLog user={session.user} />}
@@ -460,12 +461,6 @@
             const [metrics, setMetrics] = useState([]);
             const [dateFrom, setDateFrom] = useState(new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
             const [dateTo, setDateTo] = useState(new Date().toISOString().split('T')[0]);
-            
-            // New filters specifically for measurements
-            const [measureFrom, setMeasureFrom] = useState(new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
-            const [measureTo, setMeasureTo] = useState(new Date().toISOString().split('T')[0]);
-            const [startDate, setStartDate] = useState(localStorage.getItem('coach_start_date') || '2026-01-21');
-            
             const [goal, setGoal] = useState(() => localStorage.getItem('coach_goal') || 'cut');
             const canvasRef = useRef(null);
             const chartInstance = useRef(null);
@@ -500,13 +495,17 @@
 
             const getCoachRecommendation = () => {
                 if (logs.length < 7) return "Log 7 days of data for high-confidence analysis.";
+                
                 const sorted = [...logs].sort((a,b) => new Date(b.log_date) - new Date(a.log_date));
                 const week1 = sorted.slice(0, 7);
                 const week1Avg = week1.reduce((a,b)=>a+b.weight, 0) / 7;
                 const avgSteps = week1.reduce((a,b)=>a+(b.steps||0),0) / 7;
+
                 const bonusSteps = Math.min(avgSteps, 7000);
                 const bonusCals = (bonusSteps / 7000) * 200;
+                
                 const helms = getHelmsMacros(week1Avg, goal, bonusCals);
+                
                 const helmsDisplay = (
                     <div className="mt-2 pt-2 border-top">
                         <div style={{fontSize: '11px', opacity: 0.9, marginBottom: '8px'}}>
@@ -514,34 +513,93 @@
                         </div>
                     </div>
                 );
+                
                 if (logs.length < 14) {
                     return (
                         <div>
-                            Baseline Set: 7-day average is {week1Avg.toFixed(2)}kg. Continue logging for 7 more days.
+                            Baseline Set: 7-day average is {week1Avg.toFixed(2)}kg. Continue logging for 7 more days to confirm your 14-day trend.
                             {helmsDisplay}
                         </div>
                     );
                 }
+
                 const week2 = sorted.slice(7, 14);
                 const week2Avg = week2.reduce((a,b)=>a+b.weight, 0) / 7;
                 const delta = week1Avg - week2Avg;
+
                 const avgCals = week1.reduce((a,b)=>a+(b.protein*4+b.carbs*4+b.fats*9),0) / 7;
+
                 let feedback;
                 if (goal === 'cut') {
-                    if (avgCals < 2100 && avgSteps > 9500 && delta >= 0) feedback = <span><b className="decision-highlight">HOLD POSITION</b> Whoosh detected. Activity high, do not adjust.</span>;
-                    else if (Math.abs(delta) < 0.1) feedback = <span><b className="decision-highlight">ACTION: PLATEAU</b> Weight flat. Shift -150kcal.</span>;
-                    else if (delta <= -0.4) feedback = <span><b className="decision-highlight">SUSTAIN</b> Losing ~{Math.abs(delta).toFixed(2)}kg/week. Optimal.</span>;
+                    if (avgCals < 2100 && avgSteps > 9500 && delta >= 0) {
+                        feedback = <span><b className="decision-highlight">HOLD POSITION</b> Potential "Whoosh" detected. Activity is high and calories are controlled, but water is masking fat loss. Do not adjust yet.</span>;
+                    } else if (Math.abs(delta) < 0.1) {
+                        feedback = <span><b className="decision-highlight">ACTION: PLATEAU CONFIRMED</b> Weight is flat. Apply a 150kcal shift below to resume progress.</span>;
+                    } else if (delta <= -0.4) {
+                        feedback = <span><b className="decision-highlight">SUSTAIN: ON TRACK</b> You are losing ~{Math.abs(delta).toFixed(2)}kg per week. This is optimal for muscle retention. Stay the course.</span>;
+                    }
                 } else if (goal === 'bulk') {
-                    if (delta >= 0.1 && delta <= 0.3) feedback = <span><b className="decision-highlight">PERFECT GAIN</b> Gaining ~{delta.toFixed(2)}kg/week.</span>;
-                    else if (delta < 0.1) feedback = <span><b className="decision-highlight">ACTION: INCREASE</b> Stall detected. Shift +150kcal.</span>;
+                    if (delta >= 0.1 && delta <= 0.3) {
+                        feedback = <span><b className="decision-highlight">PERFECT GAIN RATE</b> You are gaining ~{delta.toFixed(2)}kg per week. Muscle growth is prioritized with minimal fat.</span>;
+                    } else if (delta < 0.1) {
+                        feedback = <span><b className="decision-highlight">ACTION: INCREASE CALORIES</b> Growth is stalled. Shift +150kcal to enter a surplus.</span>;
+                    } else if (delta > 0.4) {
+                        feedback = <span><b className="decision-highlight">ACTION: SCALE BACK</b> Gaining too fast. Reduce surplus to avoid unnecessary fat accumulation.</span>;
+                    }
+                } else if (goal === 'maintain') {
+                    if (Math.abs(delta) <= 0.2) {
+                        feedback = <span><b className="decision-highlight">STABLE</b> Maintenance successful. Metabolic rate is balanced with intake.</span>;
+                    } else {
+                        feedback = <span><b className="decision-highlight">ADJUSTMENT NEEDED</b> Weight is drifting. Re-sync to maintenance pathway.</span>;
+                    }
                 }
+
                 return (
                     <div>
-                        {feedback || `14-Day Trend: ${delta > 0 ? '+' : ''}${delta.toFixed(2)}kg. Precision phase active.`}
+                        {feedback || `14-Day Trend: ${delta > 0 ? '+' : ''}${delta.toFixed(2)}kg. Metabolic rate is adapting. Precision phase active.`}
                         {helmsDisplay}
                     </div>
                 );
             };
+
+            const getMacroPathways = () => {
+                if (logs.length < 7) return null;
+                const sorted = [...logs].sort((a,b) => new Date(a.log_date) - new Date(a.log_date));
+                const week = sorted.slice(0, 7);
+                const avgW = week.reduce((a,b)=>a+b.weight,0) / 7;
+                const avgK = week.reduce((a,b)=>a+(b.protein*4+b.carbs*4+b.fats*9),0) / 7;
+                const avgS = week.reduce((a,b)=>a+(b.steps||0),0) / 7;
+                
+                const bonusSteps = Math.min(avgS, 7000);
+                const stepBonus = (bonusSteps / 7000) * 200;
+                
+                const baseTdee = avgK + ((avgS - 8000) * 0.04);
+                
+                const calc = (c, mode) => {
+                    const finalCal = c + stepBonus;
+                    const protein = avgW * 2.1; // Updated to 2.1
+                    const fatPct = mode === 'cut' ? 0.27 : 0.29;
+                    const fat = (finalCal * fatPct) / 9;
+                    const carbs = (finalCal - (protein * 4) - (fat * 9)) / 4;
+                    return { 
+                        cal: Math.round(finalCal), 
+                        p: Math.round(protein), 
+                        f: Math.round(fat), 
+                        c: Math.round(carbs) 
+                    };
+                };
+
+                return { 
+                    bulk: calc(baseTdee+150, 'bulk'), 
+                    maint: calc(baseTdee, 'maint'), 
+                    cut: calc(baseTdee-150, 'cut'), 
+                    tdeeVal: Math.round(baseTdee + (avgS > 7000 ? (avgS - 7000) * 0.04 : 0)), 
+                    currentWeight: avgW 
+                };
+            };
+
+            const paths = getMacroPathways();
+            const recommendation = getCoachRecommendation();
 
             const calculateAverages = () => {
                 if (logs.length === 0) return { loss: 0, kcal: 0, steps: 0, color: '#1D1D1F', sign: '' };
@@ -552,16 +610,18 @@
                 return { loss: Math.abs(weightDiff), kcal: Math.round(totalKcal / logs.length), steps: Math.round(totalSteps / logs.length), color: weightDiff > 0 ? '#34C759' : weightDiff < 0 ? '#FF3B30' : '#1D1D1F', sign: weightDiff > 0 ? '+' : weightDiff < 0 ? '-' : '' };
             };
 
-            const stats = calculateAverages();
+            const getProjections = () => {
+                if (logs.length < 14 || !paths) return { goal: 'Calculating...', tdee: paths ? paths.tdeeVal : '...' };
+                const sorted = [...logs].sort((a,b) => new Date(b.log_date) - new Date(a.log_date));
+                const week1Avg = sorted.slice(0, 7).reduce((a,b)=>a+b.weight, 0) / 7;
+                const week2Avg = sorted.slice(7, 14).reduce((a,b)=>a+b.weight, 0) / 7;
+                const delta = week1Avg - week2Avg;
+                const projection = week1Avg + (delta * 4);
+                return { goal: `${projection.toFixed(1)}kg`, tdee: paths.tdeeVal };
+            };
 
-            // Filter metrics based on start date and specific range
-            const filteredMetrics = metrics.filter(m => {
-                const s = new Date(startDate);
-                const weekDate = new Date(s);
-                weekDate.setDate(s.getDate() + (m.week_number - 1) * 7);
-                const isoDate = weekDate.toISOString().split('T')[0];
-                return isoDate >= measureFrom && isoDate <= measureTo;
-            });
+            const stats = calculateAverages();
+            const projections = getProjections();
 
             return (
                 <div>
@@ -573,7 +633,7 @@
                     </div>
 
                     <div className="section-title">Coach Recommendation</div>
-                    <div className="coach-box">{getCoachRecommendation()}</div>
+                    <div className="coach-box">{recommendation}</div>
 
                     <div className="card">
                         <div className="section-title">Weight Trend</div>
@@ -592,18 +652,14 @@
                     </div>
 
                     <div className="section-title">Measurement History</div>
-                    <div className="card">
-                        <div className="row g-2 mb-3">
-                            <div className="col-6"><label className="toggle-label">Measure From</label><input type="date" className="form-control" value={measureFrom} onChange={e=>setMeasureFrom(e.target.value)} /></div>
-                            <div className="col-6"><label className="toggle-label">Measure To</label><input type="date" className="form-control" value={measureTo} onChange={e=>setMeasureTo(e.target.value)} /></div>
-                        </div>
+                    <div className="card mb-4">
                         <div className="table-responsive">
                             <table className="table table-sm m-0" style={{fontSize: '11px'}}>
                                 <thead className="table-header-custom">
                                     <tr><th>WK</th><th>Waist</th><th>Chest</th><th>Arms</th><th>Thighs</th></tr>
                                 </thead>
                                 <tbody>
-                                    {filteredMetrics.map((m, i) => (
+                                    {metrics.map((m, i) => (
                                         <tr key={i}>
                                             <td className="fw-bold">{m.week_number}</td>
                                             <td>{m.waist}</td>
@@ -620,19 +676,18 @@
                     <div className="section-title">Daily History</div>
                     <div className="card p-0 overflow-hidden mb-5">
                         <div className="table-responsive">
-                            <table className="table table-sm m-0" style={{fontSize: '10px'}}>
+                            <table className="table table-sm m-0" style={{fontSize: '11px'}}>
                                 <thead className="table-header-custom">
-                                    <tr><th>Date</th><th>KG</th><th>P/C/F</th><th>Steps</th><th>H2O</th><th>Slp</th></tr>
+                                    <tr><th>Date</th><th>KG</th><th>Cal</th><th>P/C/F</th><th>Steps</th></tr>
                                 </thead>
                                 <tbody>
                                     {logs.map((l, i) => (
                                         <tr key={i}>
                                             <td className="fw-bold">{l.log_date.split('-').slice(1).join('/')}</td>
                                             <td>{l.weight}</td>
+                                            <td className="text-primary fw-bold">{(l.protein*4 + l.carbs*4 + l.fats*9) || 0}</td>
                                             <td>{l.protein}/{l.carbs}/{l.fats}</td>
                                             <td>{l.steps?.toLocaleString()}</td>
-                                            <td className="text-primary">{l.water_liters || '-'}L</td>
-                                            <td className="text-secondary">{l.sleep_hours || '-'}h</td>
                                         </tr>
                                     ))}
                                 </tbody>
