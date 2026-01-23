@@ -423,24 +423,6 @@
             );
         }
 
-        function Login() {
-            const [email, setEmail] = useState('');
-            const [pass, setPass] = useState('');
-            return (
-                <div className="container vh-100 d-flex align-items-center">
-                    <div className="card w-100 text-center py-5 shadow-lg border-0">
-                        <h2 className="fw-800 mb-4" style={{letterSpacing: '-2px'}}>ELITE PERFORMANCE</h2>
-                        <input className="form-control mb-2" placeholder="Email" onChange={e=>setEmail(e.target.value)} />
-                        <input className="form-control mb-3" type="password" placeholder="Password" onChange={e=>setPass(e.target.value)} />
-                        <button className="btn btn-primary w-100 py-3" onClick={async () => {
-                            const { error } = await _supabase.auth.signInWithPassword({ email, password: pass });
-                            if (error) alert(error.message);
-                        }}>ACCESS PORTAL</button>
-                    </div>
-                </div>
-            );
-        }
-
         function DailyLog({ user }) {
             const [f, setF] = useState({ date: new Date().toISOString().split('T')[0], weight:'', steps:'', p:'', c:'', f:'', water:'', sleep:'' });
             const [targets, setTargets] = useState(() => {
