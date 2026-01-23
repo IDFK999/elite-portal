@@ -500,7 +500,6 @@
                 const week1Avg = week1.reduce((a,b)=>a+b.weight, 0) / 7;
                 const avgSteps = week1.reduce((a,b)=>a+(b.steps||0),0) / 7;
 
-                // Step adjustment logic applied directly to Helms strategy
                 const bonusSteps = Math.min(avgSteps, 7000);
                 const bonusCals = (bonusSteps / 7000) * 200;
                 
@@ -510,6 +509,9 @@
                     <div className="mt-2 pt-2 border-top">
                         <div style={{fontSize: '11px', opacity: 0.9, marginBottom: '8px'}}>
                             <b>Helms Strategy ({goal}):</b> {helms.totalCalories} kcal | {helms.protein}P | {helms.carbs}C | {helms.fat}F
+                        </div>
+                        <div style={{fontSize: '10px', opacity: 0.7, fontStyle: 'italic', lineHeight: '1.4'}}>
+                            Note: The calculations above automatically incorporate a 200-calorie allowance linked to your 7,000-step baseline. Any physical activity performed beyond this 7,000-step threshold is not added to your intake; instead, it serves as a metabolic driver to accelerate fat loss and improve cardiovascular efficiency.
                         </div>
                     </div>
                 );
@@ -570,9 +572,6 @@
                 const avgK = week.reduce((a,b)=>a+(b.protein*4+b.carbs*4+b.fats*9),0) / 7;
                 const avgS = week.reduce((a,b)=>a+(b.steps||0),0) / 7;
                 
-                // Adjusted TDEE logic: 
-                // Any steps up to 7000 are "bonus activity" that adds up to 200 calories (proportionally)
-                // Steps above 7000 don't increase intake but increase TDEE.
                 const bonusSteps = Math.min(avgS, 7000);
                 const stepBonus = (bonusSteps / 7000) * 200;
                 
