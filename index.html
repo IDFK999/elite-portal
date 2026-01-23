@@ -96,7 +96,7 @@
             color: var(--text-main); 
         }
 
-        .form-control { 
+        .form-control, .form-select { 
             background: var(--soft-grey); 
             border: 1px solid transparent; 
             border-radius: 10px; 
@@ -106,7 +106,7 @@
             transition: all 0.2s;
         }
 
-        .form-control:focus { 
+        .form-control:focus, .form-select:focus { 
             background: #FFFFFF;
             border-color: var(--text-main);
             box-shadow: none;
@@ -254,7 +254,6 @@
             const fatPct = goal === 'bulk' ? 0.30 : goal === 'cut' ? 0.27 : 0.25;
             const baseCalories = weightKg * kcalPerKg;
             const totalCalories = baseCalories + bonusCalories;
-            // Updated Protein to 2.1
             const protein = weightKg * 2.1; 
             const fat = (totalCalories * fatPct) / 9;
             const carbs = (totalCalories - (protein * 4) - (fat * 9)) / 4;
@@ -285,19 +284,13 @@
             }, []);
 
             const handleSignOut = async (e) => {
-                if (e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                }
+                if (e) { e.preventDefault(); e.stopPropagation(); }
                 try {
                     await _supabase.auth.signOut();
                     localStorage.clear();
                     sessionStorage.clear();
                     window.location.replace(window.location.origin + window.location.pathname);
-                } catch (err) {
-                    console.error(err);
-                    window.location.reload();
-                }
+                } catch (err) { window.location.reload(); }
             };
 
             if (isBooting) return <div className="p-5 text-center text-muted">Syncing...</div>;
@@ -461,6 +454,8 @@
             const [metrics, setMetrics] = useState([]);
             const [dateFrom, setDateFrom] = useState(new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
             const [dateTo, setDateTo] = useState(new Date().toISOString().split('T')[0]);
+            const [weekFrom, setWeekFrom] = useState(1);
+            const [weekTo, setWeekTo] = useState(20);
             const [goal, setGoal] = useState(() => localStorage.getItem('coach_goal') || 'cut');
             const canvasRef = useRef(null);
             const chartInstance = useRef(null);
@@ -577,7 +572,7 @@
                 
                 const calc = (c, mode) => {
                     const finalCal = c + stepBonus;
-                    const protein = avgW * 2.1; // Updated to 2.1
+                    const protein = avgW * 2.1; 
                     const fatPct = mode === 'cut' ? 0.27 : 0.29;
                     const fat = (finalCal * fatPct) / 9;
                     const carbs = (finalCal - (protein * 4) - (fat * 9)) / 4;
@@ -603,25 +598,15 @@
 
             const calculateAverages = () => {
                 if (logs.length === 0) return { loss: 0, kcal: 0, steps: 0, color: '#1D1D1F', sign: '' };
-                const sorted = [...logs].sort((a,b) => new Date(a.log_date) - new Date(b.log_date));
+                const sorted = [...logs].sort((a,b) => new Date(a.log_date) - new Date(a.log_date));
                 const weightDiff = (sorted[sorted.length - 1].weight - sorted[0].weight).toFixed(1);
                 const totalKcal = logs.reduce((acc, l) => acc + (l.protein*4 + l.carbs*4 + l.fats*9), 0);
                 const totalSteps = logs.reduce((acc, l) => acc + (l.steps || 0), 0);
                 return { loss: Math.abs(weightDiff), kcal: Math.round(totalKcal / logs.length), steps: Math.round(totalSteps / logs.length), color: weightDiff > 0 ? '#34C759' : weightDiff < 0 ? '#FF3B30' : '#1D1D1F', sign: weightDiff > 0 ? '+' : weightDiff < 0 ? '-' : '' };
             };
 
-            const getProjections = () => {
-                if (logs.length < 14 || !paths) return { goal: 'Calculating...', tdee: paths ? paths.tdeeVal : '...' };
-                const sorted = [...logs].sort((a,b) => new Date(b.log_date) - new Date(a.log_date));
-                const week1Avg = sorted.slice(0, 7).reduce((a,b)=>a+b.weight, 0) / 7;
-                const week2Avg = sorted.slice(7, 14).reduce((a,b)=>a+b.weight, 0) / 7;
-                const delta = week1Avg - week2Avg;
-                const projection = week1Avg + (delta * 4);
-                return { goal: `${projection.toFixed(1)}kg`, tdee: paths.tdeeVal };
-            };
-
             const stats = calculateAverages();
-            const projections = getProjections();
+            const filteredMetrics = metrics.filter(m => m.week_number >= weekFrom && m.week_number <= weekTo);
 
             return (
                 <div>
@@ -651,16 +636,29 @@
                         <div className="col-4"><div className="avg-card"><div className="avg-label">Steps</div><div className="avg-value">{stats.steps}</div></div></div>
                     </div>
 
-
                     <div className="section-title">Measurement History</div>
                     <div className="card mb-4">
+                        <div className="row g-2 mb-3">
+                            <div className="col-6">
+                                <label className="toggle-label">From Week</label>
+                                <select className="form-select" value={weekFrom} onChange={e=>setWeekFrom(parseInt(e.target.value))}>
+                                    {[...Array(52)].map((_, i) => <option key={i+1} value={i+1}>Week {i+1}</option>)}
+                                </select>
+                            </div>
+                            <div className="col-6">
+                                <label className="toggle-label">To Week</label>
+                                <select className="form-select" value={weekTo} onChange={e=>setWeekTo(parseInt(e.target.value))}>
+                                    {[...Array(52)].map((_, i) => <option key={i+1} value={i+1}>Week {i+1}</option>)}
+                                </select>
+                            </div>
+                        </div>
                         <div className="table-responsive">
                             <table className="table table-sm m-0" style={{fontSize: '11px'}}>
                                 <thead className="table-header-custom">
                                     <tr><th>WK</th><th>Waist</th><th>Chest</th><th>Arms</th><th>Thighs</th></tr>
                                 </thead>
                                 <tbody>
-                                    {metrics.map((m, i) => (
+                                    {filteredMetrics.map((m, i) => (
                                         <tr key={i}>
                                             <td className="fw-bold">{m.week_number}</td>
                                             <td>{m.waist}</td>
