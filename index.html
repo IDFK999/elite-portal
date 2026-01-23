@@ -326,7 +326,6 @@
                 await _supabase.from('user_settings').upsert({ user_id: user.id, workout_data: newData }, { onConflict: 'user_id' });
             };
 
-            // 1RM Calculation Logic
             const calc1RM = (w, r) => {
                 if (!w || !r) return 0;
                 return r === 1 ? w : Math.round(w / (1.0278 - (0.0278 * r)));
@@ -389,20 +388,26 @@
                                     <button className="btn btn-sm text-danger p-0 border-0 bg-transparent" onClick={() => deleteDay(day.id)} style={{fontSize: '14px'}}>✕</button>
                                 </div>
                             </div>
-                            <div className="text-muted mb-3" style={{fontSize: '10px', fontWeight: '700'}}>LAST: {day.lastPerformed || 'NONE'}</div>
+                            <div className="text-muted mb-3" style={{fontSize: '10px', fontWeight: '700'}}>LAST SESSION: {day.lastPerformed || 'NONE'}</div>
 
                             <div className="d-grid gap-2">
                                 {day.exercises.map(ex => {
                                     const bestSet = [...ex.sets].sort((a,b) => calc1RM(b.weight, b.reps) - calc1RM(a.weight, a.reps))[0];
-                                    
+                                    const currVol = ex.sets.reduce((a, s) => a + (s.reps * s.weight), 0);
+                                    const prevVol = (ex.history || []).reduce((a, s) => a + (s.reps * s.weight), 0);
+                                    const volDelta = currVol - prevVol;
+
                                     return (
                                         <div key={ex.id} className="bg-light rounded-3 p-2 border-start border-3">
                                             <div className="d-flex justify-content-between align-items-start" onClick={() => setExpandedEx({...expandedEx, [ex.id]: !expandedEx[ex.id]})}>
                                                 <div>
                                                     <div className="fw-800 text-uppercase" style={{fontSize: '11px'}}>{expandedEx[ex.id] ? '▼' : '▶'} {ex.name}</div>
-                                                    {bestSet && <div className="calc-text text-primary" style={{fontSize: '9px', fontWeight: '800'}}>BEST 1RM: {calc1RM(bestSet.weight, bestSet.reps)}kg</div>}
+                                                    <div className="d-flex gap-2">
+                                                        {bestSet && <div className="calc-text text-primary" style={{fontSize: '9px', fontWeight: '800'}}>1RM: {calc1RM(bestSet.weight, bestSet.reps)}kg</div>}
+                                                        {prevVol > 0 && <div style={{fontSize: '9px', fontWeight: '800', color: volDelta >= 0 ? 'var(--bulk-green)' : 'var(--cut-red)'}}>VOL: {volDelta >= 0 ? '+' : ''}{volDelta}kg</div>}
+                                                    </div>
                                                 </div>
-                                                <button className="btn btn-sm text-danger p-0" onClick={(e) => { e.stopPropagation(); if(confirm("Delete?")) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.filter(e => e.id !== ex.id)} : d)); }}>✕</button>
+                                                <button className="btn btn-sm text-danger p-0" onClick={(e) => { e.stopPropagation(); if(confirm("Delete Exercise?")) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.filter(e => e.id !== ex.id)} : d)); }}>✕</button>
                                             </div>
 
                                             {expandedEx[ex.id] && (
@@ -430,12 +435,12 @@
                                                                     <button className="btn btn-sm p-0 text-danger" onClick={() => saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(e => e.id === ex.id ? {...e, sets: e.sets.filter(st => st.id !== s.id)} : e)} : d))}>✕</button>
                                                                 </div>
                                                                 
-                                                                {/* Comparison Labels */}
+                                                                {/* SESSION COMPARISON LABELS */}
                                                                 {prevSet && (
-                                                                    <div className="px-4 mt-1 d-flex gap-3 fw-bold" style={{fontSize: '9px'}}>
+                                                                    <div className="px-4 mt-1 d-flex gap-3 fw-800" style={{fontSize: '9px'}}>
                                                                         <span style={{color: rDelta >= 0 ? 'var(--bulk-green)' : 'var(--cut-red)'}}>{rDelta >= 0 ? '↑' : '↓'} {Math.abs(rDelta)} reps</span>
                                                                         <span style={{color: wDelta >= 0 ? 'var(--bulk-green)' : 'var(--cut-red)'}}>{wDelta >= 0 ? '↑' : '↓'} {Math.abs(wDelta)} kg</span>
-                                                                        <span className="text-muted" style={{fontSize: '8px'}}>Prev: {prevSet.reps}x{prevSet.weight}</span>
+                                                                        <span className="text-muted" style={{fontSize: '8px', opacity: 0.7}}>Prev: {prevSet.reps}x{prevSet.weight}</span>
                                                                     </div>
                                                                 )}
                                                             </div>
