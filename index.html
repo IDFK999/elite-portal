@@ -598,7 +598,7 @@
 
             const calculateAverages = () => {
                 if (logs.length === 0) return { loss: 0, kcal: 0, steps: 0, color: '#1D1D1F', sign: '' };
-                const sorted = [...logs].sort((a,b) => new Date(a.log_date) - new Date(a.log_date));
+                const sorted = [...logs].sort((a,b) => new Date(a.log_date) - new Date(b.log_date));
                 const weightDiff = (sorted[sorted.length - 1].weight - sorted[0].weight).toFixed(1);
                 const totalKcal = logs.reduce((acc, l) => acc + (l.protein*4 + l.carbs*4 + l.fats*9), 0);
                 const totalSteps = logs.reduce((acc, l) => acc + (l.steps || 0), 0);
@@ -636,28 +636,6 @@
                         <div className="col-4"><div className="avg-card"><div className="avg-label">Steps</div><div className="avg-value">{stats.steps}</div></div></div>
                     </div>
 
-                    <div className="section-title">Daily History</div>
-                    <div className="card p-0 overflow-hidden mb-5">
-                        <div className="table-responsive">
-                            <table className="table table-sm m-0" style={{fontSize: '11px'}}>
-                                <thead className="table-header-custom">
-                                    <tr><th>Date</th><th>KG</th><th>Cal</th><th>P/C/F</th><th>Steps</th></tr>
-                                </thead>
-                                <tbody>
-                                    {logs.map((l, i) => (
-                                        <tr key={i}>
-                                            <td className="fw-bold">{l.log_date.split('-').slice(1).join('/')}</td>
-                                            <td>{l.weight}</td>
-                                            <td className="text-primary fw-bold">{(l.protein*4 + l.carbs*4 + l.fats*9) || 0}</td>
-                                            <td>{l.protein}/{l.carbs}/{l.fats}</td>
-                                            <td>{l.steps?.toLocaleString()}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
                     <div className="section-title">Measurement History</div>
                     <div className="card mb-4">
                         <div className="row g-2 mb-3">
@@ -687,6 +665,30 @@
                                             <td>{m.chest}</td>
                                             <td>{m.left_arm}/{m.right_arm}</td>
                                             <td>{m.left_thigh}/{m.right_thigh}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div className="section-title">Daily History</div>
+                    <div className="card p-0 overflow-hidden mb-5">
+                        <div className="table-responsive">
+                            <table className="table table-sm m-0" style={{fontSize: '10px'}}>
+                                <thead className="table-header-custom">
+                                    <tr><th>Date</th><th>KG</th><th>Cal</th><th>P/C/F</th><th>Steps</th><th>Wtr</th><th>Slp</th></tr>
+                                </thead>
+                                <tbody>
+                                    {logs.map((l, i) => (
+                                        <tr key={i}>
+                                            <td className="fw-bold">{l.log_date.split('-').slice(1).join('/')}</td>
+                                            <td>{l.weight}</td>
+                                            <td className="text-primary fw-bold">{(l.protein*4 + l.carbs*4 + l.fats*9) || 0}</td>
+                                            <td>{l.protein}/{l.carbs}/{l.fats}</td>
+                                            <td>{l.steps?.toLocaleString()}</td>
+                                            <td>{l.water_liters}L</td>
+                                            <td>{l.sleep_hours}h</td>
                                         </tr>
                                     ))}
                                 </tbody>
