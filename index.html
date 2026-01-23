@@ -444,7 +444,6 @@
                                                                     <button className="btn btn-sm p-0 text-danger" onClick={() => saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(e => e.id === ex.id ? {...e, sets: e.sets.filter(st => st.id !== s.id)} : e)} : d))}>✕</button>
                                                                 </div>
                                                                 
-                                                                {/* INLINE DELTA COMPARISON */}
                                                                 {prevSet && (
                                                                     <div className="px-4 mt-1 d-flex gap-3 fw-800" style={{fontSize: '9px'}}>
                                                                         <span style={{color: rDelta >= 0 ? 'var(--bulk-green)' : 'var(--cut-red)'}}>
