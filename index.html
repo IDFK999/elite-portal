@@ -426,12 +426,12 @@
                                                 </div>
                                                 
                                                 {/* NEW: EDITABLE TARGET BADGE */}
-                                                <div className="badge bg-dark text-white fw-800" style={{fontSize: '9px', cursor: 'pointer'}} onClick={(e) => {
+                                                <div className="badge bg-secondary text-white fw-800" style={{fontSize: '9px', cursor: 'pointer'}} onClick={(e) => {
                                                     e.stopPropagation();
-                                                    const target = prompt("Set Goal (e.g. 3x12):", ex.target || "");
+                                                    const target = prompt("Enter Notes (e.g. 3x12, slow tempo):", ex.target || "");
                                                     saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(eItem => eItem.id === ex.id ? {...eItem, target} : eItem)} : d));
                                                 }}>
-                                                    GOAL: {ex.target || 'SET'}
+                                                    NOTES: {ex.target || 'ADD'}
                                                 </div>
                                             </div>
                                             
