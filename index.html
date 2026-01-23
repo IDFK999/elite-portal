@@ -387,7 +387,13 @@
                     {days.map(day => (
                         <div key={day.id} className="card border-0 mb-4 shadow-sm" style={{borderLeft: '4px solid var(--accent-blue)', borderRadius: '12px'}}>
                             <div className="d-flex justify-content-between align-items-center mb-1">
-                                <h6 className="fw-800 m-0" style={{fontSize:'16px'}}>{day.name}</h6>
+                                <div className="d-flex align-items-center gap-2">
+                                    <h6 className="fw-800 m-0" style={{fontSize:'16px'}}>{day.name}</h6>
+                                    <button className="btn btn-sm p-0 opacity-50" onClick={() => {
+                                        const newName = prompt("Edit Day Name:", day.name);
+                                        if (newName) saveAndSync(days.map(d => d.id === day.id ? {...d, name: newName} : d));
+                                    }} style={{fontSize: '10px'}}>✎</button>
+                                </div>
                                 <div className="d-flex align-items-center gap-2">
                                     <span className="badge rounded-pill bg-light text-primary border fw-bold" style={{fontSize: '10px'}}>{getDaysAgo(day.lastPerformed)}</span>
                                     <button className="btn btn-sm text-danger p-0 border-0 bg-transparent" onClick={() => deleteDay(day.id)} style={{fontSize: '14px'}}>✕</button>
@@ -404,9 +410,16 @@
 
                                     return (
                                         <div key={ex.id} className="bg-light rounded-3 p-2 border-start border-3">
-                                            <div className="d-flex justify-content-between align-items-start" onClick={() => setExpandedEx({...expandedEx, [ex.id]: !expandedEx[ex.id]})}>
-                                                <div style={{flex: 1}}>
-                                                    <div className="fw-800 text-uppercase" style={{fontSize: '11px'}}>{expandedEx[ex.id] ? '▼' : '▶'} {ex.name}</div>
+                                            <div className="d-flex justify-content-between align-items-start">
+                                                <div style={{flex: 1}} onClick={() => setExpandedEx({...expandedEx, [ex.id]: !expandedEx[ex.id]})}>
+                                                    <div className="d-flex align-items-center gap-2">
+                                                        <div className="fw-800 text-uppercase" style={{fontSize: '11px'}}>{expandedEx[ex.id] ? '▼' : '▶'} {ex.name}</div>
+                                                        <button className="btn btn-sm p-0 opacity-50" onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            const newExName = prompt("Edit Exercise Name:", ex.name);
+                                                            if (newExName) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(eItem => eItem.id === ex.id ? {...eItem, name: newExName} : eItem)} : d));
+                                                        }} style={{fontSize: '10px'}}>✎</button>
+                                                    </div>
                                                     <div className="d-flex gap-2 flex-wrap mt-1">
                                                         {bestSet && <span className="text-primary fw-800" style={{fontSize: '9px'}}>1RM: {calc1RM(bestSet.weight, bestSet.reps)}kg</span>}
                                                         {prevVol > 0 && (
