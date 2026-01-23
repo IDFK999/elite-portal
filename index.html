@@ -308,41 +308,80 @@
         }
 
         function WorkoutManager({ user }) {
-            const [days, setDays] = useState(() => {
-                const saved = localStorage.getItem(`workouts_${user.id}`);
-                return saved ? JSON.parse(saved) : [];
-            });
+            const [days, setDays] = useState([]);
             const [expandedEx, setExpandedEx] = useState({});
+            const [loading, setLoading] = useState(true);
 
             useEffect(() => {
-                localStorage.setItem(`workouts_${user.id}`, JSON.stringify(days));
-            }, [days, user.id]);
+                const fetchWorkouts = async () => {
+                    const { data } = await _supabase
+                        .from('user_settings')
+                        .select('workout_data')
+                        .eq('user_id', user.id)
+                        .maybeSingle();
+                    
+                    if (data && data.workout_data) {
+                        setDays(data.workout_data);
+                    } else {
+                        const saved = localStorage.getItem(`workouts_${user.id}`);
+                        if (saved) setDays(JSON.parse(saved));
+                    }
+                    setLoading(false);
+                };
+                fetchWorkouts();
+            }, [user.id]);
+
+            const saveAndSync = async (newData) => {
+                setDays(newData);
+                localStorage.setItem(`workouts_${user.id}`, JSON.stringify(newData));
+                await _supabase.from('user_settings').upsert({
+                    user_id: user.id,
+                    workout_data: newData
+                }, { onConflict: 'user_id' });
+            };
 
             const getDaysAgo = (sets) => {
                 if (!sets || sets.length === 0) return null;
-                const latestSet = [...sets].sort((a, b) => new Date(b.fullDate) - new Date(a.fullDate))[0];
-                if (!latestSet || !latestSet.fullDate) return null;
-                const diffDays = Math.floor((new Date().setHours(0,0,0,0) - new Date(latestSet.fullDate).setHours(0,0,0,0)) / 86400000);
+                const latest = [...sets].sort((a, b) => new Date(b.fullDate) - new Date(a.fullDate))[0];
+                const diffDays = Math.floor((new Date().setHours(0,0,0,0) - new Date(latest.fullDate).setHours(0,0,0,0)) / 86400000);
                 return diffDays === 0 ? "Today" : diffDays === 1 ? "Yesterday" : `${diffDays} days ago`;
             };
 
             const addDay = () => {
                 const name = prompt("Workout Day Name:");
-                if (name) setDays([...days, { id: Date.now(), name, exercises: [] }]);
+                if (name) saveAndSync([...days, { id: Date.now(), name, exercises: [] }]);
             };
+
+            const editDay = (id) => {
+                const d = days.find(x => x.id === id);
+                const name = prompt("Rename Workout Day:", d.name);
+                if (name) saveAndSync(days.map(x => x.id === id ? {...x, name} : x));
+            };
+
+            const deleteDay = (id) => confirm("Delete this entire workout day?") && saveAndSync(days.filter(d => d.id !== id));
 
             const addExercise = (dayId) => {
                 const name = prompt("Exercise Name:");
                 if (name) {
                     const id = Date.now();
-                    setDays(days.map(d => d.id === dayId ? {...d, exercises: [...d.exercises, { id, name, sets: [] }]} : d));
+                    const newData = days.map(d => d.id === dayId ? {...d, exercises: [...d.exercises, { id, name, sets: [] }]} : d);
+                    saveAndSync(newData);
                     setExpandedEx(prev => ({...prev, [id]: true}));
                 }
             };
 
+            const editExercise = (dayId, exId) => {
+                const day = days.find(d => d.id === dayId);
+                const ex = day.exercises.find(e => e.id === exId);
+                const name = prompt("Rename Exercise:", ex.name);
+                if (name) saveAndSync(days.map(d => d.id === dayId ? {...d, exercises: d.exercises.map(e => e.id === exId ? {...e, name} : e)} : d));
+            };
+
+            const deleteExercise = (dayId, exId) => confirm("Delete exercise?") && saveAndSync(days.map(d => d.id === dayId ? {...d, exercises: d.exercises.filter(e => e.id !== exId)} : d));
+
             const addSet = (dayId, exId) => {
                 const now = new Date();
-                setDays(days.map(d => d.id === dayId ? {...d, exercises: d.exercises.map(ex => {
+                const newData = days.map(d => d.id === dayId ? {...d, exercises: d.exercises.map(ex => {
                     if (ex.id === exId) {
                         const prev = ex.sets[ex.sets.length - 1] || { reps: 8, weight: 60 };
                         return {...ex, sets: [...ex.sets, { 
@@ -352,77 +391,80 @@
                         }]};
                     }
                     return ex;
-                })} : d));
+                })} : d);
+                saveAndSync(newData);
             };
 
             const updateSet = (dayId, exId, setId, field, val) => {
-                setDays(days.map(d => d.id === dayId ? {...d, exercises: d.exercises.map(ex => ex.id === exId ? {
-                    ...ex, sets: ex.sets.map(s => s.id === setId ? {...s, [field]: parseFloat(val) || 0} : s)
-                } : ex)} : d));
+                // Allows field to be empty while typing, avoiding the annoying "0"
+                const cleanVal = val === '' ? '' : (parseFloat(val) || 0);
+                const newData = days.map(d => d.id === dayId ? {...d, exercises: d.exercises.map(ex => ex.id === exId ? {
+                    ...ex, sets: ex.sets.map(s => s.id === setId ? {...s, [field]: cleanVal} : s)
+                } : ex)} : d);
+                saveAndSync(newData);
             };
 
-            const deleteSet = (dayId, exId, setId) => {
-                setDays(days.map(d => d.id === dayId ? {...d, exercises: d.exercises.map(ex => ex.id === exId ? {...ex, sets: ex.sets.filter(s => s.id !== setId)} : ex)} : d));
+            const handleFocus = (e) => {
+                if (e.target.value === "0") e.target.value = "";
+                else e.target.select();
             };
 
-            const calc1RM = (w, r) => r === 1 ? w : Math.round(w / (1.0278 - (0.0278 * r)));
+            const deleteSet = (dayId, exId, setId) => saveAndSync(days.map(d => d.id === dayId ? {...d, exercises: d.exercises.map(ex => ex.id === exId ? {...ex, sets: ex.sets.filter(s => s.id !== setId)} : ex)} : d));
+
+            if (loading) return <div className="p-5 text-center">Loading Workouts...</div>;
 
             return (
                 <div>
-                    <button className="btn btn-dark w-100 mb-4 fw-bold" onClick={addDay}>+ CREATE NEW WORKOUT DAY</button>
+                    <button className="btn btn-dark w-100 mb-4 fw-bold" onClick={addDay}>+ CREATE WORKOUT DAY</button>
                     {days.map(day => (
                         <div key={day.id} className="card border-0 mb-4" style={{borderLeft: '4px solid var(--accent-blue)'}}>
                             <div className="d-flex justify-content-between align-items-center mb-3">
-                                <h6 className="fw-800 m-0" style={{fontWeight:800}}>{day.name}</h6>
-                                <button className="btn btn-sm btn-outline-secondary border-0 fw-bold" style={{fontSize:'10px'}} onClick={() => addExercise(day.id)}>+ Exercise</button>
+                                <h6 className="fw-bold m-0" onClick={() => editDay(day.id)} style={{cursor: 'pointer'}}>{day.name} ✎</h6>
+                                <div className="d-flex gap-2">
+                                    <button className="btn btn-sm btn-outline-secondary fw-bold" style={{fontSize:'10px'}} onClick={() => addExercise(day.id)}>+ EXERCISE</button>
+                                    <button className="btn btn-sm text-danger" onClick={() => deleteDay(day.id)}>✕</button>
+                                </div>
                             </div>
-                            {day.exercises.map(ex => {
-                                const volume = ex.sets.reduce((acc, s) => acc + (s.reps * s.weight), 0);
-                                const bestSet = [...ex.sets].sort((a,b) => calc1RM(b.weight, b.reps) - calc1RM(a.weight, a.reps))[0];
-                                const isExpanded = expandedEx[ex.id];
-                                const daysAgo = getDaysAgo(ex.sets);
 
-                                // Find unique workout sessions for this specific exercise
+                            {day.exercises.map(ex => {
+                                const isExpanded = expandedEx[ex.id];
                                 const sessionDates = Array.from(new Set(ex.sets.map(s => s.fullDate?.split('T')[0]))).sort();
+                                const daysAgo = getDaysAgo(ex.sets);
 
                                 return (
                                     <div key={ex.id} className="mb-3 ps-2 border-start">
-                                        <div className="d-flex justify-content-between align-items-center cursor-pointer" onClick={() => setExpandedEx({...expandedEx, [ex.id]: !isExpanded})}>
-                                            <div style={{flex: 1}}>
-                                                <div className="fw-800 text-uppercase" style={{fontSize:'11px', fontWeight:800}}>{isExpanded ? '▼ ' : '▶ '} {ex.name}</div>
-                                                <div className="d-flex gap-2">
-                                                    {bestSet && <div style={{fontSize: '9px', color: 'var(--bulk-green)', fontWeight:700}}>EST. 1RM: {calc1RM(bestSet.weight, bestSet.reps)}kg</div>}
-                                                    {daysAgo && <div style={{fontSize: '9px', color: '#86868B'}}>• {daysAgo}</div>}
+                                        <div className="d-flex justify-content-between align-items-center">
+                                            <div onClick={() => setExpandedEx({...expandedEx, [ex.id]: !isExpanded})} style={{flex: 1, cursor: 'pointer'}}>
+                                                <div className="fw-bold text-uppercase" style={{fontSize:'11px'}}>
+                                                    {isExpanded ? '▼ ' : '▶ '} {ex.name}
                                                 </div>
+                                                {daysAgo && <div style={{fontSize: '9px', color: '#86868B'}}>Last: {daysAgo}</div>}
                                             </div>
-                                            <div className="text-end">
-                                                <span className="badge bg-light text-dark" style={{fontSize: '9px'}}>VOL: {volume}kg</span>
+                                            <div className="d-flex gap-2">
+                                                <button className="btn btn-link btn-sm p-0 text-muted" onClick={() => editExercise(day.id, ex.id)}>✎</button>
+                                                <button className="btn btn-link btn-sm p-0 text-danger" onClick={() => deleteExercise(day.id, ex.id)}>✕</button>
                                             </div>
                                         </div>
 
                                         {isExpanded && (
                                             <div className="mt-2">
                                                 {ex.sets.map((s, i) => {
-                                                    // SESSION ISOLATION LOGIC
-                                                    const thisSetDate = s.fullDate?.split('T')[0];
-                                                    const prevSessionDate = sessionDates.filter(d => d < thisSetDate).pop();
+                                                    const thisDate = s.fullDate?.split('T')[0];
+                                                    const prevDate = sessionDates.filter(d => d < thisDate).pop();
+                                                    const setsToday = ex.sets.filter(set => set.fullDate?.startsWith(thisDate));
+                                                    const setIdx = setsToday.findIndex(set => set.id === s.id);
                                                     
-                                                    // Find index of this set within its own day's session
-                                                    const setsInThisSession = ex.sets.filter(set => set.fullDate?.startsWith(thisSetDate));
-                                                    const setIndex = setsInThisSession.findIndex(set => set.id === s.id);
-                                                    
-                                                    let improvementLabel = null;
+                                                    let label = null;
                                                     let isImp = false;
 
-                                                    if (prevSessionDate && setIndex !== -1) {
-                                                        const prevSets = ex.sets.filter(set => set.fullDate?.startsWith(prevSessionDate));
-                                                        const match = prevSets[setIndex];
+                                                    if (prevDate && setIdx !== -1) {
+                                                        const prevSets = ex.sets.filter(set => set.fullDate?.startsWith(prevDate));
+                                                        const match = prevSets[setIdx];
                                                         if (match) {
                                                             const rDiff = s.reps - match.reps;
-                                                            // Improvement: More reps with same/more weight OR more weight
                                                             if ((rDiff > 0 && s.weight >= match.weight) || (s.weight > match.weight)) {
                                                                 isImp = true;
-                                                                improvementLabel = rDiff > 0 ? `+${rDiff} Rep` : `+${(s.weight - match.weight).toFixed(1)}kg`;
+                                                                label = rDiff > 0 ? `+${rDiff} Rep` : `+${(s.weight - match.weight).toFixed(1)}kg`;
                                                             }
                                                         }
                                                     }
@@ -430,18 +472,18 @@
                                                     return (
                                                         <div key={s.id} className="d-flex align-items-center gap-2 mb-2 p-1 rounded" style={{background: isImp ? 'rgba(52, 199, 89, 0.1)' : '#F9F9FB'}}>
                                                             <div style={{width: '55px', fontSize: '8px', lineHeight: '1.2'}}>
-                                                                <b>SET {setIndex + 1}</b><br/>{s.loggedAt}
-                                                                {improvementLabel && <div style={{color: 'var(--bulk-green)', fontWeight: 800, fontSize: '7px'}}>{improvementLabel}</div>}
+                                                                <b>SET {setIdx + 1}</b><br/>{s.loggedAt}
+                                                                {label && <div style={{color: 'var(--bulk-green)', fontWeight: 800, fontSize: '7px'}}>{label}</div>}
                                                             </div>
-                                                            <input type="number" inputMode="numeric" className="form-control form-control-sm text-center fw-bold border-0 bg-transparent m-0 p-0" style={{color: 'var(--bulk-green)'}} value={s.reps} onChange={e => updateSet(day.id, ex.id, s.id, 'reps', e.target.value)} />
+                                                            <input type="number" inputMode="numeric" className="set-input" style={{color: 'var(--bulk-green)'}} value={s.reps} onFocus={handleFocus} onChange={e => updateSet(day.id, ex.id, s.id, 'reps', e.target.value)} />
                                                             <span className="text-muted small">×</span>
-                                                            <input type="number" inputMode="decimal" className="form-control form-control-sm text-center fw-bold border-0 bg-transparent m-0 p-0" style={{color: '#E67E22'}} value={s.weight} onChange={e => updateSet(day.id, ex.id, s.id, 'weight', e.target.value)} />
+                                                            <input type="number" inputMode="decimal" className="set-input" style={{color: '#E67E22'}} value={s.weight} onFocus={handleFocus} onChange={e => updateSet(day.id, ex.id, s.id, 'weight', e.target.value)} />
                                                             <div className="text-muted" style={{fontSize: '9px', width: '20px'}}>kg</div>
-                                                            <button className="btn btn-link btn-sm p-0 text-danger text-decoration-none" onClick={() => deleteSet(day.id, ex.id, s.id)}>×</button>
+                                                            <button className="btn btn-link btn-sm p-0 text-danger" onClick={() => deleteSet(day.id, ex.id, s.id)}>✕</button>
                                                         </div>
                                                     );
                                                 })}
-                                                <button className="btn btn-link btn-sm p-0 text-decoration-none fw-bold" style={{fontSize: '11px', color: 'var(--accent-blue)'}} onClick={() => addSet(day.id, ex.id)}>+ ADD SET</button>
+                                                <button className="btn btn-link btn-sm p-0 fw-bold" style={{fontSize: '11px'}} onClick={() => addSet(day.id, ex.id)}>+ ADD SET</button>
                                             </div>
                                         )}
                                     </div>
