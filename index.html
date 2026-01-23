@@ -266,7 +266,7 @@
         };
 
         function App() {
-            const [view, setView] = useState('stats');
+            const [view, setView] = useState('workout');
             const [session, setSession] = useState(null);
             const [isBooting, setIsBooting] = useState(true);
 
@@ -300,19 +300,111 @@
                 <div className="container py-4">
                     <div className="d-flex justify-content-between align-items-center mb-3">
                         <h5 className="fw-bold m-0" style={{letterSpacing: '-0.5px'}}>ELITE PERFORMANCE</h5>
-                        <div className="badge rounded-pill text-dark border">v10.0.0</div>
+                        <div className="badge rounded-pill text-dark border">v11.0.0</div>
                     </div>
 
+                    {view === 'workout' && <WorkoutManager user={session.user} />}
                     {view === 'log' && <DailyLog user={session.user} />}
                     {view === 'update' && <Metrics user={session.user} />}
                     {view === 'stats' && <Stats user={session.user} />}
                     
                     <div className="nav-bottom">
+                        <div className={`nav-item ${view === 'workout' ? 'active' : ''}`} onClick={()=>setView('workout')}>Workout</div>
                         <div className={`nav-item ${view === 'log' ? 'active' : ''}`} onClick={()=>setView('log')}>Log</div>
                         <div className={`nav-item ${view === 'update' ? 'active' : ''}`} onClick={()=>setView('update')}>Update</div>
                         <div className={`nav-item ${view === 'stats' ? 'active' : ''}`} onClick={()=>setView('stats')}>Stats</div>
                         <div className="nav-item text-danger" onClick={handleSignOut}>Exit</div>
                     </div>
+                </div>
+            );
+        }
+
+        function WorkoutManager({ user }) {
+            const [days, setDays] = useState(() => {
+                const saved = localStorage.getItem(`workouts_${user.id}`);
+                return saved ? JSON.parse(saved) : [];
+            });
+
+            useEffect(() => {
+                localStorage.setItem(`workouts_${user.id}`, JSON.stringify(days));
+            }, [days, user.id]);
+
+            const addDay = () => {
+                const name = prompt("Workout Day Name (e.g. Full Body 1):");
+                if (name) setDays([...days, { id: Date.now(), name, exercises: [] }]);
+            };
+
+            const addExercise = (dayId) => {
+                const name = prompt("Exercise Name:");
+                if (name) setDays(days.map(d => d.id === dayId ? {...d, exercises: [...d.exercises, { id: Date.now(), name, sets: [] }]} : d));
+            };
+
+            const addSet = (dayId, exId) => {
+                setDays(days.map(d => d.id === dayId ? {...d, exercises: d.exercises.map(ex => {
+                    if (ex.id === exId) {
+                        const prev = ex.sets[ex.sets.length - 1] || { reps: 8, weight: 60 };
+                        return {...ex, sets: [...ex.sets, { 
+                            id: Date.now(), 
+                            reps: prev.reps, 
+                            weight: prev.weight,
+                            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                        }]};
+                    }
+                    return ex;
+                })} : d));
+            };
+
+            const updateSet = (dayId, exId, setId, field, val) => {
+                setDays(days.map(d => d.id === dayId ? {...d, exercises: d.exercises.map(ex => ex.id === exId ? {
+                    ...ex, sets: ex.sets.map(s => s.id === setId ? {...s, [field]: parseFloat(val) || 0} : s)
+                } : ex)} : d));
+            };
+
+            const calc1RM = (w, r) => r === 1 ? w : Math.round(w / (1.0278 - (0.0278 * r)));
+
+            return (
+                <div>
+                    <button className="btn btn-dark w-100 mb-4 fw-bold shadow-sm" onClick={addDay}>+ CREATE WORKOUT DAY</button>
+                    {days.map(day => (
+                        <div key={day.id} className="card shadow-sm border-0 mb-4" style={{borderLeft: '4px solid var(--accent-blue)'}}>
+                            <div className="d-flex justify-content-between align-items-center mb-3">
+                                <h6 className="fw-800 m-0" style={{fontWeight:800}}>{day.name}</h6>
+                                <button className="btn btn-sm btn-outline-secondary border-0 text-uppercase fw-bold" style={{fontSize:'10px'}} onClick={() => addExercise(day.id)}>+ Exercise</button>
+                            </div>
+                            {day.exercises.map(ex => {
+                                const volume = ex.sets.reduce((acc, s) => acc + (s.reps * s.weight), 0);
+                                const bestSet = [...ex.sets].sort((a,b) => calc1RM(b.weight, b.reps) - calc1RM(a.weight, a.reps))[0];
+                                
+                                return (
+                                    <div key={ex.id} className="mb-4 ps-2 border-start">
+                                        <div className="d-flex justify-content-between align-items-end mb-2">
+                                            <div>
+                                                <div className="fw-800 text-uppercase small" style={{letterSpacing: '0.5px', fontWeight:800, fontSize:'11px'}}>{ex.name}</div>
+                                                {bestSet && <div style={{fontSize: '9px', color: 'var(--bulk-green)', fontWeight:700}}>EST. 1RM: {calc1RM(bestSet.weight, bestSet.reps)}kg</div>}
+                                            </div>
+                                            <div className="text-end">
+                                                <span className="badge bg-light text-dark" style={{fontSize: '10px'}}>VOL: {volume}kg</span>
+                                            </div>
+                                        </div>
+                                        <div className="set-list mt-2">
+                                            {ex.sets.map((s, i) => (
+                                                <div key={s.id} className="d-flex align-items-center gap-2 mb-2 p-1 rounded" style={{background: '#F9F9FB'}}>
+                                                    <div className="text-muted" style={{width: '35px', fontSize: '9px'}}>
+                                                        <b>S{i+1}</b><br/>{s.time}
+                                                    </div>
+                                                    <input type="number" className="form-control form-control-sm text-center fw-bold border-0 bg-transparent m-0" style={{color: 'var(--bulk-green)'}} value={s.reps} onChange={e => updateSet(day.id, ex.id, s.id, 'reps', e.target.value)} />
+                                                    <span className="text-muted small">×</span>
+                                                    <input type="number" className="form-control form-control-sm text-center fw-bold border-0 bg-transparent m-0" style={{color: '#E67E22'}} value={s.weight} onChange={e => updateSet(day.id, ex.id, s.id, 'weight', e.target.value)} />
+                                                    <div className="text-muted small" style={{fontSize: '9px', width: '20px'}}>kg</div>
+                                                </div>
+                                            ))}
+                                            <button className="btn btn-link btn-sm p-0 text-decoration-none fw-bold" style={{fontSize: '11px', color: 'var(--accent-blue)'}} onClick={() => addSet(day.id, ex.id)}>+ ADD SET</button>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    ))}
                 </div>
             );
         }
@@ -557,45 +649,6 @@
                 );
             };
 
-            const getMacroPathways = () => {
-                if (logs.length < 7) return null;
-                const sorted = [...logs].sort((a,b) => new Date(a.log_date) - new Date(a.log_date));
-                const week = sorted.slice(0, 7);
-                const avgW = week.reduce((a,b)=>a+b.weight,0) / 7;
-                const avgK = week.reduce((a,b)=>a+(b.protein*4+b.carbs*4+b.fats*9),0) / 7;
-                const avgS = week.reduce((a,b)=>a+(b.steps||0),0) / 7;
-                
-                const bonusSteps = Math.min(avgS, 7000);
-                const stepBonus = (bonusSteps / 7000) * 200;
-                
-                const baseTdee = avgK + ((avgS - 8000) * 0.04);
-                
-                const calc = (c, mode) => {
-                    const finalCal = c + stepBonus;
-                    const protein = avgW * 2.1; 
-                    const fatPct = mode === 'cut' ? 0.27 : 0.29;
-                    const fat = (finalCal * fatPct) / 9;
-                    const carbs = (finalCal - (protein * 4) - (fat * 9)) / 4;
-                    return { 
-                        cal: Math.round(finalCal), 
-                        p: Math.round(protein), 
-                        f: Math.round(fat), 
-                        c: Math.round(carbs) 
-                    };
-                };
-
-                return { 
-                    bulk: calc(baseTdee+150, 'bulk'), 
-                    maint: calc(baseTdee, 'maint'), 
-                    cut: calc(baseTdee-150, 'cut'), 
-                    tdeeVal: Math.round(baseTdee + (avgS > 7000 ? (avgS - 7000) * 0.04 : 0)), 
-                    currentWeight: avgW 
-                };
-            };
-
-            const paths = getMacroPathways();
-            const recommendation = getCoachRecommendation();
-
             const calculateAverages = () => {
                 if (logs.length === 0) return { loss: 0, kcal: 0, steps: 0, color: '#1D1D1F', sign: '' };
                 const sorted = [...logs].sort((a,b) => new Date(a.log_date) - new Date(b.log_date));
@@ -607,6 +660,7 @@
 
             const stats = calculateAverages();
             const filteredMetrics = metrics.filter(m => m.week_number >= weekFrom && m.week_number <= weekTo);
+            const recommendation = getCoachRecommendation();
 
             return (
                 <div>
