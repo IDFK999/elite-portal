@@ -251,10 +251,12 @@
 
         const getHelmsMacros = (weightKg, goal, bonusCalories = 0) => {
             const kcalPerKg = goal === 'bulk' ? 32 : goal === 'maintain' ? 30 : 27;
-            const fatPct = goal === 'bulk' ? 0.30 : 0.25;
+            // Updated Fat % for Cut to 27% (previously 25%)
+            const fatPct = goal === 'bulk' ? 0.30 : goal === 'cut' ? 0.27 : 0.25;
             const baseCalories = weightKg * kcalPerKg;
             const totalCalories = baseCalories + bonusCalories;
-            const protein = weightKg * 2.0; // Updated to 2.0 for Eric Helms split
+            // Updated Protein to 2.0 (previously 2.4)
+            const protein = weightKg * 2.0; 
             const fat = (totalCalories * fatPct) / 9;
             const carbs = (totalCalories - (protein * 4) - (fat * 9)) / 4;
             return { 
@@ -306,7 +308,7 @@
                 <div className="container py-4">
                     <div className="d-flex justify-content-between align-items-center mb-3">
                         <h5 className="fw-bold m-0" style={{letterSpacing: '-0.5px'}}>ELITE PERFORMANCE</h5>
-                        <div className="badge rounded-pill text-dark border">v9.9.8</div>
+                        <div className="badge rounded-pill text-dark border">v9.9.9</div>
                     </div>
 
                     {view === 'log' && <DailyLog user={session.user} />}
@@ -508,7 +510,7 @@
                 const helmsDisplay = (
                     <div className="mt-2 pt-2 border-top">
                         <div style={{fontSize: '11px', opacity: 0.9, marginBottom: '8px'}}>
-                            <b>Helms Strategy ({goal}):</b> {helms.totalCalories} kcal | {helms.protein}P | {helms.carbs}C | {helms.fat}F
+                            <b>Helms 2.0 Strategy ({goal}):</b> {helms.totalCalories} kcal | {helms.protein}P | {helms.carbs}C | {helms.fat}F
                         </div>
                     </div>
                 );
@@ -574,10 +576,12 @@
                 
                 const baseTdee = avgK + ((avgS - 8000) * 0.04);
                 
-                const calc = (c, isAdjusted = true) => {
-                    const finalCal = isAdjusted ? c + stepBonus : c;
-                    const protein = avgW * 2.0; // Updated to 2.0
-                    const fat = (finalCal * 0.29) / 9;
+                const calc = (c, mode) => {
+                    const finalCal = c + stepBonus;
+                    const protein = avgW * 2.0;
+                    // Fat logic: Cut gets 27%, others remain at previous logic (approx 29%)
+                    const fatPct = mode === 'cut' ? 0.27 : 0.29;
+                    const fat = (finalCal * fatPct) / 9;
                     const carbs = (finalCal - (protein * 4) - (fat * 9)) / 4;
                     return { 
                         cal: Math.round(finalCal), 
@@ -588,9 +592,9 @@
                 };
 
                 return { 
-                    bulk: calc(baseTdee+150), 
-                    maint: calc(baseTdee), 
-                    cut: calc(baseTdee-150), 
+                    bulk: calc(baseTdee+150, 'bulk'), 
+                    maint: calc(baseTdee, 'maint'), 
+                    cut: calc(baseTdee-150, 'cut'), 
                     tdeeVal: Math.round(baseTdee + (avgS > 7000 ? (avgS - 7000) * 0.04 : 0)), 
                     currentWeight: avgW 
                 };
