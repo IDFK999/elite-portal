@@ -518,14 +518,22 @@
 
                             <div className="d-grid gap-2">
                                 {day.exercises.map(ex => {
-                                    const currentTotalReps = ex.sets.reduce((sum, s) => sum + (Number(s.reps) || 0), 0);
-                                    const currentTotalWeight = ex.sets.reduce((sum, s) => sum + (Number(s.weight) || 0), 0);
-                                    const hasHistory = ex.history && ex.history.length > 0;
-                                    const prevTotalReps = hasHistory ? ex.history.reduce((sum, s) => sum + (Number(s.reps) || 0), 0) : 0;
-                                    const prevTotalWeight = hasHistory ? ex.history.reduce((sum, s) => sum + (Number(s.weight) || 0), 0) : 0;
+                                    const currentSets = ex.sets || [];
+                                    const prevSets = ex.history || [];
+                                    const hasHistory = prevSets.length > 0;
+
+                                    // Metrics Calculations
+                                    const currentTotalReps = currentSets.reduce((sum, s) => sum + (Number(s.reps) || 0), 0);
+                                    const prevTotalReps = prevSets.reduce((sum, s) => sum + (Number(s.reps) || 0), 0);
+                                    
+                                    const currentAvgWeight = currentSets.length > 0 ? (currentSets.reduce((sum, s) => sum + (Number(s.weight) || 0), 0) / currentSets.length) : 0;
+                                    const prevAvgWeight = prevSets.length > 0 ? (prevSets.reduce((sum, s) => sum + (Number(s.weight) || 0), 0) / prevSets.length) : 0;
+
+                                    // Deltas
                                     const rDelta = hasHistory ? currentTotalReps - prevTotalReps : 0;
-                                    const wDelta = hasHistory ? currentTotalWeight - prevTotalWeight : 0;
-                                    const setDelta = hasHistory ? ex.sets.length - ex.history.length : 0;
+                                    const wDelta = hasHistory ? currentAvgWeight - prevAvgWeight : 0;
+                                    const setDelta = hasHistory ? currentSets.length - prevSets.length : 0;
+
                                     const bestSet = [...ex.sets].sort((a,b) => calc1RM(b.weight, b.reps) - calc1RM(a.weight, a.reps))[0];
 
                                     return (
@@ -544,9 +552,38 @@
                                                     </div>
                                                     <div className="d-flex gap-1 flex-wrap mt-1 align-items-center">
                                                         {bestSet && <span className="badge bg-white text-primary border fw-800" style={{fontSize: '9px', padding: '4px 6px'}}>1RM: {calc1RM(bestSet.weight, bestSet.reps)}{t("KG")}</span>}
-                                                        <span className="badge fw-800 bg-white border text-dark" style={{fontSize: '9px', padding: '4px 6px'}}>{ex.sets.length} {t("SETS")} {hasHistory && setDelta !== 0 ? `(${setDelta > 0 ? '+' : ''}${setDelta})` : ''}</span>
-                                                        <span className="badge fw-800" style={{fontSize: '9px', padding: '4px 6px', backgroundColor: rDelta > 0 ? '#eafaf1' : rDelta < 0 ? '#fdedec' : '#ffffff', color: rDelta > 0 ? '#27ae60' : rDelta < 0 ? '#e74c3c' : '#666', border: `1px solid ${rDelta > 0 ? '#27ae60' : rDelta < 0 ? '#e74c3c' : '#ddd'}`}}>{currentTotalReps} {t("REPS")} {rDelta > 0 ? '↑' : rDelta < 0 ? '↓' : '—'}</span>
-                                                        <span className="badge fw-800" style={{fontSize: '9px', padding: '4px 6px', backgroundColor: wDelta > 0 ? '#fef5e7' : wDelta < 0 ? '#fdedec' : '#ffffff', color: wDelta > 0 ? '#e67e22' : wDelta < 0 ? '#e74c3c' : '#666', border: `1px solid ${wDelta > 0 ? '#e67e22' : wDelta < 0 ? '#e74c3c' : '#ddd'}`}}>{currentTotalWeight}{t("KG")} {wDelta > 0 ? '↑' : wDelta < 0 ? '↓' : '—'}</span>
+                                                        
+                                                        {/* Sets Badge */}
+                                                        <span className="badge fw-800 bg-white border text-dark" style={{fontSize: '9px', padding: '4px 6px'}}>
+                                                            {ex.sets.length} {t("SETS")} 
+                                                            {hasHistory && setDelta !== 0 && (
+                                                                <span style={{color: setDelta > 0 ? '#27ae60' : '#e74c3c'}}> ({setDelta > 0 ? '+' : ''}{setDelta})</span>
+                                                            )}
+                                                        </span>
+
+                                                        {/* Reps Badge */}
+                                                        <span className="badge fw-800" style={{
+                                                            fontSize: '9px', 
+                                                            padding: '4px 6px', 
+                                                            backgroundColor: hasHistory && rDelta > 0 ? '#eafaf1' : hasHistory && rDelta < 0 ? '#fdedec' : '#ffffff', 
+                                                            color: hasHistory && rDelta > 0 ? '#27ae60' : hasHistory && rDelta < 0 ? '#e74c3c' : '#666', 
+                                                            border: `1px solid ${hasHistory && rDelta > 0 ? '#27ae60' : hasHistory && rDelta < 0 ? '#e74c3c' : '#ddd'}`
+                                                        }}>
+                                                            {currentTotalReps} {t("REPS")} 
+                                                            {hasHistory && rDelta !== 0 && ` (${rDelta > 0 ? '+' : ''}${rDelta})`}
+                                                        </span>
+
+                                                        {/* Weight Badge - Now based on Average Weight */}
+                                                        <span className="badge fw-800" style={{
+                                                            fontSize: '9px', 
+                                                            padding: '4px 6px', 
+                                                            backgroundColor: hasHistory && wDelta > 0 ? '#fef5e7' : hasHistory && wDelta < 0 ? '#fdedec' : '#ffffff', 
+                                                            color: hasHistory && wDelta > 0 ? '#e67e22' : hasHistory && wDelta < 0 ? '#e74c3c' : '#666', 
+                                                            border: `1px solid ${hasHistory && wDelta > 0 ? '#e67e22' : hasHistory && wDelta < 0 ? '#e74c3c' : '#ddd'}`
+                                                        }}>
+                                                            {currentAvgWeight.toFixed(1)}{t("KG")} (Avg)
+                                                            {hasHistory && wDelta !== 0 && ` (${wDelta > 0 ? '+' : ''}${wDelta.toFixed(1)})`}
+                                                        </span>
                                                     </div>
                                                 </div>
                                                 <button className="btn btn-sm text-danger p-0 ms-2" onClick={(e) => { e.stopPropagation(); if(confirm(t("Delete Exercise?"))) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.filter(e => e.id !== ex.id)} : d)); }}>✕</button>
