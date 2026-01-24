@@ -471,6 +471,8 @@
             const addSet = (dayId, exId) => {
                 const now = new Date();
                 const todayStr = now.toISOString().split('T')[0];
+                const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); // Added for set timestamp
+                
                 saveAndSync(days.map(d => {
                     if (d.id === dayId) {
                         const isNewSession = d.lastPerformed !== todayStr;
@@ -478,10 +480,18 @@
                             ...d, lastPerformed: todayStr, 
                             exercises: d.exercises.map(ex => {
                                 if (ex.id === exId) {
-                                    // If this is the first set of a NEW day, move current sets to history
                                     const history = isNewSession ? ex.sets : (ex.history || []);
-                                    // New sets start at 0 so they don't automatically trigger a +10 increase badge
-                                    return { ...ex, history, sets: [...ex.sets, { id: Date.now(), reps: 0, weight: 0 }] };
+                                    // FIXED: New sets start at 0 and include a local timestamp
+                                    return { 
+                                        ...ex, 
+                                        history, 
+                                        sets: [...ex.sets, { 
+                                            id: Date.now(), 
+                                            reps: 0, 
+                                            weight: 0,
+                                            addedAt: timeStr // NEW: Individual set timestamp
+                                        }] 
+                                    };
                                 }
                                 return ex;
                             })
@@ -520,14 +530,8 @@
                             <div className="d-grid gap-2">
                                 {day.exercises.map(ex => {
                                     const hasHistory = ex.history && ex.history.length > 0;
-                                    
-                                    // Calculate Total Reps for Current Session
                                     const currentTotalReps = ex.sets.reduce((sum, s) => sum + (Number(s.reps) || 0), 0);
-                                    
-                                    // Calculate Total Reps from the History (Previous Session)
                                     const prevTotalReps = hasHistory ? ex.history.reduce((sum, s) => sum + (Number(s.reps) || 0), 0) : 0;
-                                    
-                                    // The Difference (+1, -1, or 0)
                                     const rDelta = hasHistory ? currentTotalReps - prevTotalReps : 0;
 
                                     const currentAvgWeight = ex.sets.length > 0 ? (ex.sets.reduce((sum, s) => sum + (Number(s.weight) || 0), 0) / ex.sets.length) : 0;
@@ -553,7 +557,6 @@
                                                     <div className="d-flex gap-1 flex-wrap mt-1 align-items-center">
                                                         {bestSet && <span className="badge bg-white text-primary border fw-800" style={{fontSize: '9px', padding: '4px 6px'}}>1RM: {calc1RM(bestSet.weight, bestSet.reps)}{t("KG")}</span>}
                                                         
-                                                        {/* REPS BADGE: GREEN if rDelta is 0 or more, RED if less */}
                                                         <span className="badge fw-800" style={{
                                                             fontSize: '9px', 
                                                             padding: '4px 6px', 
@@ -587,7 +590,10 @@
                                                     {ex.sets.map((s, i) => (
                                                         <div key={s.id} className="mb-2">
                                                             <div className="d-flex align-items-center gap-2 bg-white p-2 rounded shadow-sm">
-                                                                <div className="fw-800 text-muted" style={{fontSize: '9px', minWidth: '20px'}}>{t("S")}{i+1}</div>
+                                                                <div className="d-flex flex-column align-items-center" style={{minWidth: '35px'}}>
+                                                                    <div className="fw-800 text-muted" style={{fontSize: '9px'}}>{t("S")}{i+1}</div>
+                                                                    <div className="text-muted" style={{fontSize: '7px', marginTop: '-2px'}}>{s.addedAt || '--:--'}</div>
+                                                                </div>
                                                                 <div className="d-flex align-items-center flex-grow-1 gap-1">
                                                                     <input type="number" inputMode="numeric" placeholder="0" className="form-control form-control-sm text-center fw-bold border-0 bg-light" style={{color: '#27ae60'}} value={s.reps || ''} onChange={e => {
                                                                         const val = parseInt(e.target.value) || 0;
