@@ -522,12 +522,12 @@
                                     const prevSets = ex.history || [];
                                     const hasHistory = prevSets.length > 0;
 
-                                    // Metrics Calculations
+                                    // Metrics Logic
                                     const currentTotalReps = currentSets.reduce((sum, s) => sum + (Number(s.reps) || 0), 0);
-                                    const prevTotalReps = prevSets.reduce((sum, s) => sum + (Number(s.reps) || 0), 0);
+                                    const prevTotalReps = hasHistory ? prevSets.reduce((sum, s) => sum + (Number(s.reps) || 0), 0) : 0;
                                     
                                     const currentAvgWeight = currentSets.length > 0 ? (currentSets.reduce((sum, s) => sum + (Number(s.weight) || 0), 0) / currentSets.length) : 0;
-                                    const prevAvgWeight = prevSets.length > 0 ? (prevSets.reduce((sum, s) => sum + (Number(s.weight) || 0), 0) / prevSets.length) : 0;
+                                    const prevAvgWeight = hasHistory ? (prevSets.reduce((sum, s) => sum + (Number(s.weight) || 0), 0) / prevSets.length) : 0;
 
                                     // Deltas
                                     const rDelta = hasHistory ? currentTotalReps - prevTotalReps : 0;
@@ -555,13 +555,13 @@
                                                         
                                                         {/* Sets Badge */}
                                                         <span className="badge fw-800 bg-white border text-dark" style={{fontSize: '9px', padding: '4px 6px'}}>
-                                                            {ex.sets.length} {t("SETS")} 
+                                                            {currentSets.length} {t("SETS")} 
                                                             {hasHistory && setDelta !== 0 && (
                                                                 <span style={{color: setDelta > 0 ? '#27ae60' : '#e74c3c'}}> ({setDelta > 0 ? '+' : ''}{setDelta})</span>
                                                             )}
                                                         </span>
 
-                                                        {/* Reps Badge */}
+                                                        {/* Reps Badge - Shows +1 if 31 vs 30 */}
                                                         <span className="badge fw-800" style={{
                                                             fontSize: '9px', 
                                                             padding: '4px 6px', 
@@ -573,7 +573,7 @@
                                                             {hasHistory && rDelta !== 0 && ` (${rDelta > 0 ? '+' : ''}${rDelta})`}
                                                         </span>
 
-                                                        {/* Weight Badge - Now based on Average Weight */}
+                                                        {/* Weight Badge - Now based on Average to show real intensity */}
                                                         <span className="badge fw-800" style={{
                                                             fontSize: '9px', 
                                                             padding: '4px 6px', 
