@@ -236,6 +236,9 @@
             font-size: 12px;
             font-weight: 700;
             cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
         
         .rtl { direction: rtl; text-align: right; }
@@ -412,7 +415,17 @@
 
             return (
                 <div className={`container py-4 ${lang === 'ar' ? 'rtl' : ''}`}>
-                    <button className="lang-toggle" onClick={toggleLang}>{lang === 'en' ? 'عربي' : 'English'}</button>
+                    <button className="lang-toggle" onClick={toggleLang}>
+                        {lang === 'en' ? (
+                            <React.Fragment>
+                                <img src="https://flagcdn.com/w20/sa.png" alt="Saudi Arabia" style={{width: '18px', height: '12px'}} /> عربي
+                            </React.Fragment>
+                        ) : (
+                            <React.Fragment>
+                                <img src="https://flagcdn.com/w20/gb.png" alt="United Kingdom" style={{width: '18px', height: '12px'}} /> English
+                            </React.Fragment>
+                        )}
+                    </button>
                     
                     {!session ? (
                         <Login t={t} lang={lang} />
