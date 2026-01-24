@@ -28,24 +28,7 @@
             -webkit-user-select: none; 
             user-select: none;
             touch-action: manipulation;
-            top: 0 !important; /* Fix for Google Translate top bar */
         }
-
-        /* Google Translate Styling */
-        #google_translate_element select {
-            background-color: #f8f9fa;
-            color: #000;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            padding: 4px 8px;
-            font-size: 10px;
-            font-weight: 800;
-            outline: none;
-        }
-        .goog-te-banner-frame.skiptranslate, .goog-logo-link, .goog-te-gadget span {
-            display: none !important;
-        }
-        .goog-te-gadget { color: transparent !important; }
 
         @keyframes slideIn {
             from { opacity: 0; transform: translateY(8px); }
@@ -245,19 +228,6 @@
 <body>
     <div id="root"></div>
 
-    <script type="text/javascript">
-    function googleTranslateElementInit() {
-        new google.translate.TranslateElement({
-            pageLanguage: 'en',
-            // Only include these specific popular languages
-            includedLanguages: 'ar,es,fr,de,it,pt,zh-CN,hi,ja,ru',
-            layout: google.translate.TranslateElement.InlineLayout.SIMPLE,
-            autoDisplay: false
-        }, 'google_translate_element');
-    }
-</script>
-<script type="text/javascript" src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
-
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
@@ -410,12 +380,6 @@
 
     return (
         <div className="pb-5">
-            {/* MOBILE FRIENDLY TRANSLATE BAR */}
-            <div className="d-flex justify-content-between align-items-center mb-3 p-2 bg-light rounded shadow-sm">
-                <span className="fw-800" style={{fontSize: '10px', letterSpacing: '1px'}}>TRANSLATE:</span>
-                <div id="google_translate_element"></div>
-            </div>
-
             <button className="btn btn-dark w-100 mb-4 fw-800 py-3 shadow-sm" style={{fontSize: '12px', letterSpacing: '1px'}} onClick={() => {
                 const name = prompt("Day Name (e.g. Push Day):");
                 if (name) saveAndSync([...days, { id: Date.now(), name, lastPerformed: null, exercises: [] }]);
@@ -611,8 +575,8 @@
                         <div className="section-title mt-2">Nutrient Intake</div>
                         <div className="row g-2">
                             <div className="col-4"><label className="toggle-label">P</label><input type="number" inputMode="numeric" className="form-control" value={f.p} onChange={e=>setF({...f, p: cleanNum(e.target.value)})} /></div>
-                            <div className="col-4"><label className="toggle-label">C</label><input type="number" inputMode="numeric" className="form-control" value={f.c} onChange={e=>setF({...f, c: cleanNum(e.target.value)})} /></div>
-                            <div className="col-4"><label className="toggle-label">F</label><input type="number" inputMode="numeric" className="form-control" value={f.f} onChange={e=>setF({...f, f: cleanNum(e.target.value)})} /></div>
+                            <div className="col-4"><label className="toggle-label">C</label><input type="number" inputMode="numeric" className="form-control" value={f.p} onChange={e=>setF({...f, c: cleanNum(e.target.value)})} /></div>
+                            <div className="col-4"><label className="toggle-label">F</label><input type="number" inputMode="numeric" className="form-control" value={f.p} onChange={e=>setF({...f, f: cleanNum(e.target.value)})} /></div>
                         </div>
                         <div className="section-title mt-2">Recovery</div>
                         <div className="row g-2">
