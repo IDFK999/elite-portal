@@ -478,9 +478,10 @@
                             ...d, lastPerformed: todayStr, 
                             exercises: d.exercises.map(ex => {
                                 if (ex.id === exId) {
+                                    // If this is the first set of a NEW day, move current sets to history
                                     const history = isNewSession ? ex.sets : (ex.history || []);
-                                    const prev = ex.sets[ex.sets.length - 1] || { reps: 10, weight: 50 };
-                                    return { ...ex, history, sets: [...ex.sets, { id: Date.now(), reps: prev.reps, weight: prev.weight }] };
+                                    // New sets start at 0 so they don't automatically trigger a +10 increase badge
+                                    return { ...ex, history, sets: [...ex.sets, { id: Date.now(), reps: 0, weight: 0 }] };
                                 }
                                 return ex;
                             })
@@ -520,13 +521,13 @@
                                 {day.exercises.map(ex => {
                                     const hasHistory = ex.history && ex.history.length > 0;
                                     
-                                    // 1. Gather total reps for the current 3 (or more) sets
+                                    // Calculate Total Reps for Current Session
                                     const currentTotalReps = ex.sets.reduce((sum, s) => sum + (Number(s.reps) || 0), 0);
                                     
-                                    // 2. Gather total reps from the previous session's sets
+                                    // Calculate Total Reps from the History (Previous Session)
                                     const prevTotalReps = hasHistory ? ex.history.reduce((sum, s) => sum + (Number(s.reps) || 0), 0) : 0;
                                     
-                                    // 3. Calculate the difference (e.g., +1)
+                                    // The Difference (+1, -1, or 0)
                                     const rDelta = hasHistory ? currentTotalReps - prevTotalReps : 0;
 
                                     const currentAvgWeight = ex.sets.length > 0 ? (ex.sets.reduce((sum, s) => sum + (Number(s.weight) || 0), 0) / ex.sets.length) : 0;
@@ -552,7 +553,7 @@
                                                     <div className="d-flex gap-1 flex-wrap mt-1 align-items-center">
                                                         {bestSet && <span className="badge bg-white text-primary border fw-800" style={{fontSize: '9px', padding: '4px 6px'}}>1RM: {calc1RM(bestSet.weight, bestSet.reps)}{t("KG")}</span>}
                                                         
-                                                        {/* REPS BADGE: This compares total of current 3 sets vs last session's 3 sets */}
+                                                        {/* REPS BADGE: GREEN if rDelta is 0 or more, RED if less */}
                                                         <span className="badge fw-800" style={{
                                                             fontSize: '9px', 
                                                             padding: '4px 6px', 
@@ -561,7 +562,10 @@
                                                             border: `1px solid ${hasHistory && rDelta >= 0 ? '#27ae60' : hasHistory && rDelta < 0 ? '#e74c3c' : '#ddd'}`
                                                         }}>
                                                             {currentTotalReps} {t("REPS")} 
-                                                            {hasHistory && rDelta !== 0 ? ` (${rDelta > 0 ? '+' : ''}${rDelta})` : (hasHistory && rDelta === 0 ? ' (=)' : '')}
+                                                            {hasHistory && (
+                                                                rDelta > 0 ? ` (+${rDelta})` : 
+                                                                rDelta < 0 ? ` (${rDelta})` : ' (=)'
+                                                            )}
                                                         </span>
 
                                                         <span className="badge fw-800" style={{
@@ -571,7 +575,7 @@
                                                             color: hasHistory && wDelta >= 0 ? '#e67e22' : hasHistory && wDelta < 0 ? '#e74c3c' : '#666', 
                                                             border: `1px solid ${hasHistory && wDelta >= 0 ? '#e67e22' : hasHistory && wDelta < 0 ? '#e74c3c' : '#ddd'}`
                                                         }}>
-                                                            {currentAvgWeight.toFixed(1)}{t("KG")} (Avg)
+                                                            {currentAvgWeight.toFixed(1)}{t("KG")}
                                                             {hasHistory && wDelta !== 0 ? ` (${wDelta > 0 ? '+' : ''}${wDelta.toFixed(1)})` : ''}
                                                         </span>
                                                     </div>
@@ -585,12 +589,12 @@
                                                             <div className="d-flex align-items-center gap-2 bg-white p-2 rounded shadow-sm">
                                                                 <div className="fw-800 text-muted" style={{fontSize: '9px', minWidth: '20px'}}>{t("S")}{i+1}</div>
                                                                 <div className="d-flex align-items-center flex-grow-1 gap-1">
-                                                                    <input type="number" inputMode="numeric" className="form-control form-control-sm text-center fw-bold border-0 bg-light" style={{color: '#27ae60'}} value={s.reps} onChange={e => {
+                                                                    <input type="number" inputMode="numeric" placeholder="0" className="form-control form-control-sm text-center fw-bold border-0 bg-light" style={{color: '#27ae60'}} value={s.reps || ''} onChange={e => {
                                                                         const val = parseInt(e.target.value) || 0;
                                                                         saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(exItem => exItem.id === ex.id ? {...exItem, sets: exItem.sets.map(setItem => setItem.id === s.id ? {...setItem, reps: val} : setItem)} : exItem)} : d));
                                                                     }} />
                                                                     <span className="text-muted small">×</span>
-                                                                    <input type="number" inputMode="decimal" className="form-control form-control-sm text-center fw-bold border-0 bg-light" style={{color: '#E67E22'}} value={s.weight} onChange={e => {
+                                                                    <input type="number" inputMode="decimal" placeholder="0" className="form-control form-control-sm text-center fw-bold border-0 bg-light" style={{color: '#E67E22'}} value={s.weight || ''} onChange={e => {
                                                                         const val = parseFloat(e.target.value) || 0;
                                                                         saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(exItem => exItem.id === ex.id ? {...exItem, sets: exItem.sets.map(setItem => setItem.id === s.id ? {...setItem, weight: val} : setItem)} : exItem)} : d));
                                                                     }} />
