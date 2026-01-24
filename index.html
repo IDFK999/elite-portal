@@ -226,7 +226,7 @@
 
         .lang-toggle {
             position: fixed;
-            top: 15px;
+            top: 20px;
             right: 20px;
             z-index: 2000;
             background: var(--soft-grey);
@@ -278,8 +278,6 @@
                 "Yesterday": "أمس",
                 "d ago": "يوم مضى",
                 "ADD EXERCISE": "إضافة تمرين",
-                "Delete Exercise?": "حذف التمرين؟",
-                "Permanently delete this entire workout day?": "هل تريد حذف يوم التدريب هذا نهائياً؟",
                 "Exercise Name:": "اسم التمرين:",
                 "+ ADD SET": "+ إضافة جولة",
                 "SETS": "جولات",
@@ -418,10 +416,9 @@
                 <div className={`container py-4 ${lang === 'ar' ? 'rtl' : ''}`}>
                     <button className="lang-toggle" onClick={toggleLang}>{lang === 'en' ? 'عربي' : 'English'}</button>
                     
-                    <div className="d-flex justify-content-between align-items-center mb-3" 
-                            style={{paddingRight: lang === 'en' ? '80px' : '0', paddingLeft: lang === 'ar' ? '80px' : '0'}}>
+                    <div className="d-flex justify-content-between align-items-center mb-3">
                         <h5 className="fw-bold m-0" style={{letterSpacing: '-0.5px'}}>{t("ELITE PERFORMANCE")}</h5>
-                        <div className="badge rounded-pill text-dark border">v11.5.4</div>
+                        <div className="badge rounded-pill text-dark border">v11.5.3</div>
                     </div>
 
                     {view === 'workout' && <WorkoutManager user={session.user} t={t} />}
@@ -475,7 +472,7 @@
             };
 
             const deleteDay = (dayId) => {
-                if (confirm(t("Permanently delete this entire workout day?"))) {
+                if (confirm("Permanently delete this entire workout day?")) {
                     saveAndSync(days.filter(d => d.id !== dayId));
                 }
             };
@@ -519,7 +516,7 @@
                                     <button className="btn btn-sm p-0 text-muted" onClick={() => {
                                         const newName = prompt(t("Edit Day Name:"), day.name);
                                         if (newName) saveAndSync(days.map(d => d.id === day.id ? {...d, name: newName} : d));
-                                    }} style={{fontSize: '12px'}}>✎</button> 
+                                    }} style={{fontSize: '12px'}}>✎</button>
                                 </div>
                                 <div className="d-flex align-items-center gap-2">
                                     <span className="badge rounded-pill bg-light text-primary border fw-bold" style={{fontSize: '10px'}}>{getDaysAgo(day.lastPerformed)}</span>
@@ -527,7 +524,7 @@
                                 </div>
                             </div>
                             <div className="text-muted mb-3" style={{fontSize: '10px', fontWeight: '700'}}>{t("LAST SESSION:")} {day.lastPerformed || t("NEVER")}</div>
-
+                            
                             <div className="d-grid gap-2">
                                 {day.exercises.map(ex => {
                                     const currentTotalReps = ex.sets.reduce((sum, s) => sum + (Number(s.reps) || 0), 0);
@@ -535,9 +532,11 @@
                                     const hasHistory = ex.history && ex.history.length > 0;
                                     const prevTotalReps = hasHistory ? ex.history.reduce((sum, s) => sum + (Number(s.reps) || 0), 0) : 0;
                                     const prevTotalWeight = hasHistory ? ex.history.reduce((sum, s) => sum + (Number(s.weight) || 0), 0) : 0;
+                                    
                                     const rDelta = hasHistory ? currentTotalReps - prevTotalReps : 0;
                                     const wDelta = hasHistory ? currentTotalWeight - prevTotalWeight : 0;
                                     const setDelta = hasHistory ? ex.sets.length - ex.history.length : 0;
+                                    
                                     const bestSet = [...ex.sets].sort((a,b) => calc1RM(b.weight, b.reps) - calc1RM(a.weight, a.reps))[0];
 
                                     return (
@@ -554,55 +553,49 @@
                                                             if (newNote !== null) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(eItem => eItem.id === ex.id ? {...eItem, target: newNote} : eItem)} : d));
                                                         }}>{ex.target || 'ADD'}</div>
                                                     </div>
+                                                    
                                                     <div className="d-flex gap-1 flex-wrap mt-1 align-items-center">
                                                         {bestSet && <span className="badge bg-white text-primary border fw-800" style={{fontSize: '9px', padding: '4px 6px'}}>1RM: {calc1RM(bestSet.weight, bestSet.reps)}{t("KG")}</span>}
                                                         <span className="badge fw-800 bg-white border text-dark" style={{fontSize: '9px', padding: '4px 6px'}}>{ex.sets.length} {t("SETS")} {hasHistory && setDelta !== 0 ? `(${setDelta > 0 ? '+' : ''}${setDelta})` : ''}</span>
-                                                        <span className="badge fw-800" style={{fontSize: '9px', padding: '4px 6px', backgroundColor: rDelta > 0 ? '#eafaf1' : rDelta < 0 ? '#fdedec' : '#ffffff', color: rDelta > 0 ? '#27ae60' : rDelta < 0 ? '#e74c3c' : '#666', border: `1px solid ${rDelta > 0 ? '#27ae60' : rDelta < 0 ? '#e74c3c' : '#ddd'}`}}>{currentTotalReps} {t("REPS")} {rDelta > 0 ? '↑' : rDelta < 0 ? '↓' : '—'}</span>
-                                                        <span className="badge fw-800" style={{fontSize: '9px', padding: '4px 6px', backgroundColor: wDelta > 0 ? '#fef5e7' : wDelta < 0 ? '#fdedec' : '#ffffff', color: wDelta > 0 ? '#e67e22' : wDelta < 0 ? '#e74c3c' : '#666', border: `1px solid ${wDelta > 0 ? '#e67e22' : wDelta < 0 ? '#e74c3c' : '#ddd'}`}}>{currentTotalWeight}{t("KG")} {wDelta > 0 ? '↑' : wDelta < 0 ? '↓' : '—'}</span>
+                                                        <span className="badge fw-800" style={{fontSize: '9px', padding: '4px 6px', backgroundColor: rDelta > 0 ? '#eafaf1' : rDelta < 0 ? '#fdedec' : '#ffffff', color: rDelta > 0 ? '#27ae60' : rDelta < 0 ? '#e74c3c' : '#666', border: '1px solid #eee'}}>{currentTotalReps} {t("REPS")} {hasHistory && rDelta !== 0 ? `(${rDelta > 0 ? '+' : ''}${rDelta})` : ''}</span>
                                                     </div>
                                                 </div>
-                                                <button className="btn btn-sm text-danger p-0 ms-2" onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    if(confirm(t("Delete Exercise?"))) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.filter(e => e.id !== ex.id)} : d));
+                                                <button className="btn btn-sm text-danger p-0 border-0 bg-transparent ms-2" onClick={() => {
+                                                    if(confirm(`Delete ${ex.name}?`)) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.filter(eItem => eItem.id !== ex.id)} : d));
                                                 }}>✕</button>
                                             </div>
+
                                             {expandedEx[ex.id] && (
                                                 <div className="mt-2 pt-2 border-top">
-                                                    {ex.sets.map((s, i) => (
-                                                        <div key={s.id} className="mb-2">
-                                                            <div className="d-flex align-items-center gap-2 bg-white p-2 rounded shadow-sm">
-                                                                <div className="fw-800 text-muted" style={{fontSize: '9px', minWidth: '20px'}}>{t("S")}{i+1}</div>
-                                                                <div className="d-flex align-items-center flex-grow-1 gap-1">
-                                                                    <input type="number" inputMode="numeric" className="form-control form-control-sm text-center fw-bold border-0 bg-light" style={{color: '#27ae60'}} value={s.reps} onChange={e => {
-                                                                        const val = parseInt(e.target.value) || 0;
-                                                                        saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(eItem => eItem.id === ex.id ? {...eItem, sets: eItem.sets.map(set => set.id === s.id ? {...set, reps: val} : set)} : eItem)} : d));
-                                                                    }} />
-                                                                    <div className="text-muted fw-800" style={{fontSize: '9px'}}>{t("REPS")}</div>
-                                                                </div>
-                                                                <div className="d-flex align-items-center flex-grow-1 gap-1">
-                                                                    <input type="number" step="0.5" inputMode="decimal" className="form-control form-control-sm text-center fw-bold border-0 bg-light" style={{color: '#0066FF'}} value={s.weight} onChange={e => {
-                                                                        const val = parseFloat(e.target.value) || 0;
-                                                                        saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(eItem => eItem.id === ex.id ? {...eItem, sets: eItem.sets.map(set => set.id === s.id ? {...set, weight: val} : set)} : eItem)} : d));
-                                                                    }} />
-                                                                    <div className="text-muted fw-800" style={{fontSize: '9px'}}>{t("KG")}</div>
-                                                                </div>
-                                                                <button className="btn btn-sm text-danger p-0" onClick={() => {
-                                                                    saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(eItem => eItem.id === ex.id ? {...eItem, sets: eItem.sets.filter(set => set.id !== s.id)} : eItem)} : d));
-                                                                }}>✕</button>
-                                                            </div>
+                                                    {ex.sets.map((s, idx) => (
+                                                        <div key={s.id} className="d-flex gap-2 mb-2 align-items-center">
+                                                            <div className="bg-dark text-white rounded-circle d-flex align-items-center justify-content-center fw-bold" style={{width: '20px', height: '20px', fontSize: '9px'}}>{idx + 1}</div>
+                                                            <input type="number" className="form-control form-control-sm m-0 p-1 text-center fw-bold" value={s.weight} onChange={e => {
+                                                                const val = cleanNum(e.target.value);
+                                                                saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(eItem => eItem.id === ex.id ? {...eItem, sets: eItem.sets.map(sItem => sItem.id === s.id ? {...sItem, weight: val} : sItem)} : eItem)} : d));
+                                                            }} style={{fontSize: '13px'}} />
+                                                            <span className="small fw-bold text-muted">KG</span>
+                                                            <input type="number" className="form-control form-control-sm m-0 p-1 text-center fw-bold" value={s.reps} onChange={e => {
+                                                                const val = cleanNum(e.target.value);
+                                                                saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(eItem => eItem.id === ex.id ? {...eItem, sets: eItem.sets.map(sItem => sItem.id === s.id ? {...sItem, reps: val} : sItem)} : eItem)} : d));
+                                                            }} style={{fontSize: '13px'}} />
+                                                            <span className="small fw-bold text-muted">R</span>
+                                                            <button className="btn btn-sm text-danger p-0" onClick={() => {
+                                                                saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(eItem => eItem.id === ex.id ? {...eItem, sets: eItem.sets.filter(sItem => sItem.id !== s.id)} : eItem)} : d));
+                                                            }}>✕</button>
                                                         </div>
                                                     ))}
-                                                    <button className="btn btn-outline-secondary btn-sm w-100 fw-800" style={{fontSize: '10px'}} onClick={() => addSet(day.id, ex.id)}>{t("+ ADD SET")}</button>
+                                                    <button className="btn btn-outline-dark btn-sm w-100 fw-800 mt-1 py-1" style={{fontSize: '10px'}} onClick={() => addSet(day.id, ex.id)}>{t("+ ADD SET")}</button>
                                                 </div>
                                             )}
                                         </div>
                                     );
                                 })}
+                                <button className="btn btn-outline-secondary btn-sm w-100 fw-bold border-dashed py-2" style={{fontSize: '11px'}} onClick={() => {
+                                    const name = prompt(t("Exercise Name:"));
+                                    if (name) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: [...d.exercises, { id: Date.now(), name, target: '', sets: [] }]} : d));
+                                }}>{t("ADD EXERCISE")}</button>
                             </div>
-                            <button className="btn btn-primary btn-sm w-100 mt-2" onClick={() => {
-                                const name = prompt(t("Exercise Name:"));
-                                if (name) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: [...d.exercises, { id: Date.now(), name, sets: [] }]} : d));
-                            }}>{t("ADD EXERCISE")}</button>
                         </div>
                     ))}
                 </div>
@@ -610,137 +603,122 @@
         }
 
         function DailyLog({ user, t }) {
-            const [metrics, setMetrics] = useState({ weight: '', steps: '', protein: '', carbs: '', fats: '', water: '', sleep: '' });
-            const [savedTargets, setSavedTargets] = useState({ protein: 180, carbs: 250, fats: 70 });
+            const [data, setData] = useState({ weight: '', steps: '', protein: '', carbs: '', fats: '', water: '', sleep: '' });
+            const [targets, setTargets] = useState({ protein: 180, carbs: 250, fat: 60, totalCalories: 2260 });
+            const [loading, setLoading] = useState(true);
 
             useEffect(() => {
-                _supabase.from('user_settings').select('macro_targets').eq('user_id', user.id).maybeSingle()
-                    .then(({ data }) => data && setSavedTargets(data.macro_targets));
+                const fetchDaily = async () => {
+                    const today = new Date().toISOString().split('T')[0];
+                    const { data: logData } = await _supabase.from('daily_logs').select('*').eq('user_id', user.id).eq('date', today).maybeSingle();
+                    if (logData) setData({ ...logData });
+                    const { data: sett } = await _supabase.from('user_settings').select('targets').eq('user_id', user.id).maybeSingle();
+                    if (sett?.targets) setTargets(sett.targets);
+                    setLoading(false);
+                };
+                fetchDaily();
             }, [user.id]);
 
-            const saveMetrics = async () => {
-                const { error } = await _supabase.from('daily_logs').upsert({
-                    user_id: user.id, date: new Date().toISOString().split('T')[0], ...metrics
-                }, { onConflict: 'user_id,date' });
-                if (error) alert(error.message); else alert(t("Save Daily Record"));
+            const saveLog = async () => {
+                const today = new Date().toISOString().split('T')[0];
+                const cleanData = Object.fromEntries(Object.entries(data).map(([k, v]) => [k, v === '' ? null : v]));
+                await _supabase.from('daily_logs').upsert({ user_id: user.id, date: today, ...cleanData }, { onConflict: 'user_id,date' });
+                alert("Log Saved");
             };
 
             const saveTargets = async () => {
-                await _supabase.from('user_settings').upsert({ user_id: user.id, macro_targets: savedTargets }, { onConflict: 'user_id' });
+                await _supabase.from('user_settings').upsert({ user_id: user.id, targets }, { onConflict: 'user_id' });
+                alert("Targets Updated");
             };
 
-            const totalCal = (savedTargets.protein * 4) + (savedTargets.carbs * 4) + (savedTargets.fats * 9);
+            if (loading) return <div className="text-center p-5 text-muted small fw-bold">{t("Syncing...")}</div>;
 
             return (
                 <div className="pb-5">
-                    <div className="target-pill" onClick={() => {
-                        const p = prompt(t("Protein"), savedTargets.protein);
-                        const c = prompt(t("Carbs"), savedTargets.carbs);
-                        const f = prompt(t("Fats"), savedTargets.fats);
-                        if(p && c && f) setSavedTargets({ protein: p, carbs: c, fats: f });
+                    <div className="target-pill d-flex justify-content-around text-center shadow-sm" onClick={() => {
+                        const weight = prompt("Enter bodyweight for auto-macro calculation (kg):", "80");
+                        const goal = prompt("Enter goal (cut, maintain, bulk):", "maintain");
+                        const bonus = prompt("Enter calorie adjustment (e.g., -150 or 200):", "0");
+                        if (weight && goal) {
+                            const newTargets = getHelmsMacros(parseFloat(weight), goal, parseFloat(bonus));
+                            setTargets(newTargets);
+                        }
                     }}>
-                        <div className="d-flex justify-content-between align-items-center mb-2">
-                            <span className="fw-800" style={{fontSize: '11px', letterSpacing: '1px'}}>{t("Nutrient Intake")}</span>
-                            <span className="fw-800" style={{fontSize: '18px'}}>{totalCal} <small style={{fontSize: '10px'}}>KCAL</small></span>
-                        </div>
-                        <div className="row g-0 text-center">
-                            <div className="col-4 border-end border-secondary">
-                                <div className="macro-mini-label">{t("P")}</div>
-                                <div className="macro-mini-value">{savedTargets.protein}g</div>
-                            </div>
-                            <div className="col-4 border-end border-secondary">
-                                <div className="macro-mini-label">{t("C")}</div>
-                                <div className="macro-mini-value">{savedTargets.carbs}g</div>
-                            </div>
-                            <div className="col-4">
-                                <div className="macro-mini-label">{t("F")}</div>
-                                <div className="macro-mini-value">{savedTargets.fats}g</div>
-                            </div>
-                        </div>
+                        <div><div className="macro-mini-label">{t("Protein")}</div><div className="macro-mini-value">{targets.protein}g</div></div>
+                        <div><div className="macro-mini-label">{t("Carbs")}</div><div className="macro-mini-value">{targets.carbs}g</div></div>
+                        <div><div className="macro-mini-label">{t("Fats")}</div><div className="macro-mini-value">{targets.fat}g</div></div>
+                        <div><div className="macro-mini-label">{t("Calories")}</div><div className="macro-mini-value">{targets.totalCalories}</div></div>
                     </div>
 
                     <div className="section-title">{t("Core Metrics")}</div>
                     <div className="row g-2 mb-3">
-                        <div className="col-6">
-                            <label className="toggle-label">{t("Weight (kg) *")}</label>
-                            <input className="form-control" type="number" step="0.1" value={metrics.weight} onChange={e=>setMetrics({...metrics, weight: e.target.value})} />
-                        </div>
-                        <div className="col-6">
-                            <label className="toggle-label">{t("Steps *")}</label>
-                            <input className="form-control" type="number" value={metrics.steps} onChange={e=>setMetrics({...metrics, steps: e.target.value})} />
-                        </div>
+                        <div className="col-6"><input type="number" className="form-control" placeholder={t("Weight (kg) *")} value={data.weight || ''} onChange={e=>setData({...data, weight: cleanNum(e.target.value)})} /></div>
+                        <div className="col-6"><input type="number" className="form-control" placeholder={t("Steps *")} value={data.steps || ''} onChange={e=>setData({...data, steps: cleanNum(e.target.value)})} /></div>
+                    </div>
+
+                    <div className="section-title">{t("Nutrient Intake")}</div>
+                    <div className="row g-2 mb-3">
+                        <div className="col-4"><input type="number" className="form-control" placeholder={t("P")} value={data.protein || ''} onChange={e=>setData({...data, protein: cleanNum(e.target.value)})} /></div>
+                        <div className="col-4"><input type="number" className="form-control" placeholder={t("C")} value={data.carbs || ''} onChange={e=>setData({...data, carbs: cleanNum(e.target.value)})} /></div>
+                        <div className="col-4"><input type="number" className="form-control" placeholder={t("F")} value={data.fats || ''} onChange={e=>setData({...data, fats: cleanNum(e.target.value)})} /></div>
                     </div>
 
                     <div className="section-title">{t("Recovery")}</div>
                     <div className="row g-2 mb-4">
-                        <div className="col-6">
-                            <label className="toggle-label">{t("Water (L)")}</label>
-                            <input className="form-control" type="number" step="0.1" value={metrics.water} onChange={e=>setMetrics({...metrics, water: e.target.value})} />
-                        </div>
-                        <div className="col-6">
-                            <label className="toggle-label">{t("Sleep (H)")}</label>
-                            <input className="form-control" type="number" step="0.5" value={metrics.sleep} onChange={e=>setMetrics({...metrics, sleep: e.target.value})} />
-                        </div>
+                        <div className="col-6"><input type="number" className="form-control" placeholder={t("Water (L)")} value={data.water || ''} onChange={e=>setData({...data, water: cleanNum(e.target.value)})} /></div>
+                        <div className="col-6"><input type="number" className="form-control" placeholder={t("Sleep (H)")} value={data.sleep || ''} onChange={e=>setData({...data, sleep: cleanNum(e.target.value)})} /></div>
                     </div>
 
-                    <button className="btn btn-primary py-3 mb-3 shadow-sm" onClick={saveMetrics}>{t("Save Daily Record")}</button>
-                    <button className="btn btn-outline-dark btn-sm w-100 border-0 fw-bold" onClick={saveTargets}>{t("Save Targets")}</button>
+                    <button className="btn btn-primary shadow-sm mb-3 py-3" onClick={saveLog}>{t("Save Daily Record")}</button>
+                    <button className="btn btn-outline-secondary w-100 border-0 fw-bold small" onClick={saveTargets}>{t("Save Targets")}</button>
                 </div>
             );
         }
 
         function Metrics({ user, t }) {
-            const [m, setM] = useState({ waist: '', chest: '', left_arm: '', right_arm: '', glutes: '', left_thigh: '', right_thigh: '' });
-            const [startDate, setStartDate] = useState(localStorage.getItem('program_start') || new Date().toISOString().split('T')[0]);
+            const [ms, setMs] = useState({ waist: '', chest: '', left_arm: '', right_arm: '', glutes: '', left_thigh: '', right_thigh: '' });
+            const [startDate, setStartDate] = useState('');
+
+            useEffect(() => {
+                const fetchMeta = async () => {
+                    const { data: sett } = await _supabase.from('user_settings').select('program_start').eq('user_id', user.id).maybeSingle();
+                    if (sett?.program_start) setStartDate(sett.program_start);
+                };
+                fetchMeta();
+            }, [user.id]);
 
             const saveWeekly = async () => {
-                const { error } = await _supabase.from('weekly_stats').upsert({
-                    user_id: user.id, date: new Date().toISOString().split('T')[0], ...m
-                });
-                if (error) alert(error.message); else alert(t("Submit Weekly Stats"));
+                const weekNum = startDate ? Math.ceil((new Date() - new Date(startDate)) / (7 * 24 * 60 * 60 * 1000)) : 1;
+                const cleanMs = Object.fromEntries(Object.entries(ms).map(([k, v]) => [k, v === '' ? null : v]));
+                await _supabase.from('weekly_stats').upsert({ user_id: user.id, week_number: weekNum, date: new Date().toISOString().split('T')[0], ...cleanMs });
+                alert("Measurements Saved");
+            };
+
+            const updateStart = async (val) => {
+                setStartDate(val);
+                await _supabase.from('user_settings').upsert({ user_id: user.id, program_start: val }, { onConflict: 'user_id' });
             };
 
             return (
                 <div className="pb-5">
-                    <label className="toggle-label">{t("Program Start Date")}</label>
-                    <input className="form-control mb-4" type="date" value={startDate} onChange={e=>{setStartDate(e.target.value); localStorage.setItem('program_start', e.target.value);}} />
-
-                    <div className="section-title">{t("Measurements")} (cm)</div>
-                    <div className="row g-2 mb-3">
-                        <div className="col-6">
-                            <label className="toggle-label">{t("Waist *")}</label>
-                            <input className="form-control" type="number" value={m.waist} onChange={e=>setM({...m, waist: e.target.value})} />
-                        </div>
-                        <div className="col-6">
-                            <label className="toggle-label">{t("Chest *")}</label>
-                            <input className="form-control" type="number" value={m.chest} onChange={e=>setM({...m, chest: e.target.value})} />
-                        </div>
+                    <div className="section-title">{t("Program Start Date")}</div>
+                    <input type="date" className="form-control mb-4" value={startDate} onChange={e=>updateStart(e.target.value)} />
+                    
+                    <div className="section-title">{t("Measurements")}</div>
+                    <div className="row g-2 mb-2">
+                        <div className="col-6"><input type="number" className="form-control" placeholder={t("Waist *")} onChange={e=>setMs({...ms, waist: cleanNum(e.target.value)})} /></div>
+                        <div className="col-6"><input type="number" className="form-control" placeholder={t("Chest *")} onChange={e=>setMs({...ms, chest: cleanNum(e.target.value)})} /></div>
                     </div>
-                    <div className="row g-2 mb-3">
-                        <div className="col-6">
-                            <label className="toggle-label">{t("Left Arm")}</label>
-                            <input className="form-control" type="number" value={m.left_arm} onChange={e=>setM({...m, left_arm: e.target.value})} />
-                        </div>
-                        <div className="col-6">
-                            <label className="toggle-label">{t("Right Arm")}</label>
-                            <input className="form-control" type="number" value={m.right_arm} onChange={e=>setM({...m, right_arm: e.target.value})} />
-                        </div>
+                    <div className="row g-2 mb-2">
+                        <div className="col-6"><input type="number" className="form-control" placeholder={t("Left Arm")} onChange={e=>setMs({...ms, left_arm: cleanNum(e.target.value)})} /></div>
+                        <div className="col-6"><input type="number" className="form-control" placeholder={t("Right Arm")} onChange={e=>setMs({...ms, right_arm: cleanNum(e.target.value)})} /></div>
                     </div>
-                    <div className="row g-2 mb-3">
-                        <div className="col-12">
-                            <label className="toggle-label">{t("Glutes")}</label>
-                            <input className="form-control" type="number" value={m.glutes} onChange={e=>setM({...m, glutes: e.target.value})} />
-                        </div>
+                    <div className="row g-2 mb-2">
+                        <div className="col-12"><input type="number" className="form-control" placeholder={t("Glutes")} onChange={e=>setMs({...ms, glutes: cleanNum(e.target.value)})} /></div>
                     </div>
                     <div className="row g-2 mb-4">
-                        <div className="col-6">
-                            <label className="toggle-label">{t("Left Thigh")}</label>
-                            <input className="form-control" type="number" value={m.left_thigh} onChange={e=>setM({...m, left_thigh: e.target.value})} />
-                        </div>
-                        <div className="col-6">
-                            <label className="toggle-label">{t("Right Thigh")}</label>
-                            <input className="form-control" type="number" value={m.right_thigh} onChange={e=>setM({...m, right_thigh: e.target.value})} />
-                        </div>
+                        <div className="col-6"><input type="number" className="form-control" placeholder={t("Left Thigh")} onChange={e=>setMs({...ms, left_thigh: cleanNum(e.target.value)})} /></div>
+                        <div className="col-6"><input type="number" className="form-control" placeholder={t("Right Thigh")} onChange={e=>setMs({...ms, right_thigh: cleanNum(e.target.value)})} /></div>
                     </div>
                     <button className="btn btn-primary py-3 shadow-sm" onClick={saveWeekly}>{t("Submit Weekly Stats")}</button>
                 </div>
@@ -750,115 +728,145 @@
         function Stats({ user, t, goal_labels }) {
             const [logs, setLogs] = useState([]);
             const [weekly, setWeekly] = useState([]);
-            const [goal, setGoal] = useState(localStorage.getItem('user_goal') || 'maintain');
+            const [goal, setGoal] = useState('maintain');
+            const [loading, setLoading] = useState(true);
             const chartRef = useRef(null);
             const chartInstance = useRef(null);
 
             useEffect(() => {
                 const fetchData = async () => {
-                    const { data: logData } = await _supabase.from('daily_logs').select('*').eq('user_id', user.id).order('date', { ascending: false }).limit(14);
-                    const { data: weekData } = await _supabase.from('weekly_stats').select('*').eq('user_id', user.id).order('date', { ascending: false }).limit(5);
-                    if (logData) setLogs(logData);
-                    if (weekData) setWeekly(weekData);
+                    const { data: l } = await _supabase.from('daily_logs').select('*').eq('user_id', user.id).order('date', { ascending: false }).limit(30);
+                    const { data: w } = await _supabase.from('weekly_stats').select('*').eq('user_id', user.id).order('date', { ascending: false });
+                    const { data: s } = await _supabase.from('user_settings').select('goal').eq('user_id', user.id).maybeSingle();
+                    setLogs(l || []);
+                    setWeekly(w || []);
+                    if (s?.goal) setGoal(s.goal);
+                    setLoading(false);
                 };
                 fetchData();
             }, [user.id]);
 
             useEffect(() => {
-                if (chartRef.current && logs.length > 0) {
-                    if (chartInstance.current) chartInstance.current.destroy();
+                if (!loading && logs.length > 0 && chartRef.current) {
                     const ctx = chartRef.current.getContext('2d');
-                    const sortedLogs = [...logs].reverse();
+                    if (chartInstance.current) chartInstance.current.destroy();
+                    
+                    const chartData = [...logs].reverse().filter(d => d.weight);
                     chartInstance.current = new Chart(ctx, {
                         type: 'line',
                         data: {
-                            labels: sortedLogs.map(l => l.date.split('-')[2]),
+                            labels: chartData.map(d => d.date.split('-').slice(1).join('/')),
                             datasets: [{
                                 label: 'Weight',
-                                data: sortedLogs.map(l => l.weight),
+                                data: chartData.map(d => d.weight),
                                 borderColor: '#0066FF',
+                                backgroundColor: 'rgba(0, 102, 255, 0.05)',
                                 borderWidth: 3,
                                 pointRadius: 0,
-                                tension: 0.4,
                                 fill: true,
-                                backgroundColor: 'rgba(0, 102, 255, 0.05)'
+                                tension: 0.4
                             }]
                         },
                         options: {
                             responsive: true,
                             maintainAspectRatio: false,
                             plugins: { legend: { display: false } },
-                            scales: { 
-                                x: { grid: { display: false }, border: { display: false } },
-                                y: { grid: { color: '#F2F2F7' }, border: { display: false }, ticks: { font: { size: 10 } } }
+                            scales: {
+                                y: { grid: { display: false }, ticks: { font: { size: 9, weight: '700' } } },
+                                x: { grid: { display: false }, ticks: { font: { size: 8, weight: '700' } } }
                             }
                         }
                     });
                 }
-            }, [logs]);
+            }, [loading, logs]);
 
-            const getCoachNote = () => {
-                if (logs.length < 7) return t("Log 7 days of data for high-confidence analysis.");
-                const latestAvg = logs.slice(0, 7).reduce((a, b) => a + Number(b.weight), 0) / 7;
-                const prevAvg = logs.slice(7, 14).length === 7 ? logs.slice(7, 14).reduce((a, b) => a + Number(b.weight), 0) / 7 : null;
-                
-                if (!prevAvg) return `${t("Baseline Set: 7-day average is")} ${latestAvg.toFixed(2)}${t("kg. Continue logging.")}`;
-                
-                const diff = latestAvg - prevAvg;
+            const updateGoal = async (g) => {
+                setGoal(g);
+                await _supabase.from('user_settings').upsert({ user_id: user.id, goal: g }, { onConflict: 'user_id' });
+            };
+
+            const getAdvice = () => {
+                if (logs.length < 7) return { action: "HOLD POSITION", text: t("Log 7 days of data for high-confidence analysis.") };
+                const sorted = [...logs].sort((a,b) => new Date(b.date) - new Date(a.date));
+                const currentAvg = sorted.slice(0, 7).reduce((acc, curr) => acc + (parseFloat(curr.weight) || 0), 0) / 7;
+                const prevAvg = sorted.slice(7, 14).reduce((acc, curr) => acc + (parseFloat(curr.weight) || 0), 0) / 7;
+
+                if (!prevAvg) return { action: "SUSTAIN", text: `${t("Baseline Set: 7-day average is")} ${currentAvg.toFixed(1)}${t("kg. Continue logging.")}` };
+
+                const diff = currentAvg - prevAvg;
+                const rate = (diff / prevAvg) * 100;
+
                 if (goal === 'cut') {
-                    if (diff > -0.1) return <><span className="decision-highlight">{t("ACTION: PLATEAU")}</span>{t("Adjust -150kcal.")}</>;
-                    return <><span className="decision-highlight">{t("SUSTAIN")}</span>{t("Good progress (~")}{Math.abs(diff).toFixed(2)}{t("kg).")}</>;
+                    if (diff > 0) return { action: "ACTION: PLATEAU", text: t("Adjust -150kcal.") };
+                    if (rate < -1.5) return { action: "HOLD POSITION", text: t("Whoosh likely") };
+                    return { action: "SUSTAIN", text: `${t("Good progress (~")}${Math.abs(diff).toFixed(2)}${t("kg).")}` };
                 }
                 if (goal === 'bulk') {
-                    if (diff < 0.1) return <><span className="decision-highlight">{t("ACTION: INCREASE")}</span>{t("Adjust +150kcal.")}</>;
-                    return <><span className="decision-highlight">{t("PERFECT GAIN")}</span>{t("Growing well.")}</>;
+                    if (rate >= 0.2 && rate <= 0.5) return { action: "PERFECT GAIN", text: t("Growing well.") };
+                    if (rate < 0.2) return { action: "ACTION: INCREASE", text: t("Adjust +150kcal.") };
+                    return { action: "HOLD POSITION", text: t("Growth stalled.") };
                 }
-                return <><span className="decision-highlight">{t("HOLD POSITION")}</span>{Math.abs(diff) < 0.2 ? t("Sustain") : t("Adjusting...")}</>;
+                return { action: "SUSTAIN", text: t("Maintain") };
             };
+
+            if (loading) return <div className="text-center p-5 text-muted small fw-bold">{t("Syncing...")}</div>;
+
+            const advice = getAdvice();
+            const last7 = logs.slice(0, 7);
+            const avgW = last7.length ? (last7.reduce((a,b)=>a+(parseFloat(b.weight)||0),0)/last7.length).toFixed(1) : '-';
+            const avgS = last7.length ? Math.round(last7.reduce((a,b)=>a+(parseInt(b.steps)||0),0)/last7.length) : '-';
 
             return (
                 <div className="pb-5">
+                    <div className="section-title">{t("Current Objective")}</div>
                     <div className="goal-selector">
                         {['cut', 'maintain', 'bulk'].map(g => (
-                            <div key={g} className={`goal-option ${goal === g ? 'active' : ''}`} onClick={() => {setGoal(g); localStorage.setItem('user_goal', g);}}>
-                                {goal_labels[g]}
-                            </div>
+                            <div key={g} className={`goal-option ${goal === g ? 'active' : ''}`} onClick={()=>updateGoal(g)}>{goal_labels[g]}</div>
                         ))}
                     </div>
 
+                    <div className="section-title">{t("Coach Recommendation")}</div>
                     <div className="coach-box">
-                        <div className="section-title mb-2" style={{color: '#1D1D1F'}}>{t("Coach Recommendation")}</div>
-                        {getCoachNote()}
+                        <span className="decision-highlight">{advice.action}</span>
+                        {advice.text}
                     </div>
 
-                    <div className="card shadow-sm border-0">
-                        <div className="section-title">{t("14-Day Trend:")}</div>
+                    <div className="section-title">{t("Weight Trend")}</div>
+                    <div className="card border-0 shadow-sm p-3">
                         <div className="chart-container">
                             <canvas ref={chartRef}></canvas>
                         </div>
                     </div>
 
+                    <div className="section-title">{t("Period Averages")}</div>
+                    <div className="row g-2 mb-4">
+                        <div className="col-6"><div className="avg-card"><div className="avg-label">Weight (Avg)</div><div className="avg-value">{avgW}kg</div></div></div>
+                        <div className="col-6"><div className="avg-card"><div className="avg-label">Steps (Avg)</div><div className="avg-value">{avgS}</div></div></div>
+                    </div>
+
                     <div className="section-title">{t("Daily History")}</div>
-                    <div className="card border-0 shadow-sm p-0 overflow-hidden">
+                    <div className="card border-0 shadow-sm p-0 overflow-hidden mb-4">
                         <div className="table-responsive">
-                            <table className="table table-borderless m-0 text-center" style={{fontSize: '11px'}}>
+                            <table className="table table-sm m-0" style={{fontSize: '11px'}}>
                                 <thead className="table-header-custom">
                                     <tr>
                                         <th>{t("Date")}</th>
                                         <th>{t("KG")}</th>
                                         <th>{t("Steps")}</th>
-                                        <th>{t("Cal")}</th>
                                         <th>{t("P/C/F")}</th>
+                                        <th>{t("Water")}</th>
+                                        <th>{t("Sleep")}</th>
                                     </tr>
                                 </thead>
-                                <tbody>
+                                <tbody className="fw-bold">
                                     {logs.map(l => (
-                                        <tr key={l.date} className="border-bottom">
-                                            <td className="fw-bold">{l.date.split('-')[2]}</td>
-                                            <td className="fw-800 text-primary">{l.weight}</td>
-                                            <td>{l.steps}</td>
-                                            <td className="fw-bold">{(l.protein*4+l.carbs*4+l.fats*9) || '—'}</td>
-                                            <td className="text-muted">{l.protein}/{l.carbs}/{l.fats}</td>
+                                        <tr key={l.id}>
+                                            <td>{l.date.split('-').slice(1).join('/') || '-'}</td>
+                                            <td className="text-primary">{l.weight || '-'}</td>
+                                            <td>{l.steps || '-'}</td>
+                                            <td className="text-muted">{l.protein || '-'}/{l.carbs || '-'}/{l.fats || '-'}</td>
+                                            <td>{l.water || '-'}L</td>
+                                            <td>{l.sleep || '-'}h</td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -866,13 +874,13 @@
                         </div>
                     </div>
 
-                    <div className="section-title mt-4">{t("Measurement History")}</div>
+                    <div className="section-title">{t("Measurement History")}</div>
                     <div className="card border-0 shadow-sm p-0 overflow-hidden">
                         <div className="table-responsive">
-                            <table className="table table-borderless m-0 text-center" style={{fontSize: '10px'}}>
+                            <table className="table table-sm m-0" style={{fontSize: '11px'}}>
                                 <thead className="table-header-custom">
                                     <tr>
-                                        <th>{t("Date")}</th>
+                                        <th>{t("WEEK")}</th>
                                         <th>{t("Waist")}</th>
                                         <th>{t("Chest")}</th>
                                         <th>{t("Glute")}</th>
@@ -880,15 +888,15 @@
                                         <th>{t("Thighs L/R")}</th>
                                     </tr>
                                 </thead>
-                                <tbody>
+                                <tbody className="fw-bold">
                                     {weekly.map(m => (
-                                        <tr key={m.date} className="border-bottom">
-                                            <td className="fw-bold">{m.date.split('-')[1]}/{m.date.split('-')[2]}</td>
-                                            <td className="fw-800 text-danger">{m.waist}</td>
-                                            <td>{m.chest}</td>
-                                            <td>{m.glutes}</td>
-                                            <td>{m.left_arm}/{m.right_arm}</td>
-                                            <td>{m.left_thigh}/{m.right_thigh}</td>
+                                        <tr key={m.id}>
+                                            <td>W{m.week_number}</td>
+                                            <td>{m.waist || '-'}</td>
+                                            <td>{m.chest || '-'}</td>
+                                            <td>{m.glutes || '-'}</td>
+                                            <td>{m.left_arm || '-'}/{m.right_arm || '-'}</td>
+                                            <td>{m.left_thigh || '-'}/{m.right_thigh || '-'}</td>
                                         </tr>
                                     ))}
                                 </tbody>
