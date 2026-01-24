@@ -776,12 +776,10 @@
         function Stats({ user, t, goal_labels }) {
             const [logs, setLogs] = useState([]);
             const [metrics, setMetrics] = useState([]);
-            const [dateFrom, setDateFrom] = useState(new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
+            const [dateFrom, setDateFrom] = useState(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
             const [dateTo, setDateTo] = useState(new Date().toISOString().split('T')[0]);
             const [weekFrom, setWeekFrom] = useState(1);
             const [weekTo, setWeekTo] = useState(20);
-            
-            // Fix: Initialize directly from localStorage
             const [goal, setGoal] = useState(() => localStorage.getItem('coach_goal') || 'cut');
             
             const canvasRef = useRef(null);
@@ -792,8 +790,8 @@
                 const { data: metricData } = await _supabase.from('weekly_metrics').select('*').eq('user_id', user.id).order('week_number', {ascending: false});
                 setLogs(logData || []); setMetrics(metricData || []);
             };
+
             useEffect(() => { loadData(); }, [dateFrom, dateTo]);
-            
             useEffect(() => { localStorage.setItem('coach_goal', goal); }, [goal]);
 
             useEffect(() => {
@@ -817,75 +815,65 @@
                 const weightDiff = (sorted[sorted.length - 1].weight - sorted[0].weight).toFixed(1);
                 const totalKcal = logs.reduce((acc, l) => acc + (l.protein*4 + l.carbs*4 + l.fats*9), 0);
                 const totalSteps = logs.reduce((acc, l) => acc + (l.steps || 0), 0);
-                return { loss: Math.abs(weightDiff), kcal: Math.round(totalKcal / logs.length), steps: Math.round(totalSteps / logs.length), color: weightDiff > 0 ? '#34C759' : weightDiff < 0 ? '#FF3B30' : '#1D1D1F', sign: weightDiff > 0 ? '+' : weightDiff < 0 ? '-' : '' };
+                return { 
+                    loss: Math.abs(weightDiff), 
+                    kcal: Math.round(totalKcal / logs.length), 
+                    steps: Math.round(totalSteps / logs.length), 
+                    color: weightDiff > 0 ? '#34C759' : weightDiff < 0 ? '#FF3B30' : '#1D1D1F', 
+                    sign: weightDiff > 0 ? '+' : weightDiff < 0 ? '-' : '' 
+                };
             })();
 
-                            const recommendation = (() => {
-  if (logs.length < 21) {
-    return "Log at least 21 days for adaptive calorie analysis.";
-  }
+            const recommendation = (() => {
+                const latestWeight = logs.length > 0 ? [...logs].sort((a,b) => new Date(b.log_date) - new Date(a.log_date))[0].weight : 0;
+                const helms = getHelmsMacros(latestWeight, goal);
+                const currentCalories = stats.kcal;
 
-  const sorted = [...logs].sort(
-    (a, b) => new Date(a.log_date) - new Date(b.log_date)
-  );
-
-  const weeks = groupIntoWeeks(sorted);
-  if (weeks.length < 3) {
-    return "Need 3 full weeks to detect real trends.";
-  }
-
-  const w1 = avg(weeks[0], "weight");
-  const w2 = avg(weeks[1], "weight");
-  const w3 = avg(weeks[2], "weight");
-
-  const d1 = w2 - w1;
-  const d2 = w3 - w2;
-  const avgWeeklyDelta = (d1 + d2) / 2;
-
-  const days = weeks[1].length + weeks[2].length;
-  const inferredMaintenance = inferMaintenance(
-    currentCalories,
-    avgWeeklyDelta,
-    days
-  );
-
-  if (Math.abs(avgWeeklyDelta) < 0.2) {
-    return `HOLD POSITION — estimated maintenance ≈ ${inferredMaintenance} kcal`;
-  }
-
-  if (goal === "cut" && avgWeeklyDelta > -0.25) {
-    return "Plateau detected — reduce calories by 150 kcal.";
-  }
-
-  if (goal === "bulk" && avgWeeklyDelta < 0.15) {
-    return "Growth slow — increase calories by 150 kcal.";
-  }
-
-  return "Progress on track — no changes recommended.";
-})();
-
-
+                const helmsDisplay = (
                     <div className="mt-2 pt-2 border-top">
-                        <div style={{fontSize: '11px', opacity: 0.9, marginBottom: '8px'}}>
+                        <div style={{fontSize: '11px', opacity: 0.9}}>
                             <b>Helms 2.0 Strategy ({goal_labels[goal]}):</b> {helms.totalCalories} kcal | {helms.protein}{t("P")} | {helms.carbs}{t("C")} | {helms.fat}{t("F")}
                         </div>
                     </div>
                 );
-                if (logs.length < 14) return <div>{t("Baseline Set: 7-day average is")} {week1Avg.toFixed(2)}{t("kg. Continue logging.")}{helmsDisplay}</div>;
-                const week2 = sorted.slice(7, 14);
-                const week2Avg = week2.reduce((a,b)=>a+b.weight, 0) / 7;
-                const delta = week1Avg - week2Avg;
-                const avgCals = week1.reduce((a,b)=>a+(b.protein*4+b.carbs*4+b.fats*9),0) / 7;
-                let feedback;
-                if (goal === 'cut') {
-                    if (avgCals < 2100 && avgSteps > 9500 && delta >= 0) feedback = <span><b className="decision-highlight">{t("HOLD POSITION")}</b> "{t("Whoosh likely")}"</span>;
-                    else if (Math.abs(delta) < 0.1) feedback = <span><b className="decision-highlight">{t("ACTION: PLATEAU")}</b> {t("Adjust -150kcal.")}</span>;
-                    else if (delta <= -0.4) feedback = <span><b className="decision-highlight">{t("SUSTAIN")}</b> {t("Good progress (~")}{Math.abs(delta).toFixed(2)}{t("kg).")}</span>;
-                } else if (goal === 'bulk') {
-                    if (delta >= 0.1 && delta <= 0.3) feedback = <span><b className="decision-highlight">{t("PERFECT GAIN")}</b> {t("Growing well.")}</span>;
-                    else if (delta < 0.1) feedback = <span><b className="decision-highlight">{t("ACTION: INCREASE")}</b> {t("Growth stalled.")} {t("Adjust +150kcal.")}</span>;
+
+                if (logs.length < 21) {
+                    return <div>{t("Log 21+ days for accurate analysis.")}{helmsDisplay}</div>;
                 }
-                return <div>{feedback || `${t("14-Day Trend:")} ${delta > 0 ? '+' : ''}${delta.toFixed(2)}kg. ${t("Phase Active.")}`}{helmsDisplay}</div>;
+
+                const sorted = [...logs].sort((a, b) => new Date(a.log_date) - new Date(b.log_date));
+                const weeks = groupIntoWeeks(sorted);
+                
+                if (weeks.length < 3) {
+                    return <div>{t("Need 3 full weeks to detect trend.")}{helmsDisplay}</div>;
+                }
+
+                const w1 = avg(weeks[0], "weight");
+                const w2 = avg(weeks[1], "weight");
+                const w3 = avg(weeks[2], "weight");
+
+                const d1 = w2 - w1;
+                const d2 = w3 - w2;
+                const avgWeeklyDelta = (d1 + d2) / 2;
+                const totalDays = weeks[1].length + weeks[2].length;
+                const inferredMaint = inferMaintenance(currentCalories, avgWeeklyDelta, totalDays);
+
+                let coachFeedback = "Progress on track — no adjustment needed.";
+
+                if (Math.abs(avgWeeklyDelta) < 0.2) {
+                    coachFeedback = `HOLD — estimated maintenance ≈ ${Math.round(inferredMaint)} kcal`;
+                } else if (goal === "cut" && avgWeeklyDelta > -0.25) {
+                    coachFeedback = `Plateau detected — reduce calories by 150 kcal (from ${Math.round(currentCalories)} kcal)`;
+                } else if (goal === "bulk" && avgWeeklyDelta < 0.15) {
+                    coachFeedback = `Progress slow — increase calories by 150 kcal (from ${Math.round(currentCalories)} kcal)`;
+                }
+
+                return (
+                    <div>
+                        <div>{coachFeedback}</div>
+                        {helmsDisplay}
+                    </div>
+                );
             })();
 
             const filteredMetrics = metrics.filter(m => m.week_number >= weekFrom && m.week_number <= weekTo);
@@ -913,7 +901,6 @@
                             <div className="col-6"><label className="toggle-label">{t("From")}</label><input type="date" className="form-control" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} /></div>
                             <div className="col-6"><label className="toggle-label">{t("To")}</label><input type="date" className="form-control" value={dateTo} onChange={e=>setDateTo(e.target.value)} /></div>
                         </div>
-                        {/* Fix: Centered Chart Wrapper */}
                         <div className="chart-container"><canvas ref={canvasRef}></canvas></div>
                     </div>
                     <div className="section-title">{t("Period Averages")}</div>
@@ -922,6 +909,7 @@
                         <div className="col-4"><div className="avg-card"><div className="avg-label">{t("Calories")}</div><div className="avg-value">{stats.kcal}</div></div></div>
                         <div className="col-4"><div className="avg-card"><div className="avg-label">{t("Steps")}</div><div className="avg-value">{stats.steps}</div></div></div>
                     </div>
+                    {/* ... Rest of the Daily History and Measurement History remains unchanged ... */}
                     <div className="section-title">{t("Daily History")}</div>
                     <div className="card p-0 overflow-hidden mb-3">
                         <div className="table-responsive">
