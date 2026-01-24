@@ -425,7 +425,7 @@
             return (
                 <div className={`container py-4 ${lang === 'ar' ? 'rtl' : ''}`}>
                     {/* Language toggle is now outside the session check to appear on login too */}
-                    <button className="lang-toggle" onClick={toggleLang}>{lang === 'en' ? 'عربي' : 'English'}</button>
+                    <button className="lang-toggle" onClick={toggleLang}>{lang === 'en' ? '🇸🇦 عربي' : '🇬🇧 English'}</button>
                     
                     {!session ? (
                         <Login t={t} lang={lang} />
