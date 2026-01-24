@@ -226,7 +226,7 @@
 
         .lang-toggle {
             position: fixed;
-            top: 20px;
+            top: 15px;
             right: 20px;
             z-index: 2000;
             background: var(--soft-grey);
@@ -278,6 +278,8 @@
                 "Yesterday": "أمس",
                 "d ago": "يوم مضى",
                 "ADD EXERCISE": "إضافة تمرين",
+                "Delete Exercise?": "حذف التمرين؟",
+                "Permanently delete this entire workout day?": "هل تريد حذف يوم التدريب هذا نهائياً؟",
                 "Exercise Name:": "اسم التمرين:",
                 "+ ADD SET": "+ إضافة جولة",
                 "SETS": "جولات",
@@ -413,12 +415,10 @@
             if (!session) return <Login t={t} lang={lang} />;
 
             return (
-                <div className={`container py-4 ${lang === 'ar' ? 'rtl' : ''}`}>
-                    <button className="lang-toggle" onClick={toggleLang}>{lang === 'en' ? 'عربي' : 'English'}</button>
-                    
-                    <div className="d-flex justify-content-between align-items-center mb-3">
+                    <div className="d-flex justify-content-between align-items-center mb-3" 
+                            style={{paddingRight: lang === 'en' ? '80px' : '0', paddingLeft: lang === 'ar' ? '80px' : '0'}}>
                         <h5 className="fw-bold m-0" style={{letterSpacing: '-0.5px'}}>{t("ELITE PERFORMANCE")}</h5>
-                        <div className="badge rounded-pill text-dark border">v11.5.3</div>
+                        <div className="badge rounded-pill text-dark border">v11.5.4</div>
                     </div>
 
                     {view === 'workout' && <WorkoutManager user={session.user} t={t} />}
@@ -472,7 +472,7 @@
             };
 
             const deleteDay = (dayId) => {
-                if (confirm("Permanently delete this entire workout day?")) {
+                if (confirm(t("Permanently delete this entire workout day?"))) {
                     saveAndSync(days.filter(d => d.id !== dayId));
                 }
             };
