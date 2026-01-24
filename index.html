@@ -85,7 +85,7 @@
             font-size: 10px; 
             cursor: pointer; 
             text-align: center; 
-            text-transform: uppercase;
+            text-transform: uppercase; 
             letter-spacing: 0.5px;
             transition: color 0.2s;
             -webkit-tap-highlight-color: transparent;
@@ -241,6 +241,17 @@
         .rtl { direction: rtl; text-align: right; }
         .rtl .section-title::after { margin-left: 0; margin-right: 10px; }
         .rtl .coach-box { border-left: 0; border-right: 4px solid var(--accent-blue); border-radius: 10px 0 0 10px; }
+
+        /* Chart Centering Fix */
+        .chart-container {
+            position: relative;
+            margin: auto;
+            height: 180px;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
     </style>
 </head>
 <body>
@@ -327,7 +338,17 @@
                 "Growth stalled.": "النمو متوقف.",
                 "14-Day Trend:": "مسار الـ 14 يوماً الماضية:",
                 "Calories": "السعرات",
-                "P": "ب", "C": "ك", "F": "د", "S": "ج", "KG": "كجم"
+                "P": "ب", "C": "ك", "F": "د", "S": "ج", "KG": "كجم",
+                "Date": "التاريخ",
+                "Cal": "سعرة",
+                "P/C/F": "ب/ك/د",
+                "Water": "ماء",
+                "Sleep": "نوم",
+                "Waist": "الخصر",
+                "Chest": "الصدر",
+                "Glute": "الأرداف",
+                "Arms L/R": "الذراعين (ي/ي)",
+                "Thighs L/R": "الفخذين (ي/ي)"
             }
         };
 
@@ -397,7 +418,7 @@
                     
                     <div className="d-flex justify-content-between align-items-center mb-3">
                         <h5 className="fw-bold m-0" style={{letterSpacing: '-0.5px'}}>{t("ELITE PERFORMANCE")}</h5>
-                        <div className="badge rounded-pill text-dark border">v11.5.2</div>
+                        <div className="badge rounded-pill text-dark border">v11.5.3</div>
                     </div>
 
                     {view === 'workout' && <WorkoutManager user={session.user} t={t} />}
@@ -634,7 +655,7 @@
                         <div className="section-title mt-2">{t("Nutrient Intake")}</div>
                         <div className="row g-2">
                             <div className="col-4"><label className="toggle-label">{t("P")}</label><input type="number" inputMode="numeric" className="form-control" value={f.p} onChange={e=>setF({...f, p: cleanNum(e.target.value)})} /></div>
-                            <div className="col-4"><label className="toggle-label">{t("C")}</label><input type="number" inputMode="numeric" className="form-control" value={f.c} onChange={e=>setF({...f, c: cleanNum(e.target.value)})} /></div>
+                            <div className="col-4"><label className="toggle-label">{t("C")}</label><input type="number" inputMode="numeric" className="form-control" value={f.p} onChange={e=>setF({...f, c: cleanNum(e.target.value)})} /></div>
                             <div className="col-4"><label className="toggle-label">{t("F")}</label><input type="number" inputMode="numeric" className="form-control" value={f.f} onChange={e=>setF({...f, f: cleanNum(e.target.value)})} /></div>
                         </div>
                         <div className="section-title mt-2">{t("Recovery")}</div>
@@ -729,12 +750,12 @@
                         type: 'line',
                         data: { 
                             labels: sorted.map(l => l.log_date.split('-').slice(1).reverse().join('/')), 
-                            datasets: [{ label: 'Weight', data: sorted.map(l => l.weight), borderColor: '#0066FF', tension: 0.3, backgroundColor: 'rgba(0,102,255,0.05)', fill: true, borderWidth: 2, pointRadius: 3 }] 
+                            datasets: [{ label: t('KG'), data: sorted.map(l => l.weight), borderColor: '#0066FF', tension: 0.3, backgroundColor: 'rgba(0,102,255,0.05)', fill: true, borderWidth: 2, pointRadius: 3 }] 
                         },
                         options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { position: 'left', grid: { color: '#F2F2F7' } } } }
                     });
                 }
-            }, [logs]);
+            }, [logs, t]);
 
             const stats = (() => {
                 if (logs.length === 0) return { loss: 0, kcal: 0, steps: 0, color: '#1D1D1F', sign: '' };
@@ -796,7 +817,7 @@
                             <div className="col-6"><label className="toggle-label">{t("From")}</label><input type="date" className="form-control" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} /></div>
                             <div className="col-6"><label className="toggle-label">{t("To")}</label><input type="date" className="form-control" value={dateTo} onChange={e=>setDateTo(e.target.value)} /></div>
                         </div>
-                        <div style={{height: '180px'}}><canvas ref={canvasRef}></canvas></div>
+                        <div className="chart-container"><canvas ref={canvasRef}></canvas></div>
                     </div>
                     <div className="section-title">{t("Period Averages")}</div>
                     <div className="row g-2 mb-3">
@@ -808,7 +829,17 @@
                     <div className="card p-0 overflow-hidden mb-3">
                         <div className="table-responsive">
                             <table className="table table-sm m-0" style={{fontSize: '10px'}}>
-                                <thead className="table-header-custom"><tr><th>Date</th><th>KG</th><th>Cal</th><th>P/C/F</th><th>Steps</th><th>Water</th><th>Sleep</th></tr></thead>
+                                <thead className="table-header-custom">
+                                    <tr>
+                                        <th>{t("Date")}</th>
+                                        <th>{t("KG")}</th>
+                                        <th>{t("Cal")}</th>
+                                        <th>{t("P/C/F")}</th>
+                                        <th>{t("Steps")}</th>
+                                        <th>{t("Water")}</th>
+                                        <th>{t("Sleep")}</th>
+                                    </tr>
+                                </thead>
                                 <tbody>{logs.map((l, i) => (
                                     <tr key={i}>
                                         <td className="fw-bold">{l.log_date.split('-').slice(1).join('/')}</td>
@@ -831,7 +862,16 @@
                         </div>
                         <div className="table-responsive">
                             <table className="table table-sm m-0" style={{fontSize: '11px'}}>
-                                <thead className="table-header-custom"><tr><th>{t("WEEK")}</th><th>Waist</th><th>Chest</th><th>Glute</th><th>Arms L/R</th><th>Thighs L/R</th></tr></thead>
+                                <thead className="table-header-custom">
+                                    <tr>
+                                        <th>{t("WEEK")}</th>
+                                        <th>{t("Waist")}</th>
+                                        <th>{t("Chest")}</th>
+                                        <th>{t("Glute")}</th>
+                                        <th>{t("Arms L/R")}</th>
+                                        <th>{t("Thighs L/R")}</th>
+                                    </tr>
+                                </thead>
                                 <tbody>{filteredMetrics.map((m, i) => (
                                     <tr key={i}>
                                         <td className="fw-bold">{m.week_number}</td>
