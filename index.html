@@ -224,26 +224,35 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
 
-        /* Fixed Language Toggle Styling */
+        /* Fixed Language Toggle Styling to avoid covering version */
         .lang-toggle {
             position: absolute;
             top: 15px;
-            right: 15px;
+            left: 15px;
             z-index: 2000;
-            background: var(--soft-grey);
+            background: #FFFFFF;
             border: 1px solid var(--border-grey);
-            padding: 6px 14px;
+            padding: 6px 12px;
             border-radius: 20px;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 700;
             cursor: pointer;
             box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .lang-toggle img {
+            width: 18px;
+            height: auto;
+            border-radius: 2px;
         }
         
         .rtl { direction: rtl; text-align: right; }
         .rtl .section-title::after { margin-left: 0; margin-right: 10px; }
         .rtl .coach-box { border-left: 0; border-right: 4px solid var(--accent-blue); border-radius: 10px 0 0 10px; }
-        .rtl .lang-toggle { right: auto; left: 15px; }
+        .rtl .lang-toggle { left: auto; right: 15px; }
 
         .chart-container {
             position: relative;
@@ -424,8 +433,13 @@
 
             return (
                 <div className={`container py-4 ${lang === 'ar' ? 'rtl' : ''}`}>
-                    {/* Language toggle is now outside the session check to appear on login too */}
-                    <button className="lang-toggle" onClick={toggleLang}>{lang === 'en' ? '🇸🇦 عربي' : '🇬🇧 English'}</button>
+                    <button className="lang-toggle" onClick={toggleLang}>
+                        {lang === 'en' ? (
+                            <><img src="https://flagcdn.com/w20/sa.png" alt="AR" /> عربي</>
+                        ) : (
+                            <><img src="https://flagcdn.com/w20/gb.png" alt="EN" /> English</>
+                        )}
+                    </button>
                     
                     {!session ? (
                         <Login t={t} lang={lang} />
