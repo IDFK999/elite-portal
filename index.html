@@ -236,8 +236,17 @@
             font-size: 12px;
             font-weight: 700;
             cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
         
+        .flag-icon {
+            width: 18px;
+            height: auto;
+            border-radius: 2px;
+        }
+
         .rtl { direction: rtl; text-align: right; }
         .rtl .section-title::after { margin-left: 0; margin-right: 10px; }
         .rtl .coach-box { border-left: 0; border-right: 4px solid var(--accent-blue); border-radius: 10px 0 0 10px; }
@@ -417,7 +426,14 @@
 
             return (
                 <div className={`container py-4 ${lang === 'ar' ? 'rtl' : ''}`}>
-                    <button className="lang-toggle" onClick={toggleLang}>{lang === 'en' ? 'عربي' : 'English'}</button>
+                    <button className="lang-toggle" onClick={toggleLang}>
+                        <img 
+                            src={lang === 'en' ? "https://flagcdn.com/w40/sa.png" : "https://flagcdn.com/w40/gb.png"} 
+                            className="flag-icon" 
+                            alt="flag"
+                        />
+                        {lang === 'en' ? 'عربي' : 'English'}
+                    </button>
                     
                     <div className="d-flex justify-content-between align-items-center mb-3">
                         <h5 className="fw-bold m-0" style={{letterSpacing: '-0.5px'}}>{t("ELITE PERFORMANCE")}</h5>
