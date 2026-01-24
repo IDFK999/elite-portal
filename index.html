@@ -26,7 +26,6 @@
             background: #FFFFFF; 
             color: var(--text-main);
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            /* Added padding to prevent content from hiding behind sticky bars */
             padding-top: var(--header-height);
             padding-bottom: calc(var(--nav-height) + 40px); 
             -webkit-user-select: none; 
@@ -35,7 +34,6 @@
             margin: 0;
         }
 
-        /* Clean Header Styling */
         .app-header {
             position: fixed;
             top: 0;
@@ -88,7 +86,6 @@
             padding: 12px 5px !important;
         }
 
-        /* Enhanced Bottom Navigation */
         .nav-bottom { 
             position: fixed; 
             bottom: 0; 
@@ -189,7 +186,6 @@
             margin-bottom: 25px;
         }
 
-        /* Language Toggle Positioning */
         .lang-toggle {
             background: var(--soft-grey);
             border: 1px solid var(--border-grey);
@@ -211,7 +207,6 @@
             width: 100%;
         }
 
-        /* Custom scrollbar for a cleaner look */
         ::-webkit-scrollbar { width: 0px; background: transparent; }
     </style>
 </head>
@@ -221,7 +216,6 @@
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
-        // Keep existing translations...
         const translations = {
             ar: {
                 "ELITE PERFORMANCE": "الأداء المتميز",
@@ -378,7 +372,6 @@
 
             return (
                 <div className={`${lang === 'ar' ? 'rtl' : ''}`}>
-                    {/* Header with Title and Language Toggle */}
                     <header className="app-header justify-content-between">
                         <h6 className="fw-800 m-0" style={{letterSpacing: '-0.5px', fontSize: '15px'}}>{t("ELITE PERFORMANCE")}</h6>
                         <div className="d-flex align-items-center gap-2">
@@ -399,23 +392,23 @@
                                 
                                 <nav className="nav-bottom">
                                     <div className={`nav-item ${view === 'workout' ? 'active' : ''}`} onClick={()=>setView('workout')}>
-                                        <div style={{fontSize: '18px', marginBottom: '2px'}}>🏋️</div>
+                                        <div style={{height: '20px'}}></div>
                                         {t("Workout")}
                                     </div>
                                     <div className={`nav-item ${view === 'log' ? 'active' : ''}`} onClick={()=>setView('log')}>
-                                        <div style={{fontSize: '18px', marginBottom: '2px'}}>📝</div>
+                                        <div style={{height: '20px'}}></div>
                                         {t("Log")}
                                     </div>
                                     <div className={`nav-item ${view === 'update' ? 'active' : ''}`} onClick={()=>setView('update')}>
-                                        <div style={{fontSize: '18px', marginBottom: '2px'}}>📏</div>
+                                        <div style={{height: '20px'}}></div>
                                         {t("Update")}
                                     </div>
                                     <div className={`nav-item ${view === 'stats' ? 'active' : ''}`} onClick={()=>setView('stats')}>
-                                        <div style={{fontSize: '18px', marginBottom: '2px'}}>📊</div>
+                                        <div style={{height: '20px'}}></div>
                                         {t("Stats")}
                                     </div>
                                     <div className="nav-item text-danger" onClick={handleSignOut}>
-                                        <div style={{fontSize: '18px', marginBottom: '2px'}}>🏁</div>
+                                        <div style={{height: '20px'}}></div>
                                         {t("Exit")}
                                     </div>
                                 </nav>
@@ -426,12 +419,6 @@
             );
         }
 
-        /* The rest of your components (WorkoutManager, DailyLog, Metrics, Stats, Login) 
-           remain exactly as they were in your original code. 
-        */
-
-        // ... [Include all the sub-components here from your original code] ...
-        
         function WorkoutManager({ user, t }) {
             const [days, setDays] = useState([]);
             const [expandedEx, setExpandedEx] = useState({});
@@ -799,10 +786,17 @@
             return (
                 <div>
                     <div className="section-title">{t("Current Objective")}</div>
-                    <div className="goal-selector">
-                        <div className={`goal-option ${goal === 'cut' ? 'active' : ''}`} onClick={() => setGoal('cut')}>{t("Cut")}</div>
-                        <div className={`goal-option ${goal === 'maintain' ? 'active' : ''}`} onClick={() => setGoal('maintain')}>{t("Maintain")}</div>
-                        <div className={`goal-option ${goal === 'bulk' ? 'active' : ''}`} onClick={() => setGoal('bulk')}>{t("Bulk")}</div>
+                    <div className="d-flex gap-2 mb-3">
+                        {['cut', 'maintain', 'bulk'].map((option) => (
+                            <button 
+                                key={option}
+                                className={`btn flex-grow-1 fw-bold ${goal === option ? 'btn-dark' : 'btn-light border'}`}
+                                style={{ fontSize: '12px', borderRadius: '10px', padding: '12px' }}
+                                onClick={() => setGoal(option)}
+                            >
+                                {goal_labels[option]}
+                            </button>
+                        ))}
                     </div>
                     <div className="section-title">{t("Coach Recommendation")}</div>
                     <div className="coach-box">{recommendation}</div>
