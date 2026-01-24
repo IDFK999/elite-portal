@@ -284,7 +284,7 @@
                 "Chest *": "الصدر *",
                 "Left Arm": "الذراع الأيسر",
                 "Right Arm": "الذراع الأيمن",
-                "Glutes": "الأرداف",
+                "Glutes": "الطيز",
                 "Left Thigh": "الفخذ الأيسر",
                 "Right Thigh": "الفخذ الأيمن",
                 "Submit Weekly Stats": "إرسال الإحصائيات الأسبوعية",
@@ -826,15 +826,17 @@
 
             const recommendation = (() => {
                 const currentCalories = stats.kcal;
-            
+                const CALORIE_FLOOR = 1500; // Minimum safety threshold for food intake
+                const STEP_GOAL = 7000;      // Your established baseline activity
+                
                 if (logs.length === 0) {
                     return <div>{t("No weight logs yet.")}</div>;
                 }
             
-                // --- Sort logs by date ascending ---
+                // --- 1. Sort logs by date ascending ---
                 const sortedLogs = [...logs].sort((a, b) => new Date(a.log_date) - new Date(b.log_date));
             
-                // --- Fill gaps with linear interpolation ---
+                // --- 2. Fill gaps with linear interpolation (Handles missing data) ---
                 const interpolatedLogs = [];
                 for (let i = 0; i < sortedLogs.length - 1; i++) {
                     const current = sortedLogs[i];
@@ -847,62 +849,103 @@
             
                     if (dayDiff > 1) {
                         const weightStep = (next.weight - current.weight) / dayDiff;
+                        const stepValue = current.steps || 0; // Carry over steps or use 0
+                        
                         for (let j = 1; j < dayDiff; j++) {
                             interpolatedLogs.push({
                                 log_date: new Date(currentDate.getTime() + j * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
                                 weight: current.weight + weightStep * j,
+                                steps: stepValue 
                             });
                         }
                     }
                 }
                 interpolatedLogs.push(sortedLogs[sortedLogs.length - 1]);
             
-                // --- Group into weeks ---
+                // --- 3. Group into weeks ---
                 const weeks = groupIntoWeeks(interpolatedLogs);
             
+                // --- 4. Scientific Check: Rolling 3-Week Window ---
                 if (weeks.length < 3) {
                     return <div>{t("Need 3 full weeks to detect trend.")}</div>;
                 }
+                
+                // We take the LAST 3 weeks to ensure the advice is current
+                const recentWeeks = weeks.slice(-3); 
             
-                // --- Weighted Moving Average for Trend ---
+                // --- 5. Weighted Moving Average (WMA) ---
+                // Mathematically prioritizes recent data while smoothing out water weight noise
                 const weightedAvg = (arr, key) => {
-                    const weights = arr.map((week, i) => i === arr.length - 1 ? 2 : 1); 
+                    const weights = [1, 1, 2]; // Give double importance to the most recent week
                     let sum = 0, totalWeight = 0;
                     arr.forEach((week, idx) => {
-                        const avgWeek = avg(week, key);
-                        sum += avgWeek * weights[idx];
+                        const avgVal = avg(week, key);
+                        sum += avgVal * weights[idx];
                         totalWeight += weights[idx];
                     });
                     return sum / totalWeight;
                 };
             
-                const trendWeight = weightedAvg(weeks.slice(0, 3), "weight"); // Weighted trend of last 3 weeks
-                const w1 = avg(weeks[0], "weight");
-                const w2 = avg(weeks[1], "weight");
-                const w3 = avg(weeks[2], "weight");
+                const trendWeight = weightedAvg(recentWeeks, "weight");
+                const avgStepsCurrentWeek = avg(recentWeeks[2], "steps") || 0;
             
+                const w1 = avg(recentWeeks[0], "weight");
+                const w2 = avg(recentWeeks[1], "weight");
+                const w3 = avg(recentWeeks[2], "weight");
+            
+                // Rate of Change (Velocity)
                 const d1 = w2 - w1;
                 const d2 = w3 - w2;
                 const avgWeeklyDelta = (d1 + d2) / 2;
-                const totalDays = weeks[1].length + weeks[2].length;
-                const inferredMaint = inferMaintenance(currentCalories, avgWeeklyDelta, totalDays);
+                
+                // Reverse-engineer maintenance calories based on energy flux
+                const inferredMaint = inferMaintenance(currentCalories, avgWeeklyDelta, 14);
             
-                let coachFeedback = "Progress on track — no adjustment needed.";
+                let coachTitle = "Progress on track — no adjustment needed.";
+                let coachDetails = null;
             
+                // --- 6. Adaptive Coaching Logic ---
                 if (Math.abs(avgWeeklyDelta) < 0.2) {
-                    coachFeedback = `HOLD — estimated maintenance ≈ ${Math.round(inferredMaint)} kcal (Trend: ${trendWeight.toFixed(2)} kg)`;
-                } else if (goal === "cut" && avgWeeklyDelta > -0.25) {
-                    coachFeedback = `Plateau detected — reduce calories by 150 kcal (from ${Math.round(currentCalories)} kcal, Trend: ${trendWeight.toFixed(2)} kg)`;
-                } else if (goal === "bulk" && avgWeeklyDelta < 0.15) {
-                    coachFeedback = `Progress slow — increase calories by 150 kcal (from ${Math.round(currentCalories)} kcal, Trend: ${trendWeight.toFixed(2)} kg)`;
+                    coachTitle = "Maintenance Detected";
+                    coachDetails = `Current trajectory is stable. Estimated maintenance: ${Math.round(inferredMaint)} kcal.`;
+                } 
+                else if (goal === "cut" && avgWeeklyDelta > -0.25) {
+                    coachTitle = "Plateau Detected (Loss < 0.25kg/week)";
+                    
+                    if (avgStepsCurrentWeek < STEP_GOAL) {
+                        // Activity Check: Override food cut if steps are low
+                        coachDetails = `Your activity is below the ${STEP_GOAL} step standard. Increase movement before cutting calories to keep your metabolism high.`;
+                    } else if (currentCalories <= CALORIE_FLOOR) {
+                        // Safety Check: Don't starve the user
+                        coachDetails = `You are at the calorie safety floor (${CALORIE_FLOOR} kcal). Do NOT reduce food. Increase activity by +2,500 steps/day to resume progress safely.`;
+                    } else {
+                        // High-Flux Option: Give the user a choice
+                        coachDetails = (
+                            <div>
+                                <p>Resuming progress requires a larger deficit. Choose one:</p>
+                                <ul className="text-start">
+                                    <li><b>Option 1:</b> Reduce food by 150 kcal (Target: {Math.round(currentCalories - 150)} kcal)</li>
+                                    <li><b>Option 2:</b> Increase activity by +2,500 steps/day.</li>
+                                </ul>
+                            </div>
+                        );
+                    }
+                } 
+                else if (goal === "bulk" && avgWeeklyDelta < 0.15) {
+                    coachTitle = "Progress Slow (Gain < 0.15kg/week)";
+                    coachDetails = `To support lean muscle growth, increase calories by 150 kcal (Target: ${Math.round(currentCalories + 150)} kcal).`;
                 }
             
                 return (
-                    <div>
-                        <div>{coachFeedback}</div>
-                        <div className="mt-2 pt-2 border-top">
-                            <div style={{fontSize: '11px', opacity: 0.9}}>
-                                <b>Current Weight Trend:</b> {trendWeight.toFixed(2)} kg | {currentCalories} kcal
+                    <div className="card p-3 shadow-sm border-0 bg-white">
+                        <h6 className="text-primary mb-1">{coachTitle}</h6>
+                        <div className="text-muted mb-3" style={{ fontSize: '14px' }}>{coachDetails}</div>
+                        
+                        <div className="pt-2 border-top">
+                            <div className="d-flex justify-content-between" style={{fontSize: '11px', opacity: 0.8}}>
+                                <span><b>Weight Trend:</b> {trendWeight.toFixed(2)} kg</span>
+                                <span><b>Avg Steps:</b> {Math.round(avgStepsCurrentWeek)}</span>
+                                <span><b>Calories:</b> {currentCalories} kcal</span>
                             </div>
                         </div>
                     </div>
