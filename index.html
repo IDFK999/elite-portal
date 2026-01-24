@@ -821,63 +821,49 @@
             })();
 
                             const recommendation = (() => {
-                  if (logs.length < 21) {
-                    return t("Log at least 21 days for adaptive trend-based coaching.");
-                  }
-                
-                  // Sort newest → oldest
-                  const sorted = [...logs].sort(
-                    (a, b) => new Date(b.log_date) - new Date(a.log_date)
-                  );
-                
-                  // Split into weeks
-                  const week1 = sorted.slice(0, 7);
-                  const week2 = sorted.slice(7, 14);
-                  const week3 = sorted.slice(14, 21);
-                
-                  const avg = week =>
-                    week.reduce((sum, d) => sum + d.weight, 0) / week.length;
-                
-                  const w1 = avg(week1);
-                  const w2 = avg(week2);
-                  const w3 = avg(week3);
-                
-                  // Sequential deltas
-                  const delta1 = w1 - w2; // recent week vs previous
-                  const delta2 = w2 - w3;
-                
-                  // Average weekly trend
-                  const avgWeeklyChange = (delta1 + delta2) / 2;
-                
-                  // % bodyweight change per week
-                  const pctChange = (avgWeeklyChange / w1) * 100;
-                
-                  // Step averaging (latest week only)
-                  const avgSteps = week1.reduce((a, b) => a + (b.steps || 0), 0) / 7;
-                  const cappedSteps = Math.min(avgSteps, 7000);
-                  const stepCalories = (cappedSteps / 7000) * 200;
-                
-                  // Adaptive calorie logic
-                  let calorieAdjustment = 0;
-                
-                  if (goal === "fat_loss") {
-                    if (pctChange < -1.25) calorieAdjustment = +150;   // losing too fast
-                    else if (pctChange > -0.25) calorieAdjustment = -150; // stalled
-                  }
-                
-                  if (goal === "muscle_gain") {
-                    if (pctChange < 0.1) calorieAdjustment = +150;
-                    else if (pctChange > 0.5) calorieAdjustment = -150;
-                  }
-                
-                  const helms = getHelmsMacros(
-                    w1,
-                    goal,
-                    stepCalories + calorieAdjustment
-                  );
-                
-                  return helms;
-                })();
+  if (logs.length < 21) {
+    return "Log at least 21 days for adaptive calorie analysis.";
+  }
+
+  const sorted = [...logs].sort(
+    (a, b) => new Date(a.log_date) - new Date(b.log_date)
+  );
+
+  const weeks = groupIntoWeeks(sorted);
+  if (weeks.length < 3) {
+    return "Need 3 full weeks to detect real trends.";
+  }
+
+  const w1 = avg(weeks[0], "weight");
+  const w2 = avg(weeks[1], "weight");
+  const w3 = avg(weeks[2], "weight");
+
+  const d1 = w2 - w1;
+  const d2 = w3 - w2;
+  const avgWeeklyDelta = (d1 + d2) / 2;
+
+  const days = weeks[1].length + weeks[2].length;
+  const inferredMaintenance = inferMaintenance(
+    currentCalories,
+    avgWeeklyDelta,
+    days
+  );
+
+  if (Math.abs(avgWeeklyDelta) < 0.2) {
+    return `HOLD POSITION — estimated maintenance ≈ ${inferredMaintenance} kcal`;
+  }
+
+  if (goal === "cut" && avgWeeklyDelta > -0.25) {
+    return "Plateau detected — reduce calories by 150 kcal.";
+  }
+
+  if (goal === "bulk" && avgWeeklyDelta < 0.15) {
+    return "Growth slow — increase calories by 150 kcal.";
+  }
+
+  return "Progress on track — no changes recommended.";
+})();
+
 
                     <div className="mt-2 pt-2 border-top">
                         <div style={{fontSize: '11px', opacity: 0.9, marginBottom: '8px'}}>
