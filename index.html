@@ -220,6 +220,28 @@
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
+
+        // --- ADAPTIVE COACH HELPERS ---
+        const groupIntoWeeks = (logs) => {
+          const weeks = {};
+          logs.forEach(l => {
+            const d = new Date(l.log_date);
+            const weekKey = `${d.getFullYear()}-W${Math.floor((d - new Date(d.getFullYear(),0,1)) / (7*86400000))}`;
+            if (!weeks[weekKey]) weeks[weekKey] = [];
+            weeks[weekKey].push(l);
+          });
+          return Object.values(weeks);
+        };
+        
+        const avg = (arr, key) =>
+          arr.reduce((s, x) => s + (Number(x[key]) || 0), 0) / arr.length;
+        
+        const inferMaintenance = (calories, weightDeltaKg, days) => {
+          const kcalPerKg = 7700;
+          const dailyDelta = (weightDeltaKg * kcalPerKg) / days;
+          return Math.round(calories + dailyDelta);
+        };
+
         const translations = {
             ar: {
                 "ELITE PERFORMANCE": "الأداء المتميز",
@@ -798,16 +820,65 @@
                 return { loss: Math.abs(weightDiff), kcal: Math.round(totalKcal / logs.length), steps: Math.round(totalSteps / logs.length), color: weightDiff > 0 ? '#34C759' : weightDiff < 0 ? '#FF3B30' : '#1D1D1F', sign: weightDiff > 0 ? '+' : weightDiff < 0 ? '-' : '' };
             })();
 
-            const recommendation = (() => {
-                if (logs.length < 7) return t("Log 7 days of data for high-confidence analysis.");
-                const sorted = [...logs].sort((a,b) => new Date(b.log_date) - new Date(a.log_date));
-                const week1 = sorted.slice(0, 7);
-                const week1Avg = week1.reduce((a,b)=>a+b.weight, 0) / 7;
-                const avgSteps = week1.reduce((a,b)=>a+(b.steps||0),0) / 7;
-                const bonusSteps = Math.min(avgSteps, 7000);
-                const bonusCals = (bonusSteps / 7000) * 200;
-                const helms = getHelmsMacros(week1Avg, goal, bonusCals);
-                const helmsDisplay = (
+                            const recommendation = (() => {
+                  if (logs.length < 21) {
+                    return t("Log at least 21 days for adaptive trend-based coaching.");
+                  }
+                
+                  // Sort newest → oldest
+                  const sorted = [...logs].sort(
+                    (a, b) => new Date(b.log_date) - new Date(a.log_date)
+                  );
+                
+                  // Split into weeks
+                  const week1 = sorted.slice(0, 7);
+                  const week2 = sorted.slice(7, 14);
+                  const week3 = sorted.slice(14, 21);
+                
+                  const avg = week =>
+                    week.reduce((sum, d) => sum + d.weight, 0) / week.length;
+                
+                  const w1 = avg(week1);
+                  const w2 = avg(week2);
+                  const w3 = avg(week3);
+                
+                  // Sequential deltas
+                  const delta1 = w1 - w2; // recent week vs previous
+                  const delta2 = w2 - w3;
+                
+                  // Average weekly trend
+                  const avgWeeklyChange = (delta1 + delta2) / 2;
+                
+                  // % bodyweight change per week
+                  const pctChange = (avgWeeklyChange / w1) * 100;
+                
+                  // Step averaging (latest week only)
+                  const avgSteps = week1.reduce((a, b) => a + (b.steps || 0), 0) / 7;
+                  const cappedSteps = Math.min(avgSteps, 7000);
+                  const stepCalories = (cappedSteps / 7000) * 200;
+                
+                  // Adaptive calorie logic
+                  let calorieAdjustment = 0;
+                
+                  if (goal === "fat_loss") {
+                    if (pctChange < -1.25) calorieAdjustment = +150;   // losing too fast
+                    else if (pctChange > -0.25) calorieAdjustment = -150; // stalled
+                  }
+                
+                  if (goal === "muscle_gain") {
+                    if (pctChange < 0.1) calorieAdjustment = +150;
+                    else if (pctChange > 0.5) calorieAdjustment = -150;
+                  }
+                
+                  const helms = getHelmsMacros(
+                    w1,
+                    goal,
+                    stepCalories + calorieAdjustment
+                  );
+                
+                  return helms;
+                })();
+
                     <div className="mt-2 pt-2 border-top">
                         <div style={{fontSize: '11px', opacity: 0.9, marginBottom: '8px'}}>
                             <b>Helms 2.0 Strategy ({goal_labels[goal]}):</b> {helms.totalCalories} kcal | {helms.protein}{t("P")} | {helms.carbs}{t("C")} | {helms.fat}{t("F")}
