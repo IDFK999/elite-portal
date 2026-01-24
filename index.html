@@ -337,7 +337,8 @@
             const [view, setView] = useState('workout');
             const [session, setSession] = useState(null);
             const [isBooting, setIsBooting] = useState(true);
-            const [lang, setLang] = useState(localStorage.getItem('app_lang') || 'en');
+            // FIX: Initialize language state directly from localStorage
+            const [lang, setLang] = useState(() => localStorage.getItem('app_lang') || 'en');
 
             const t = (key) => (translations[lang] && translations[lang][key]) || key;
 
@@ -352,10 +353,14 @@
                 return () => subscription.unsubscribe();
             }, []);
 
+            // FIX: Ensure body direction updates whenever lang changes
+            useEffect(() => {
+                document.body.dir = lang === 'ar' ? 'rtl' : 'ltr';
+                localStorage.setItem('app_lang', lang);
+            }, [lang]);
+
             const toggleLang = () => {
-                const newLang = lang === 'en' ? 'ar' : 'en';
-                setLang(newLang);
-                localStorage.setItem('app_lang', newLang);
+                setLang(prev => prev === 'en' ? 'ar' : 'en');
             };
 
             const handleSignOut = async (e) => {
@@ -637,7 +642,7 @@
                         <div className="section-title mt-2">{t("Nutrient Intake")}</div>
                         <div className="row g-2">
                             <div className="col-4"><label className="toggle-label">{t("P")}</label><input type="number" inputMode="numeric" className="form-control" value={f.p} onChange={e=>setF({...f, p: cleanNum(e.target.value)})} /></div>
-                            <div className="col-4"><label className="toggle-label">{t("C")}</label><input type="number" inputMode="numeric" className="form-control" value={f.p} onChange={e=>setF({...f, c: cleanNum(e.target.value)})} /></div>
+                            <div className="col-4"><label className="toggle-label">{t("C")}</label><input type="number" inputMode="numeric" className="form-control" value={f.c} onChange={e=>setF({...f, c: cleanNum(e.target.value)})} /></div>
                             <div className="col-4"><label className="toggle-label">{t("F")}</label><input type="number" inputMode="numeric" className="form-control" value={f.f} onChange={e=>setF({...f, f: cleanNum(e.target.value)})} /></div>
                         </div>
                         <div className="section-title mt-2">{t("Recovery")}</div>
@@ -712,7 +717,10 @@
             const [dateTo, setDateTo] = useState(new Date().toISOString().split('T')[0]);
             const [weekFrom, setWeekFrom] = useState(1);
             const [weekTo, setWeekTo] = useState(20);
+            
+            // FIX: Initialize goal state directly from localStorage
             const [goal, setGoal] = useState(() => localStorage.getItem('coach_goal') || 'cut');
+            
             const canvasRef = useRef(null);
             const chartInstance = useRef(null);
 
@@ -722,6 +730,8 @@
                 setLogs(logData || []); setMetrics(metricData || []);
             };
             useEffect(() => { loadData(); }, [dateFrom, dateTo]);
+            
+            // Keep this to save changes when they occur
             useEffect(() => { localStorage.setItem('coach_goal', goal); }, [goal]);
 
             useEffect(() => {
