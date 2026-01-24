@@ -825,56 +825,91 @@
             })();
 
             const recommendation = (() => {
-                const latestWeight = logs.length > 0 ? [...logs].sort((a,b) => new Date(b.log_date) - new Date(a.log_date))[0].weight : 0;
-                const helms = getHelmsMacros(latestWeight, goal);
                 const currentCalories = stats.kcal;
-
-                const helmsDisplay = (
-                    <div className="mt-2 pt-2 border-top">
-                        <div style={{fontSize: '11px', opacity: 0.9}}>
-                            <b>Helms 2.0 Strategy ({goal_labels[goal]}):</b> {helms.totalCalories} kcal | {helms.protein}{t("P")} | {helms.carbs}{t("C")} | {helms.fat}{t("F")}
-                        </div>
-                    </div>
-                );
-
-                if (logs.length < 21) {
-                    return <div>{t("Log 21+ days for accurate analysis.")}{helmsDisplay}</div>;
+            
+                if (logs.length === 0) {
+                    return <div>{t("No weight logs yet.")}</div>;
                 }
-
-                const sorted = [...logs].sort((a, b) => new Date(a.log_date) - new Date(b.log_date));
-                const weeks = groupIntoWeeks(sorted);
-                
+            
+                // --- Sort logs by date ascending ---
+                const sortedLogs = [...logs].sort((a, b) => new Date(a.log_date) - new Date(b.log_date));
+            
+                // --- Fill gaps with linear interpolation ---
+                const interpolatedLogs = [];
+                for (let i = 0; i < sortedLogs.length - 1; i++) {
+                    const current = sortedLogs[i];
+                    const next = sortedLogs[i + 1];
+                    interpolatedLogs.push(current);
+            
+                    const currentDate = new Date(current.log_date);
+                    const nextDate = new Date(next.log_date);
+                    const dayDiff = Math.round((nextDate - currentDate) / (1000 * 60 * 60 * 24));
+            
+                    if (dayDiff > 1) {
+                        const weightStep = (next.weight - current.weight) / dayDiff;
+                        for (let j = 1; j < dayDiff; j++) {
+                            interpolatedLogs.push({
+                                log_date: new Date(currentDate.getTime() + j * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+                                weight: current.weight + weightStep * j,
+                            });
+                        }
+                    }
+                }
+                interpolatedLogs.push(sortedLogs[sortedLogs.length - 1]);
+            
+                // --- Group into weeks ---
+                const weeks = groupIntoWeeks(interpolatedLogs);
+            
                 if (weeks.length < 3) {
-                    return <div>{t("Need 3 full weeks to detect trend.")}{helmsDisplay}</div>;
+                    return <div>{t("Need 3 full weeks to detect trend.")}</div>;
                 }
-
+            
+                // --- Weighted Moving Average for Trend ---
+                const weightedAvg = (arr, key) => {
+                    const weights = arr.map((week, i) => i === arr.length - 1 ? 2 : 1); 
+                    let sum = 0, totalWeight = 0;
+                    arr.forEach((week, idx) => {
+                        const avgWeek = avg(week, key);
+                        sum += avgWeek * weights[idx];
+                        totalWeight += weights[idx];
+                    });
+                    return sum / totalWeight;
+                };
+            
+                const trendWeight = weightedAvg(weeks.slice(0, 3), "weight"); // Weighted trend of last 3 weeks
                 const w1 = avg(weeks[0], "weight");
                 const w2 = avg(weeks[1], "weight");
                 const w3 = avg(weeks[2], "weight");
-
+            
                 const d1 = w2 - w1;
                 const d2 = w3 - w2;
                 const avgWeeklyDelta = (d1 + d2) / 2;
                 const totalDays = weeks[1].length + weeks[2].length;
                 const inferredMaint = inferMaintenance(currentCalories, avgWeeklyDelta, totalDays);
-
+            
                 let coachFeedback = "Progress on track — no adjustment needed.";
-
+            
                 if (Math.abs(avgWeeklyDelta) < 0.2) {
-                    coachFeedback = `HOLD — estimated maintenance ≈ ${Math.round(inferredMaint)} kcal`;
+                    coachFeedback = `HOLD — estimated maintenance ≈ ${Math.round(inferredMaint)} kcal (Trend: ${trendWeight.toFixed(2)} kg)`;
                 } else if (goal === "cut" && avgWeeklyDelta > -0.25) {
-                    coachFeedback = `Plateau detected — reduce calories by 150 kcal (from ${Math.round(currentCalories)} kcal)`;
+                    coachFeedback = `Plateau detected — reduce calories by 150 kcal (from ${Math.round(currentCalories)} kcal, Trend: ${trendWeight.toFixed(2)} kg)`;
                 } else if (goal === "bulk" && avgWeeklyDelta < 0.15) {
-                    coachFeedback = `Progress slow — increase calories by 150 kcal (from ${Math.round(currentCalories)} kcal)`;
+                    coachFeedback = `Progress slow — increase calories by 150 kcal (from ${Math.round(currentCalories)} kcal, Trend: ${trendWeight.toFixed(2)} kg)`;
                 }
-
+            
                 return (
                     <div>
                         <div>{coachFeedback}</div>
-                        {helmsDisplay}
+                        <div className="mt-2 pt-2 border-top">
+                            <div style={{fontSize: '11px', opacity: 0.9}}>
+                                <b>Current Weight Trend:</b> {trendWeight.toFixed(2)} kg | {currentCalories} kcal
+                            </div>
+                        </div>
                     </div>
                 );
             })();
+
+
 
             const filteredMetrics = metrics.filter(m => m.week_number >= weekFrom && m.week_number <= weekTo);
 
