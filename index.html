@@ -316,6 +316,17 @@
                 "Email Address": "البريد الإلكتروني",
                 "Password": "كلمة المرور",
                 "Sign In": "تسجيل الدخول",
+                "Log 7 days of data for high-confidence analysis.": "سجل بيانات لمدة 7 أيام للحصول على تحليل عالي الدقة.",
+                "Baseline Set: 7-day average is": "تحديد خط الأساس: متوسط الـ 7 أيام هو",
+                "kg. Continue logging.": "كجم. استمر في تسجيل البيانات.",
+                "Adjust -150kcal.": "قلل 150 سعرة حرارية.",
+                "Adjust +150kcal.": "زد 150 سعرة حرارية.",
+                "Good progress (~": "تقدم جيد (~",
+                "kg).": "كجم).",
+                "Growing well.": "نمو جيد.",
+                "Growth stalled.": "النمو متوقف.",
+                "14-Day Trend:": "مسار الـ 14 يوماً الماضية:",
+                "Calories": "السعرات",
                 "P": "ب", "C": "ك", "F": "د", "S": "ج", "KG": "كجم"
             }
         };
@@ -735,7 +746,7 @@
             })();
 
             const recommendation = (() => {
-                if (logs.length < 7) return "Log 7 days of data for high-confidence analysis.";
+                if (logs.length < 7) return t("Log 7 days of data for high-confidence analysis.");
                 const sorted = [...logs].sort((a,b) => new Date(b.log_date) - new Date(a.log_date));
                 const week1 = sorted.slice(0, 7);
                 const week1Avg = week1.reduce((a,b)=>a+b.weight, 0) / 7;
@@ -750,7 +761,7 @@
                         </div>
                     </div>
                 );
-                if (logs.length < 14) return <div>Baseline Set: 7-day average is {week1Avg.toFixed(2)}kg. Continue logging.{helmsDisplay}</div>;
+                if (logs.length < 14) return <div>{t("Baseline Set: 7-day average is")} {week1Avg.toFixed(2)}{t("kg. Continue logging.")}{helmsDisplay}</div>;
                 const week2 = sorted.slice(7, 14);
                 const week2Avg = week2.reduce((a,b)=>a+b.weight, 0) / 7;
                 const delta = week1Avg - week2Avg;
@@ -758,13 +769,13 @@
                 let feedback;
                 if (goal === 'cut') {
                     if (avgCals < 2100 && avgSteps > 9500 && delta >= 0) feedback = <span><b className="decision-highlight">{t("HOLD POSITION")}</b> "{t("Whoosh likely")}"</span>;
-                    else if (Math.abs(delta) < 0.1) feedback = <span><b className="decision-highlight">{t("ACTION: PLATEAU")}</b> Adjust -150kcal.</span>;
-                    else if (delta <= -0.4) feedback = <span><b className="decision-highlight">{t("SUSTAIN")}</b> Good progress (~{Math.abs(delta).toFixed(2)}kg).</span>;
+                    else if (Math.abs(delta) < 0.1) feedback = <span><b className="decision-highlight">{t("ACTION: PLATEAU")}</b> {t("Adjust -150kcal.")}</span>;
+                    else if (delta <= -0.4) feedback = <span><b className="decision-highlight">{t("SUSTAIN")}</b> {t("Good progress (~")}{Math.abs(delta).toFixed(2)}{t("kg).")}</span>;
                 } else if (goal === 'bulk') {
-                    if (delta >= 0.1 && delta <= 0.3) feedback = <span><b className="decision-highlight">{t("PERFECT GAIN")}</b> Growing well.</span>;
-                    else if (delta < 0.1) feedback = <span><b className="decision-highlight">{t("ACTION: INCREASE")}</b> Growth stalled. Adjust +150kcal.</span>;
+                    if (delta >= 0.1 && delta <= 0.3) feedback = <span><b className="decision-highlight">{t("PERFECT GAIN")}</b> {t("Growing well.")}</span>;
+                    else if (delta < 0.1) feedback = <span><b className="decision-highlight">{t("ACTION: INCREASE")}</b> {t("Growth stalled.")} {t("Adjust +150kcal.")}</span>;
                 }
-                return <div>{feedback || `14-Day Trend: ${delta > 0 ? '+' : ''}${delta.toFixed(2)}kg. Phase Active.`}{helmsDisplay}</div>;
+                return <div>{feedback || `${t("14-Day Trend:")} ${delta > 0 ? '+' : ''}${delta.toFixed(2)}kg. ${t("Phase Active.")}`}{helmsDisplay}</div>;
             })();
 
             const filteredMetrics = metrics.filter(m => m.week_number >= weekFrom && m.week_number <= weekTo);
