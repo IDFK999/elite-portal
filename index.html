@@ -200,11 +200,15 @@
         .rtl .section-title::after { margin-left: 0; margin-right: 15px; }
         .rtl .coach-box { border-left: 0; border-right: 4px solid var(--accent-blue); border-radius: 14px 0 0 14px; }
 
+        /* Chart Centering Fix */
         .chart-container {
             position: relative;
-            margin: 10px 0;
-            height: 200px;
+            margin: 20px auto;
+            height: 250px;
             width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
 
         ::-webkit-scrollbar { width: 0px; background: transparent; }
@@ -337,7 +341,8 @@
             const [view, setView] = useState('workout');
             const [session, setSession] = useState(null);
             const [isBooting, setIsBooting] = useState(true);
-            // FIX: Initialize language state directly from localStorage
+            
+            // Fix: Initialize directly from localStorage to prevent resets
             const [lang, setLang] = useState(() => localStorage.getItem('app_lang') || 'en');
 
             const t = (key) => (translations[lang] && translations[lang][key]) || key;
@@ -353,7 +358,7 @@
                 return () => subscription.unsubscribe();
             }, []);
 
-            // FIX: Ensure body direction updates whenever lang changes
+            // Fix: Keep direction and language choice in sync
             useEffect(() => {
                 document.body.dir = lang === 'ar' ? 'rtl' : 'ltr';
                 localStorage.setItem('app_lang', lang);
@@ -367,9 +372,8 @@
                 if (e) { e.preventDefault(); e.stopPropagation(); }
                 try {
                     await _supabase.auth.signOut();
-                    localStorage.clear();
-                    sessionStorage.clear();
-                    window.location.replace(window.location.origin + window.location.pathname);
+                    localStorage.removeItem('supabase.auth.token'); // Clear only necessary session data
+                    window.location.reload();
                 } catch (err) { window.location.reload(); }
             };
 
@@ -718,7 +722,7 @@
             const [weekFrom, setWeekFrom] = useState(1);
             const [weekTo, setWeekTo] = useState(20);
             
-            // FIX: Initialize goal state directly from localStorage
+            // Fix: Initialize directly from localStorage
             const [goal, setGoal] = useState(() => localStorage.getItem('coach_goal') || 'cut');
             
             const canvasRef = useRef(null);
@@ -731,7 +735,6 @@
             };
             useEffect(() => { loadData(); }, [dateFrom, dateTo]);
             
-            // Keep this to save changes when they occur
             useEffect(() => { localStorage.setItem('coach_goal', goal); }, [goal]);
 
             useEffect(() => {
@@ -816,6 +819,7 @@
                             <div className="col-6"><label className="toggle-label">{t("From")}</label><input type="date" className="form-control" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} /></div>
                             <div className="col-6"><label className="toggle-label">{t("To")}</label><input type="date" className="form-control" value={dateTo} onChange={e=>setDateTo(e.target.value)} /></div>
                         </div>
+                        {/* Fix: Centered Chart Wrapper */}
                         <div className="chart-container"><canvas ref={canvasRef}></canvas></div>
                     </div>
                     <div className="section-title">{t("Period Averages")}</div>
