@@ -18,16 +18,39 @@
             --text-main: #1D1D1F;
             --cut-red: #FF3B30;
             --bulk-green: #34C759;
+            --header-height: 70px;
+            --nav-height: 85px;
         }
 
         body { 
             background: #FFFFFF; 
             color: var(--text-main);
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            padding-bottom: 110px; 
+            /* Added padding to prevent content from hiding behind sticky bars */
+            padding-top: var(--header-height);
+            padding-bottom: calc(var(--nav-height) + 40px); 
             -webkit-user-select: none; 
             user-select: none;
             touch-action: manipulation;
+            margin: 0;
+        }
+
+        /* Clean Header Styling */
+        .app-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: var(--header-height);
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border-grey);
+            z-index: 1500;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            padding-top: env(safe-area-inset-top);
         }
 
         @keyframes slideIn {
@@ -36,11 +59,11 @@
         }
 
         .card { 
-            border-radius: 12px; 
+            border-radius: 16px; 
             border: 1px solid var(--border-grey); 
-            box-shadow: 0 2px 4px rgba(0,0,0,0.02); 
-            margin-bottom: 15px; 
-            padding: 20px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.03); 
+            margin-bottom: 20px; 
+            padding: 24px; 
             background: #FFFFFF;
             animation: slideIn 0.4s ease-out;
         }
@@ -62,86 +85,88 @@
             font-size: 10px;
             letter-spacing: 0.5px;
             border-bottom: 1px solid var(--border-grey) !important;
-            padding: 10px 5px !important;
+            padding: 12px 5px !important;
         }
 
+        /* Enhanced Bottom Navigation */
         .nav-bottom { 
             position: fixed; 
             bottom: 0; 
             left:0; 
             width: 100%; 
-            background: rgba(255,255,255,0.9); 
+            background: rgba(255,255,255,0.92); 
             backdrop-filter: blur(20px); 
+            -webkit-backdrop-filter: blur(20px);
             display: flex; 
             justify-content: space-around; 
-            padding: 12px 0 35px; 
+            padding: 12px 0 calc(12px + env(safe-area-inset-bottom)); 
             border-top: 1px solid var(--border-grey); 
             z-index: 1000; 
         }
 
         .nav-item { 
             color: #86868B; 
-            font-weight: 600; 
+            font-weight: 700; 
             font-size: 10px; 
             cursor: pointer; 
             text-align: center; 
             text-transform: uppercase; 
-            letter-spacing: 0.5px;
-            transition: color 0.2s;
+            letter-spacing: 0.8px;
+            transition: all 0.2s;
             -webkit-tap-highlight-color: transparent;
-            touch-action: manipulation;
         }
 
         .nav-item.active { 
-            color: var(--text-main); 
+            color: var(--accent-blue); 
         }
 
         .form-control, .form-select { 
             background: var(--soft-grey); 
             border: 1px solid transparent; 
-            border-radius: 10px; 
-            padding: 12px; 
+            border-radius: 12px; 
+            padding: 14px; 
             font-size: 16px; 
-            margin-bottom: 10px; 
+            margin-bottom: 12px; 
             transition: all 0.2s;
         }
 
         .form-control:focus, .form-select:focus { 
             background: #FFFFFF;
-            border-color: var(--text-main);
-            box-shadow: none;
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 4px rgba(0, 102, 255, 0.1);
         }
 
         .btn-primary { 
             background: var(--text-main);
             border: none; 
-            border-radius: 10px; 
-            padding: 14px; 
-            font-weight: 600; 
+            border-radius: 12px; 
+            padding: 16px; 
+            font-weight: 700; 
             width: 100%; 
-            transition: opacity 0.2s;
+            transition: transform 0.1s, opacity 0.2s;
+        }
+        
+        .btn-primary:active {
+            transform: scale(0.98);
         }
 
         .target-pill { 
             background: var(--text-main); 
             color: #fff; 
-            border-radius: 12px; 
-            padding: 16px 10px; 
-            margin-bottom: 20px; 
+            border-radius: 16px; 
+            padding: 20px; 
+            margin-bottom: 25px; 
             cursor: pointer;
         }
 
-        .macro-mini-label { font-size: 8px; color: #86868B; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
-        .macro-mini-value { font-size: 15px; font-weight: 700; color: #FFFFFF; }
-
         .section-title { 
-            font-size: 11px; 
-            font-weight: 700; 
+            font-size: 12px; 
+            font-weight: 800; 
             color: #86868B; 
             text-transform: uppercase; 
-            margin-bottom: 12px; 
-            margin-top: 5px; 
-            letter-spacing: 1px;
+            margin-bottom: 16px; 
+            margin-top: 10px; 
+            letter-spacing: 1.2px;
             display: flex;
             align-items: center;
         }
@@ -151,124 +176,43 @@
             height: 1px;
             background: var(--border-grey);
             flex-grow: 1;
-            margin-left: 10px;
-        }
-
-        .toggle-label { font-size: 10px; font-weight: 600; color: #1D1D1F; margin-bottom: 4px; display: block; }
-
-        .avg-card { 
-            background: var(--soft-grey); 
-            border-radius: 10px; 
-            padding: 12px; 
-            text-align: center; 
-        }
-
-        .avg-value { font-size: 17px; font-weight: 700; color: var(--text-main); }
-        .avg-label { font-size: 9px; color: #86868B; text-transform: uppercase; }
-
-        .date-range-badge { 
-            background: var(--soft-grey); 
-            color: var(--text-main); 
-            font-size: 11px; 
-            padding: 10px; 
-            border-radius: 10px; 
-            font-weight: 700; 
-            display: block; 
-            margin-bottom: 20px; 
-            text-align: center;
-            border: 1px solid var(--border-grey);
+            margin-left: 15px;
         }
 
         .coach-box {
             background: #F2F2F7;
             border-left: 4px solid var(--accent-blue);
-            padding: 15px;
-            border-radius: 0 10px 10px 0;
-            font-size: 13px;
-            line-height: 1.5;
-            margin-bottom: 20px;
+            padding: 20px;
+            border-radius: 0 14px 14px 0;
+            font-size: 14px;
+            line-height: 1.6;
+            margin-bottom: 25px;
         }
 
-        .decision-highlight { 
-            font-weight: 800; 
-            color: var(--accent-blue); 
-            display: block; 
-            margin-bottom: 4px;
-            text-transform: uppercase;
-        }
-
-        .goal-selector {
-            background: var(--soft-grey);
-            border-radius: 10px;
-            padding: 4px;
-            display: flex;
-            margin-bottom: 20px;
-        }
-
-        .goal-option {
-            flex: 1;
-            text-align: center;
-            padding: 8px;
-            font-size: 10px;
-            font-weight: 700;
-            color: #86868B;
-            border-radius: 8px;
-            cursor: pointer;
-            text-transform: uppercase;
-            transition: all 0.2s;
-        }
-
-        .goal-option.active {
-            background: #FFFFFF;
-            color: var(--text-main);
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
-
-        /* Fixed Language Toggle Styling to avoid covering version */
+        /* Language Toggle Positioning */
         .lang-toggle {
-            position: absolute;
-            top: 15px;
-            left: 15px;
-            z-index: 2000;
-            background: #FFFFFF;
+            background: var(--soft-grey);
             border: 1px solid var(--border-grey);
             padding: 6px 12px;
-            border-radius: 20px;
+            border-radius: 12px;
             font-size: 11px;
             font-weight: 700;
             cursor: pointer;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .lang-toggle img {
-            width: 18px;
-            height: auto;
-            border-radius: 2px;
         }
         
         .rtl { direction: rtl; text-align: right; }
-        .rtl .section-title::after { margin-left: 0; margin-right: 10px; }
-        .rtl .coach-box { border-left: 0; border-right: 4px solid var(--accent-blue); border-radius: 10px 0 0 10px; }
-        .rtl .lang-toggle { left: auto; right: 15px; }
+        .rtl .section-title::after { margin-left: 0; margin-right: 15px; }
+        .rtl .coach-box { border-left: 0; border-right: 4px solid var(--accent-blue); border-radius: 14px 0 0 14px; }
 
         .chart-container {
             position: relative;
-            margin: auto;
-            height: 180px;
+            margin: 10px 0;
+            height: 200px;
             width: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
         }
 
-        .header-wrapper {
-            position: relative;
-            padding-top: 10px;
-            margin-bottom: 20px;
-        }
+        /* Custom scrollbar for a cleaner look */
+        ::-webkit-scrollbar { width: 0px; background: transparent; }
     </style>
 </head>
 <body>
@@ -277,6 +221,7 @@
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
+        // Keep existing translations...
         const translations = {
             ar: {
                 "ELITE PERFORMANCE": "الأداء المتميز",
@@ -432,44 +377,61 @@
             if (isBooting) return <div className="p-5 text-center text-muted">{t("Syncing...")}</div>;
 
             return (
-                <div className={`container py-4 ${lang === 'ar' ? 'rtl' : ''}`}>
-                    <button className="lang-toggle" onClick={toggleLang}>
-                        {lang === 'en' ? (
-                            <><img src="https://flagcdn.com/w20/sa.png" alt="AR" /> عربي</>
-                        ) : (
-                            <><img src="https://flagcdn.com/w20/gb.png" alt="EN" /> English</>
-                        )}
-                    </button>
+                <div className={`${lang === 'ar' ? 'rtl' : ''}`}>
+                    {/* Header with Title and Language Toggle */}
+                    <header className="app-header justify-content-between">
+                        <h6 className="fw-800 m-0" style={{letterSpacing: '-0.5px', fontSize: '15px'}}>{t("ELITE PERFORMANCE")}</h6>
+                        <div className="d-flex align-items-center gap-2">
+                            <div className="badge rounded-pill text-dark border bg-white" style={{fontSize: '9px', padding: '5px 8px'}}>v11.5.3</div>
+                            <button className="lang-toggle" onClick={toggleLang}>{lang === 'en' ? '🇸🇦' : '🇬🇧'}</button>
+                        </div>
+                    </header>
                     
-                    {!session ? (
-                        <Login t={t} lang={lang} />
-                    ) : (
-                        <>
-                            <div className="header-wrapper">
-                                <div className="d-flex justify-content-between align-items-center">
-                                    <h5 className="fw-bold m-0" style={{letterSpacing: '-0.5px'}}>{t("ELITE PERFORMANCE")}</h5>
-                                    <div className="badge rounded-pill text-dark border">v11.5.3</div>
-                                </div>
-                            </div>
-
-                            {view === 'workout' && <WorkoutManager user={session.user} t={t} />}
-                            {view === 'log' && <DailyLog user={session.user} t={t} />}
-                            {view === 'update' && <Metrics user={session.user} t={t} />}
-                            {view === 'stats' && <Stats user={session.user} t={t} goal_labels={{cut: t("Cut"), maintain: t("Maintain"), bulk: t("Bulk")}} />}
-                            
-                            <div className="nav-bottom">
-                                <div className={`nav-item ${view === 'workout' ? 'active' : ''}`} onClick={()=>setView('workout')}>{t("Workout")}</div>
-                                <div className={`nav-item ${view === 'log' ? 'active' : ''}`} onClick={()=>setView('log')}>{t("Log")}</div>
-                                <div className={`nav-item ${view === 'update' ? 'active' : ''}`} onClick={()=>setView('update')}>{t("Update")}</div>
-                                <div className={`nav-item ${view === 'stats' ? 'active' : ''}`} onClick={()=>setView('stats')}>{t("Stats")}</div>
-                                <div className="nav-item text-danger" onClick={handleSignOut}>{t("Exit")}</div>
-                            </div>
-                        </>
-                    )}
+                    <main className="container pt-3">
+                        {!session ? (
+                            <Login t={t} lang={lang} />
+                        ) : (
+                            <>
+                                {view === 'workout' && <WorkoutManager user={session.user} t={t} />}
+                                {view === 'log' && <DailyLog user={session.user} t={t} />}
+                                {view === 'update' && <Metrics user={session.user} t={t} />}
+                                {view === 'stats' && <Stats user={session.user} t={t} goal_labels={{cut: t("Cut"), maintain: t("Maintain"), bulk: t("Bulk")}} />}
+                                
+                                <nav className="nav-bottom">
+                                    <div className={`nav-item ${view === 'workout' ? 'active' : ''}`} onClick={()=>setView('workout')}>
+                                        <div style={{fontSize: '18px', marginBottom: '2px'}}>🏋️</div>
+                                        {t("Workout")}
+                                    </div>
+                                    <div className={`nav-item ${view === 'log' ? 'active' : ''}`} onClick={()=>setView('log')}>
+                                        <div style={{fontSize: '18px', marginBottom: '2px'}}>📝</div>
+                                        {t("Log")}
+                                    </div>
+                                    <div className={`nav-item ${view === 'update' ? 'active' : ''}`} onClick={()=>setView('update')}>
+                                        <div style={{fontSize: '18px', marginBottom: '2px'}}>📏</div>
+                                        {t("Update")}
+                                    </div>
+                                    <div className={`nav-item ${view === 'stats' ? 'active' : ''}`} onClick={()=>setView('stats')}>
+                                        <div style={{fontSize: '18px', marginBottom: '2px'}}>📊</div>
+                                        {t("Stats")}
+                                    </div>
+                                    <div className="nav-item text-danger" onClick={handleSignOut}>
+                                        <div style={{fontSize: '18px', marginBottom: '2px'}}>🏁</div>
+                                        {t("Exit")}
+                                    </div>
+                                </nav>
+                            </>
+                        )}
+                    </main>
                 </div>
             );
         }
 
+        /* The rest of your components (WorkoutManager, DailyLog, Metrics, Stats, Login) 
+           remain exactly as they were in your original code. 
+        */
+
+        // ... [Include all the sub-components here from your original code] ...
+        
         function WorkoutManager({ user, t }) {
             const [days, setDays] = useState([]);
             const [expandedEx, setExpandedEx] = useState({});
