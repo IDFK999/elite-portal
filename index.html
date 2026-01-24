@@ -225,10 +225,6 @@
         }
 
         .lang-toggle {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 2000;
             background: var(--soft-grey);
             border: 1px solid var(--border-grey);
             padding: 5px 12px;
@@ -236,13 +232,15 @@
             font-size: 12px;
             font-weight: 700;
             cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
         
         .rtl { direction: rtl; text-align: right; }
         .rtl .section-title::after { margin-left: 0; margin-right: 10px; }
         .rtl .coach-box { border-left: 0; border-right: 4px solid var(--accent-blue); border-radius: 10px 0 0 10px; }
 
-        /* Chart Centering Fix */
         .chart-container {
             position: relative;
             margin: auto;
@@ -290,7 +288,6 @@
                 "Core Metrics": "المقاييس الأساسية",
                 "Weight (kg) *": "الوزن (كجم) *",
                 "Steps *": "الخطوات *",
-                "Steps": "الخطوات",
                 "Nutrient Intake": "تناول العناصر الغذائية",
                 "Recovery": "الاستشفاء",
                 "Water (L)": "الماء (لتر)",
@@ -349,9 +346,7 @@
                 "Chest": "الصدر",
                 "Glute": "الأرداف",
                 "Arms L/R": "الذراعين (ي/ي)",
-                "Thighs L/R": "الفخذين (ي/ي)",
-                "Permanently delete this entire workout day?": "هل تريد حذف هذا اليوم التدريبي بالكامل نهائياً؟",
-                "Delete Exercise?": "حذف التمرين؟"
+                "Thighs L/R": "الفخذين (ي/ي)"
             }
         };
 
@@ -417,11 +412,14 @@
 
             return (
                 <div className={`container py-4 ${lang === 'ar' ? 'rtl' : ''}`}>
-                    <button className="lang-toggle" onClick={toggleLang}>{lang === 'en' ? 'عربي' : 'English'}</button>
-                    
                     <div className="d-flex justify-content-between align-items-center mb-3">
                         <h5 className="fw-bold m-0" style={{letterSpacing: '-0.5px'}}>{t("ELITE PERFORMANCE")}</h5>
-                        <div className="badge rounded-pill text-dark border">v11.5.3</div>
+                        <div className="d-flex align-items-center gap-2">
+                            <button className="lang-toggle" onClick={toggleLang}>
+                                {lang === 'en' ? <span>🇸🇦 عربي</span> : <span>🇬🇧 English</span>}
+                            </button>
+                            <div className="badge rounded-pill text-dark border">v11.5.3</div>
+                        </div>
                     </div>
 
                     {view === 'workout' && <WorkoutManager user={session.user} t={t} />}
@@ -475,7 +473,7 @@
             };
 
             const deleteDay = (dayId) => {
-                if (confirm(t("Permanently delete this entire workout day?"))) {
+                if (confirm("Permanently delete this entire workout day?")) {
                     saveAndSync(days.filter(d => d.id !== dayId));
                 }
             };
@@ -534,7 +532,7 @@
                                     const currentTotalWeight = ex.sets.reduce((sum, s) => sum + (Number(s.weight) || 0), 0);
                                     const hasHistory = ex.history && ex.history.length > 0;
                                     const prevTotalReps = hasHistory ? ex.history.reduce((sum, s) => sum + (Number(s.reps) || 0), 0) : 0;
-                                    const prevTotalWeight = hasHistory ? ex.history.reduce((sum, s) => sum + (Number(s.weight) || 0), 0) : 0;
+                                    const prevTotalWeight = hasHistory ? ex.history.reduce((sum, s) => sum + (Number(s.reps) || 0), 0) : 0;
                                     const rDelta = hasHistory ? currentTotalReps - prevTotalReps : 0;
                                     const wDelta = hasHistory ? currentTotalWeight - prevTotalWeight : 0;
                                     const setDelta = hasHistory ? ex.sets.length - ex.history.length : 0;
@@ -561,7 +559,7 @@
                                                         <span className="badge fw-800" style={{fontSize: '9px', padding: '4px 6px', backgroundColor: wDelta > 0 ? '#fef5e7' : wDelta < 0 ? '#fdedec' : '#ffffff', color: wDelta > 0 ? '#e67e22' : wDelta < 0 ? '#e74c3c' : '#666', border: `1px solid ${wDelta > 0 ? '#e67e22' : wDelta < 0 ? '#e74c3c' : '#ddd'}`}}>{currentTotalWeight}{t("KG")} {wDelta > 0 ? '↑' : wDelta < 0 ? '↓' : '—'}</span>
                                                     </div>
                                                 </div>
-                                                <button className="btn btn-sm text-danger p-0 ms-2" onClick={(e) => { e.stopPropagation(); if(confirm(t("Delete Exercise?"))) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.filter(e => e.id !== ex.id)} : d)); }}>✕</button>
+                                                <button className="btn btn-sm text-danger p-0 ms-2" onClick={(e) => { e.stopPropagation(); if(confirm("Delete Exercise?")) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.filter(e => e.id !== ex.id)} : d)); }}>✕</button>
                                             </div>
                                             {expandedEx[ex.id] && (
                                                 <div className="mt-2 pt-2 border-top">
