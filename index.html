@@ -415,6 +415,9 @@
             if (!session) return <Login t={t} lang={lang} />;
 
             return (
+                <div className={`container py-4 ${lang === 'ar' ? 'rtl' : ''}`}>
+                    <button className="lang-toggle" onClick={toggleLang}>{lang === 'en' ? 'عربي' : 'English'}</button>
+                    
                     <div className="d-flex justify-content-between align-items-center mb-3" 
                             style={{paddingRight: lang === 'en' ? '80px' : '0', paddingLeft: lang === 'ar' ? '80px' : '0'}}>
                         <h5 className="fw-bold m-0" style={{letterSpacing: '-0.5px'}}>{t("ELITE PERFORMANCE")}</h5>
@@ -516,7 +519,7 @@
                                     <button className="btn btn-sm p-0 text-muted" onClick={() => {
                                         const newName = prompt(t("Edit Day Name:"), day.name);
                                         if (newName) saveAndSync(days.map(d => d.id === day.id ? {...d, name: newName} : d));
-                                    }} style={{fontSize: '12px'}}>✎</button>
+                                    }} style={{fontSize: '12px'}}>✎</button> 
                                 </div>
                                 <div className="d-flex align-items-center gap-2">
                                     <span className="badge rounded-pill bg-light text-primary border fw-bold" style={{fontSize: '10px'}}>{getDaysAgo(day.lastPerformed)}</span>
@@ -558,7 +561,10 @@
                                                         <span className="badge fw-800" style={{fontSize: '9px', padding: '4px 6px', backgroundColor: wDelta > 0 ? '#fef5e7' : wDelta < 0 ? '#fdedec' : '#ffffff', color: wDelta > 0 ? '#e67e22' : wDelta < 0 ? '#e74c3c' : '#666', border: `1px solid ${wDelta > 0 ? '#e67e22' : wDelta < 0 ? '#e74c3c' : '#ddd'}`}}>{currentTotalWeight}{t("KG")} {wDelta > 0 ? '↑' : wDelta < 0 ? '↓' : '—'}</span>
                                                     </div>
                                                 </div>
-                                                <button className="btn btn-sm text-danger p-0 ms-2" onClick={(e) => { e.stopPropagation(); if(confirm("Delete Exercise?")) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.filter(e => e.id !== ex.id)} : d)); }}>✕</button>
+                                                <button className="btn btn-sm text-danger p-0 ms-2" onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    if(confirm(t("Delete Exercise?"))) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.filter(e => e.id !== ex.id)} : d));
+                                                }}>✕</button>
                                             </div>
                                             {expandedEx[ex.id] && (
                                                 <div className="mt-2 pt-2 border-top">
@@ -569,28 +575,33 @@
                                                                 <div className="d-flex align-items-center flex-grow-1 gap-1">
                                                                     <input type="number" inputMode="numeric" className="form-control form-control-sm text-center fw-bold border-0 bg-light" style={{color: '#27ae60'}} value={s.reps} onChange={e => {
                                                                         const val = parseInt(e.target.value) || 0;
-                                                                        saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(exItem => exItem.id === ex.id ? {...exItem, sets: exItem.sets.map(setItem => setItem.id === s.id ? {...setItem, reps: val} : setItem)} : exItem)} : d));
+                                                                        saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(eItem => eItem.id === ex.id ? {...eItem, sets: eItem.sets.map(set => set.id === s.id ? {...set, reps: val} : set)} : eItem)} : d));
                                                                     }} />
-                                                                    <span className="text-muted small">×</span>
-                                                                    <input type="number" inputMode="decimal" className="form-control form-control-sm text-center fw-bold border-0 bg-light" style={{color: '#E67E22'}} value={s.weight} onChange={e => {
-                                                                        const val = parseFloat(e.target.value) || 0;
-                                                                        saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(exItem => exItem.id === ex.id ? {...exItem, sets: exItem.sets.map(setItem => setItem.id === s.id ? {...setItem, weight: val} : setItem)} : exItem)} : d));
-                                                                    }} />
+                                                                    <div className="text-muted fw-800" style={{fontSize: '9px'}}>{t("REPS")}</div>
                                                                 </div>
-                                                                <button className="btn btn-sm p-0 text-danger" onClick={() => saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(e => e.id === ex.id ? {...e, sets: e.sets.filter(st => st.id !== s.id)} : e)} : d))}>✕</button>
+                                                                <div className="d-flex align-items-center flex-grow-1 gap-1">
+                                                                    <input type="number" step="0.5" inputMode="decimal" className="form-control form-control-sm text-center fw-bold border-0 bg-light" style={{color: '#0066FF'}} value={s.weight} onChange={e => {
+                                                                        const val = parseFloat(e.target.value) || 0;
+                                                                        saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(eItem => eItem.id === ex.id ? {...eItem, sets: eItem.sets.map(set => set.id === s.id ? {...set, weight: val} : set)} : eItem)} : d));
+                                                                    }} />
+                                                                    <div className="text-muted fw-800" style={{fontSize: '9px'}}>{t("KG")}</div>
+                                                                </div>
+                                                                <button className="btn btn-sm text-danger p-0" onClick={() => {
+                                                                    saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(eItem => eItem.id === ex.id ? {...eItem, sets: eItem.sets.filter(set => set.id !== s.id)} : eItem)} : d));
+                                                                }}>✕</button>
                                                             </div>
                                                         </div>
                                                     ))}
-                                                    <button className="btn btn-outline-primary btn-sm w-100 fw-bold mt-1" style={{fontSize: '10px', borderStyle: 'dashed'}} onClick={() => addSet(day.id, ex.id)}>{t("+ ADD SET")}</button>
+                                                    <button className="btn btn-outline-secondary btn-sm w-100 fw-800" style={{fontSize: '10px'}} onClick={() => addSet(day.id, ex.id)}>{t("+ ADD SET")}</button>
                                                 </div>
                                             )}
                                         </div>
                                     );
                                 })}
                             </div>
-                            <button className="btn btn-primary btn-sm w-100 mt-3 fw-bold py-2" onClick={() => {
+                            <button className="btn btn-primary btn-sm w-100 mt-2" onClick={() => {
                                 const name = prompt(t("Exercise Name:"));
-                                if (name) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: [...d.exercises, { id: Date.now(), name, sets: [], history: [], target: "" }]} : d));
+                                if (name) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: [...d.exercises, { id: Date.now(), name, sets: [] }]} : d));
                             }}>{t("ADD EXERCISE")}</button>
                         </div>
                     ))}
@@ -599,272 +610,269 @@
         }
 
         function DailyLog({ user, t }) {
-            const [f, setF] = useState({ date: new Date().toISOString().split('T')[0], weight:'', steps:'', p:'', c:'', f:'', water:'', sleep:'' });
-            const [targets, setTargets] = useState(() => {
-                const saved = localStorage.getItem('macro_targets');
-                return saved ? JSON.parse(saved) : { p: 180, c: 200, f: 60 };
-            });
-            const [editTargets, setEditTargets] = useState(false);
+            const [metrics, setMetrics] = useState({ weight: '', steps: '', protein: '', carbs: '', fats: '', water: '', sleep: '' });
+            const [savedTargets, setSavedTargets] = useState({ protein: 180, carbs: 250, fats: 70 });
 
             useEffect(() => {
-                const fetchData = async () => {
-                    const { data } = await _supabase.from('daily_logs').select('*').eq('user_id', user.id).eq('log_date', f.date).maybeSingle();
-                    if (data) setF({ ...f, weight: data.weight||'', steps: data.steps||'', p: data.protein||'', c: data.carbs||'', f: data.fats||'', water: data.water_liters||'', sleep: data.sleep_hours||'' });
-                    else setF({ ...f, weight:'', steps:'', p:'', c:'', f:'', water:'', sleep:'' });
-                };
-                fetchData();
-            }, [f.date]);
+                _supabase.from('user_settings').select('macro_targets').eq('user_id', user.id).maybeSingle()
+                    .then(({ data }) => data && setSavedTargets(data.macro_targets));
+            }, [user.id]);
 
-            const saveLog = async () => {
-                if (!f.weight || !f.steps) return alert("Weight and Steps are required.");
+            const saveMetrics = async () => {
                 const { error } = await _supabase.from('daily_logs').upsert({
-                    user_id: user.id, log_date: f.date, weight: parseFloat(f.weight),
-                    protein: parseInt(f.p)||0, carbs: parseInt(f.c)||0, fats: parseInt(f.f)||0,
-                    steps: parseInt(f.steps), water_liters: parseFloat(f.water)||0, sleep_hours: parseFloat(f.sleep)||0
-                }, { onConflict: 'user_id,log_date' });
-                if (error) alert(error.message); else alert("Saved Successfully");
+                    user_id: user.id, date: new Date().toISOString().split('T')[0], ...metrics
+                }, { onConflict: 'user_id,date' });
+                if (error) alert(error.message); else alert(t("Save Daily Record"));
             };
 
+            const saveTargets = async () => {
+                await _supabase.from('user_settings').upsert({ user_id: user.id, macro_targets: savedTargets }, { onConflict: 'user_id' });
+            };
+
+            const totalCal = (savedTargets.protein * 4) + (savedTargets.carbs * 4) + (savedTargets.fats * 9);
+
             return (
-                <div>
-                    {!editTargets ? (
-                        <div className="target-pill" onClick={() => setEditTargets(true)}>
-                            <div className="macro-container d-flex justify-content-around text-center">
-                                <div className="macro-box"><span className="macro-mini-label">{t("Protein")}</span><br/><span className="macro-mini-value">{targets.p}g</span></div>
-                                <div className="macro-box"><span className="macro-mini-label">{t("Carbs")}</span><br/><span className="macro-mini-value">{targets.c}g</span></div>
-                                <div className="macro-box"><span className="macro-mini-label">{t("Fats")}</span><br/><span className="macro-mini-value">{targets.f}g</span></div>
+                <div className="pb-5">
+                    <div className="target-pill" onClick={() => {
+                        const p = prompt(t("Protein"), savedTargets.protein);
+                        const c = prompt(t("Carbs"), savedTargets.carbs);
+                        const f = prompt(t("Fats"), savedTargets.fats);
+                        if(p && c && f) setSavedTargets({ protein: p, carbs: c, fats: f });
+                    }}>
+                        <div className="d-flex justify-content-between align-items-center mb-2">
+                            <span className="fw-800" style={{fontSize: '11px', letterSpacing: '1px'}}>{t("Nutrient Intake")}</span>
+                            <span className="fw-800" style={{fontSize: '18px'}}>{totalCal} <small style={{fontSize: '10px'}}>KCAL</small></span>
+                        </div>
+                        <div className="row g-0 text-center">
+                            <div className="col-4 border-end border-secondary">
+                                <div className="macro-mini-label">{t("P")}</div>
+                                <div className="macro-mini-value">{savedTargets.protein}g</div>
+                            </div>
+                            <div className="col-4 border-end border-secondary">
+                                <div className="macro-mini-label">{t("C")}</div>
+                                <div className="macro-mini-value">{savedTargets.carbs}g</div>
+                            </div>
+                            <div className="col-4">
+                                <div className="macro-mini-label">{t("F")}</div>
+                                <div className="macro-mini-value">{savedTargets.fats}g</div>
                             </div>
                         </div>
-                    ) : (
-                        <div className="card mb-3" style={{background: '#F5F5F7'}}>
-                            <div className="row g-2">
-                                <div className="col-4"><label className="macro-mini-label">{t("P")} (g)</label><input className="form-control" type="number" inputMode="numeric" value={targets.p} onChange={e=>setTargets({...targets, p: cleanNum(e.target.value)})} /></div>
-                                <div className="col-4"><label className="macro-mini-label">{t("C")} (g)</label><input className="form-control" type="number" inputMode="numeric" value={targets.c} onChange={e=>setTargets({...targets, c: cleanNum(e.target.value)})} /></div>
-                                <div className="col-4"><label className="macro-mini-label">{t("F")} (g)</label><input className="form-control" type="number" inputMode="numeric" value={targets.f} onChange={e=>setTargets({...targets, f: cleanNum(e.target.value)})} /></div>
-                            </div>
-                            <button className="btn btn-dark btn-sm w-100 mt-2" onClick={() => { localStorage.setItem('macro_targets', JSON.stringify(targets)); setEditTargets(false); }}>{t("Save Targets")}</button>
-                        </div>
-                    )}
-                    <div className="card">
-                        <input type="date" className="form-control mb-3 fw-bold" value={f.date} onChange={e=>setF({...f, date:e.target.value})} />
-                        <div className="section-title">{t("Core Metrics")}</div>
-                        <div className="row g-2">
-                            <div className="col-6"><label className="toggle-label">{t("Weight (kg) *")}</label><input type="number" step="any" inputMode="decimal" className="form-control" value={f.weight} onChange={e=>setF({...f, weight: cleanNum(e.target.value)})} /></div>
-                            <div className="col-6"><label className="toggle-label">{t("Steps *")}</label><input type="number" inputMode="numeric" className="form-control" value={f.steps} onChange={e=>setF({...f, steps: cleanNum(e.target.value)})} /></div>
-                        </div>
-                        <div className="section-title mt-2">{t("Nutrient Intake")}</div>
-                        <div className="row g-2">
-                            <div className="col-4"><label className="toggle-label">{t("P")}</label><input type="number" inputMode="numeric" className="form-control" value={f.p} onChange={e=>setF({...f, p: cleanNum(e.target.value)})} /></div>
-                            <div className="col-4"><label className="toggle-label">{t("C")}</label><input type="number" inputMode="numeric" className="form-control" value={f.p} onChange={e=>setF({...f, c: cleanNum(e.target.value)})} /></div>
-                            <div className="col-4"><label className="toggle-label">{t("F")}</label><input type="number" inputMode="numeric" className="form-control" value={f.f} onChange={e=>setF({...f, f: cleanNum(e.target.value)})} /></div>
-                        </div>
-                        <div className="section-title mt-2">{t("Recovery")}</div>
-                        <div className="row g-2">
-                            <div className="col-6"><label className="toggle-label">{t("Water (L)")}</label><input type="number" step="any" inputMode="decimal" className="form-control" value={f.water} onChange={e=>setF({...f, water: cleanNum(e.target.value)})} /></div>
-                            <div className="col-6"><label className="toggle-label">{t("Sleep (H)")}</label><input type="number" step="any" inputMode="decimal" className="form-control" value={f.sleep} onChange={e=>setF({...f, sleep: cleanNum(e.target.value)})} /></div>
-                        </div>
-                        <button className="btn btn-primary mt-3" onClick={saveLog}>{t("Save Daily Record")}</button>
                     </div>
+
+                    <div className="section-title">{t("Core Metrics")}</div>
+                    <div className="row g-2 mb-3">
+                        <div className="col-6">
+                            <label className="toggle-label">{t("Weight (kg) *")}</label>
+                            <input className="form-control" type="number" step="0.1" value={metrics.weight} onChange={e=>setMetrics({...metrics, weight: e.target.value})} />
+                        </div>
+                        <div className="col-6">
+                            <label className="toggle-label">{t("Steps *")}</label>
+                            <input className="form-control" type="number" value={metrics.steps} onChange={e=>setMetrics({...metrics, steps: e.target.value})} />
+                        </div>
+                    </div>
+
+                    <div className="section-title">{t("Recovery")}</div>
+                    <div className="row g-2 mb-4">
+                        <div className="col-6">
+                            <label className="toggle-label">{t("Water (L)")}</label>
+                            <input className="form-control" type="number" step="0.1" value={metrics.water} onChange={e=>setMetrics({...metrics, water: e.target.value})} />
+                        </div>
+                        <div className="col-6">
+                            <label className="toggle-label">{t("Sleep (H)")}</label>
+                            <input className="form-control" type="number" step="0.5" value={metrics.sleep} onChange={e=>setMetrics({...metrics, sleep: e.target.value})} />
+                        </div>
+                    </div>
+
+                    <button className="btn btn-primary py-3 mb-3 shadow-sm" onClick={saveMetrics}>{t("Save Daily Record")}</button>
+                    <button className="btn btn-outline-dark btn-sm w-100 border-0 fw-bold" onClick={saveTargets}>{t("Save Targets")}</button>
                 </div>
             );
         }
 
         function Metrics({ user, t }) {
-            const [f, setF] = useState({ chest:'', waist:'', glute:'', larm:'', rarm:'', lthigh:'', rthigh:'' });
-            const [startDate, setStartDate] = useState(localStorage.getItem('coach_start_date') || '2026-01-21');
-            const getWeekInfo = () => {
-                const start = new Date(startDate);
-                const today = new Date();
-                const diffTime = Math.abs(today - start);
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                const weekNum = Math.ceil(diffDays / 7) || 1;
-                const weekStart = new Date(start);
-                weekStart.setDate(start.getDate() + (weekNum - 1) * 7);
-                const weekEnd = new Date(weekStart);
-                weekEnd.setDate(weekStart.getDate() + 7);
-                return { num: weekNum, range: `${weekStart.toLocaleDateString()} - ${weekEnd.toLocaleDateString()}` };
-            };
-            const weekInfo = getWeekInfo();
+            const [m, setM] = useState({ waist: '', chest: '', left_arm: '', right_arm: '', glutes: '', left_thigh: '', right_thigh: '' });
+            const [startDate, setStartDate] = useState(localStorage.getItem('program_start') || new Date().toISOString().split('T')[0]);
 
-            const submitCheckin = async () => {
-                if (!f.waist || !f.chest) return alert("Waist and Chest are mandatory.");
-                const { error } = await _supabase.from('weekly_metrics').upsert({
-                    user_id: user.id, week_number: weekInfo.num,
-                    chest: parseFloat(f.chest), waist: parseFloat(f.waist), glute: parseFloat(f.glute)||0,
-                    left_arm: parseFloat(f.larm)||0, right_arm: parseFloat(f.rarm)||0,
-                    left_thigh: parseFloat(f.lthigh)||0, right_thigh: parseFloat(f.rthigh)||0
-                }, { onConflict: 'user_id,week_number' });
-                if (error) alert(error.message); else alert(`${t("WEEK")} ${weekInfo.num} Updated`);
+            const saveWeekly = async () => {
+                const { error } = await _supabase.from('weekly_stats').upsert({
+                    user_id: user.id, date: new Date().toISOString().split('T')[0], ...m
+                });
+                if (error) alert(error.message); else alert(t("Submit Weekly Stats"));
             };
 
             return (
-                <div className="card">
+                <div className="pb-5">
                     <label className="toggle-label">{t("Program Start Date")}</label>
-                    <input type="date" className="form-control mb-3" value={startDate} onChange={e=>{setStartDate(e.target.value); localStorage.setItem('coach_start_date', e.target.value);}} />
-                    <div className="date-range-badge">{t("WEEK")} {weekInfo.num}<br/><span style={{fontSize:'10px', opacity:0.6}}>{weekInfo.range}</span></div>
-                    <div className="section-title">{t("Measurements")}</div>
-                    <div className="row g-2 mb-2">
-                        <div className="col-6"><label className="toggle-label">{t("Waist *")}</label><input type="number" step="any" inputMode="decimal" className="form-control" value={f.waist} onChange={e=>setF({...f, waist: cleanNum(e.target.value)})} /></div>
-                        <div className="col-6"><label className="toggle-label">{t("Chest *")}</label><input type="number" step="any" inputMode="decimal" className="form-control" value={f.chest} onChange={e=>setF({...f, chest: cleanNum(e.target.value)})} /></div>
-                    </div>
-                    <div className="row g-2 mb-2">
-                        <div className="col-6"><label className="toggle-label">{t("Left Arm")}</label><input type="number" step="any" inputMode="decimal" className="form-control" value={f.larm} onChange={e=>setF({...f, larm: cleanNum(e.target.value)})} /></div>
-                        <div className="col-6"><label className="toggle-label">{t("Right Arm")}</label><input type="number" step="any" inputMode="decimal" className="form-control" value={f.rarm} onChange={e=>setF({...f, rarm: cleanNum(e.target.value)})} /></div>
+                    <input className="form-control mb-4" type="date" value={startDate} onChange={e=>{setStartDate(e.target.value); localStorage.setItem('program_start', e.target.value);}} />
+
+                    <div className="section-title">{t("Measurements")} (cm)</div>
+                    <div className="row g-2 mb-3">
+                        <div className="col-6">
+                            <label className="toggle-label">{t("Waist *")}</label>
+                            <input className="form-control" type="number" value={m.waist} onChange={e=>setM({...m, waist: e.target.value})} />
+                        </div>
+                        <div className="col-6">
+                            <label className="toggle-label">{t("Chest *")}</label>
+                            <input className="form-control" type="number" value={m.chest} onChange={e=>setM({...m, chest: e.target.value})} />
+                        </div>
                     </div>
                     <div className="row g-2 mb-3">
-                        <div className="col-12"><label className="toggle-label">{t("Glutes")}</label><input type="number" step="any" inputMode="decimal" className="form-control" value={f.glute} onChange={e=>setF({...f, glute: cleanNum(e.target.value)})} /></div>
+                        <div className="col-6">
+                            <label className="toggle-label">{t("Left Arm")}</label>
+                            <input className="form-control" type="number" value={m.left_arm} onChange={e=>setM({...m, left_arm: e.target.value})} />
+                        </div>
+                        <div className="col-6">
+                            <label className="toggle-label">{t("Right Arm")}</label>
+                            <input className="form-control" type="number" value={m.right_arm} onChange={e=>setM({...m, right_arm: e.target.value})} />
+                        </div>
                     </div>
                     <div className="row g-2 mb-3">
-                        <div className="col-6"><label className="toggle-label">{t("Left Thigh")}</label><input type="number" step="any" inputMode="decimal" className="form-control" value={f.lthigh} onChange={e=>setF({...f, lthigh: cleanNum(e.target.value)})} /></div>
-                        <div className="col-6"><label className="toggle-label">{t("Right Thigh")}</label><input type="number" step="any" inputMode="decimal" className="form-control" value={f.rthigh} onChange={e=>setF({...f, rthigh: cleanNum(e.target.value)})} /></div>
+                        <div className="col-12">
+                            <label className="toggle-label">{t("Glutes")}</label>
+                            <input className="form-control" type="number" value={m.glutes} onChange={e=>setM({...m, glutes: e.target.value})} />
+                        </div>
                     </div>
-                    <button className="btn btn-primary mt-2" onClick={submitCheckin}>{t("Submit Weekly Stats")}</button>
+                    <div className="row g-2 mb-4">
+                        <div className="col-6">
+                            <label className="toggle-label">{t("Left Thigh")}</label>
+                            <input className="form-control" type="number" value={m.left_thigh} onChange={e=>setM({...m, left_thigh: e.target.value})} />
+                        </div>
+                        <div className="col-6">
+                            <label className="toggle-label">{t("Right Thigh")}</label>
+                            <input className="form-control" type="number" value={m.right_thigh} onChange={e=>setM({...m, right_thigh: e.target.value})} />
+                        </div>
+                    </div>
+                    <button className="btn btn-primary py-3 shadow-sm" onClick={saveWeekly}>{t("Submit Weekly Stats")}</button>
                 </div>
             );
         }
 
         function Stats({ user, t, goal_labels }) {
             const [logs, setLogs] = useState([]);
-            const [metrics, setMetrics] = useState([]);
-            const [dateFrom, setDateFrom] = useState(new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
-            const [dateTo, setDateTo] = useState(new Date().toISOString().split('T')[0]);
-            const [weekFrom, setWeekFrom] = useState(1);
-            const [weekTo, setWeekTo] = useState(20);
-            const [goal, setGoal] = useState(() => localStorage.getItem('coach_goal') || 'cut');
-            const canvasRef = useRef(null);
+            const [weekly, setWeekly] = useState([]);
+            const [goal, setGoal] = useState(localStorage.getItem('user_goal') || 'maintain');
+            const chartRef = useRef(null);
             const chartInstance = useRef(null);
 
-            const loadData = async () => {
-                const { data: logData } = await _supabase.from('daily_logs').select('*').eq('user_id', user.id).gte('log_date', dateFrom).lte('log_date', dateTo).order('log_date', {ascending: false});
-                const { data: metricData } = await _supabase.from('weekly_metrics').select('*').eq('user_id', user.id).order('week_number', {ascending: false});
-                setLogs(logData || []); setMetrics(metricData || []);
-            };
-            useEffect(() => { loadData(); }, [dateFrom, dateTo]);
-            useEffect(() => { localStorage.setItem('coach_goal', goal); }, [goal]);
+            useEffect(() => {
+                const fetchData = async () => {
+                    const { data: logData } = await _supabase.from('daily_logs').select('*').eq('user_id', user.id).order('date', { ascending: false }).limit(14);
+                    const { data: weekData } = await _supabase.from('weekly_stats').select('*').eq('user_id', user.id).order('date', { ascending: false }).limit(5);
+                    if (logData) setLogs(logData);
+                    if (weekData) setWeekly(weekData);
+                };
+                fetchData();
+            }, [user.id]);
 
             useEffect(() => {
-                if (canvasRef.current && logs.length > 0) {
-                    const sorted = [...logs].sort((a,b) => new Date(a.log_date) - new Date(b.log_date));
+                if (chartRef.current && logs.length > 0) {
                     if (chartInstance.current) chartInstance.current.destroy();
-                    chartInstance.current = new Chart(canvasRef.current, {
+                    const ctx = chartRef.current.getContext('2d');
+                    const sortedLogs = [...logs].reverse();
+                    chartInstance.current = new Chart(ctx, {
                         type: 'line',
-                        data: { 
-                            labels: sorted.map(l => l.log_date.split('-').slice(1).reverse().join('/')), 
-                            datasets: [{ label: t('KG'), data: sorted.map(l => l.weight), borderColor: '#0066FF', tension: 0.3, backgroundColor: 'rgba(0,102,255,0.05)', fill: true, borderWidth: 2, pointRadius: 3 }] 
+                        data: {
+                            labels: sortedLogs.map(l => l.date.split('-')[2]),
+                            datasets: [{
+                                label: 'Weight',
+                                data: sortedLogs.map(l => l.weight),
+                                borderColor: '#0066FF',
+                                borderWidth: 3,
+                                pointRadius: 0,
+                                tension: 0.4,
+                                fill: true,
+                                backgroundColor: 'rgba(0, 102, 255, 0.05)'
+                            }]
                         },
-                        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { position: 'left', grid: { color: '#F2F2F7' } } } }
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { legend: { display: false } },
+                            scales: { 
+                                x: { grid: { display: false }, border: { display: false } },
+                                y: { grid: { color: '#F2F2F7' }, border: { display: false }, ticks: { font: { size: 10 } } }
+                            }
+                        }
                     });
                 }
-            }, [logs, t]);
+            }, [logs]);
 
-            const stats = (() => {
-                if (logs.length === 0) return { loss: 0, kcal: 0, steps: 0, color: '#1D1D1F', sign: '' };
-                const sorted = [...logs].sort((a,b) => new Date(a.log_date) - new Date(b.log_date));
-                const weightDiff = (sorted[sorted.length - 1].weight - sorted[0].weight).toFixed(1);
-                const totalKcal = logs.reduce((acc, l) => acc + (l.protein*4 + l.carbs*4 + l.fats*9), 0);
-                const totalSteps = logs.reduce((acc, l) => acc + (l.steps || 0), 0);
-                return { loss: Math.abs(weightDiff), kcal: Math.round(totalKcal / logs.length), steps: Math.round(totalSteps / logs.length), color: weightDiff > 0 ? '#34C759' : weightDiff < 0 ? '#FF3B30' : '#1D1D1F', sign: weightDiff > 0 ? '+' : weightDiff < 0 ? '-' : '' };
-            })();
-
-            const recommendation = (() => {
+            const getCoachNote = () => {
                 if (logs.length < 7) return t("Log 7 days of data for high-confidence analysis.");
-                const sorted = [...logs].sort((a,b) => new Date(b.log_date) - new Date(a.log_date));
-                const week1 = sorted.slice(0, 7);
-                const week1Avg = week1.reduce((a,b)=>a+b.weight, 0) / 7;
-                const avgSteps = week1.reduce((a,b)=>a+(b.steps||0),0) / 7;
-                const bonusSteps = Math.min(avgSteps, 7000);
-                const bonusCals = (bonusSteps / 7000) * 200;
-                const helms = getHelmsMacros(week1Avg, goal, bonusCals);
-                const helmsDisplay = (
-                    <div className="mt-2 pt-2 border-top">
-                        <div style={{fontSize: '11px', opacity: 0.9, marginBottom: '8px'}}>
-                            <b>Helms 2.0 Strategy ({goal_labels[goal]}):</b> {helms.totalCalories} kcal | {helms.protein}{t("P")} | {helms.carbs}{t("C")} | {helms.fat}{t("F")}
-                        </div>
-                    </div>
-                );
-                if (logs.length < 14) return <div>{t("Baseline Set: 7-day average is")} {week1Avg.toFixed(2)}{t("kg. Continue logging.")}{helmsDisplay}</div>;
-                const week2 = sorted.slice(7, 14);
-                const week2Avg = week2.reduce((a,b)=>a+b.weight, 0) / 7;
-                const delta = week1Avg - week2Avg;
-                const avgCals = week1.reduce((a,b)=>a+(b.protein*4+b.carbs*4+b.fats*9),0) / 7;
-                let feedback;
+                const latestAvg = logs.slice(0, 7).reduce((a, b) => a + Number(b.weight), 0) / 7;
+                const prevAvg = logs.slice(7, 14).length === 7 ? logs.slice(7, 14).reduce((a, b) => a + Number(b.weight), 0) / 7 : null;
+                
+                if (!prevAvg) return `${t("Baseline Set: 7-day average is")} ${latestAvg.toFixed(2)}${t("kg. Continue logging.")}`;
+                
+                const diff = latestAvg - prevAvg;
                 if (goal === 'cut') {
-                    if (avgCals < 2100 && avgSteps > 9500 && delta >= 0) feedback = <span><b className="decision-highlight">{t("HOLD POSITION")}</b> "{t("Whoosh likely")}"</span>;
-                    else if (Math.abs(delta) < 0.1) feedback = <span><b className="decision-highlight">{t("ACTION: PLATEAU")}</b> {t("Adjust -150kcal.")}</span>;
-                    else if (delta <= -0.4) feedback = <span><b className="decision-highlight">{t("SUSTAIN")}</b> {t("Good progress (~")}{Math.abs(delta).toFixed(2)}{t("kg).")}</span>;
-                } else if (goal === 'bulk') {
-                    if (delta >= 0.1 && delta <= 0.3) feedback = <span><b className="decision-highlight">{t("PERFECT GAIN")}</b> {t("Growing well.")}</span>;
-                    else if (delta < 0.1) feedback = <span><b className="decision-highlight">{t("ACTION: INCREASE")}</b> {t("Growth stalled.")} {t("Adjust +150kcal.")}</span>;
+                    if (diff > -0.1) return <><span className="decision-highlight">{t("ACTION: PLATEAU")}</span>{t("Adjust -150kcal.")}</>;
+                    return <><span className="decision-highlight">{t("SUSTAIN")}</span>{t("Good progress (~")}{Math.abs(diff).toFixed(2)}{t("kg).")}</>;
                 }
-                return <div>{feedback || `${t("14-Day Trend:")} ${delta > 0 ? '+' : ''}${delta.toFixed(2)}kg. ${t("Phase Active.")}`}{helmsDisplay}</div>;
-            })();
-
-            const filteredMetrics = metrics.filter(m => m.week_number >= weekFrom && m.week_number <= weekTo);
+                if (goal === 'bulk') {
+                    if (diff < 0.1) return <><span className="decision-highlight">{t("ACTION: INCREASE")}</span>{t("Adjust +150kcal.")}</>;
+                    return <><span className="decision-highlight">{t("PERFECT GAIN")}</span>{t("Growing well.")}</>;
+                }
+                return <><span className="decision-highlight">{t("HOLD POSITION")}</span>{Math.abs(diff) < 0.2 ? t("Sustain") : t("Adjusting...")}</>;
+            };
 
             return (
-                <div>
-                    <div className="section-title">{t("Current Objective")}</div>
+                <div className="pb-5">
                     <div className="goal-selector">
-                        <div className={`goal-option ${goal === 'cut' ? 'active' : ''}`} onClick={() => setGoal('cut')}>{t("Cut")}</div>
-                        <div className={`goal-option ${goal === 'maintain' ? 'active' : ''}`} onClick={() => setGoal('maintain')}>{t("Maintain")}</div>
-                        <div className={`goal-option ${goal === 'bulk' ? 'active' : ''}`} onClick={() => setGoal('bulk')}>{t("Bulk")}</div>
+                        {['cut', 'maintain', 'bulk'].map(g => (
+                            <div key={g} className={`goal-option ${goal === g ? 'active' : ''}`} onClick={() => {setGoal(g); localStorage.setItem('user_goal', g);}}>
+                                {goal_labels[g]}
+                            </div>
+                        ))}
                     </div>
-                    <div className="section-title">{t("Coach Recommendation")}</div>
-                    <div className="coach-box">{recommendation}</div>
-                    <div className="card">
-                        <div className="section-title">{t("Weight Trend")}</div>
-                        <div className="row g-2 mb-3">
-                            <div className="col-6"><label className="toggle-label">{t("From")}</label><input type="date" className="form-control" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} /></div>
-                            <div className="col-6"><label className="toggle-label">{t("To")}</label><input type="date" className="form-control" value={dateTo} onChange={e=>setDateTo(e.target.value)} /></div>
+
+                    <div className="coach-box">
+                        <div className="section-title mb-2" style={{color: '#1D1D1F'}}>{t("Coach Recommendation")}</div>
+                        {getCoachNote()}
+                    </div>
+
+                    <div className="card shadow-sm border-0">
+                        <div className="section-title">{t("14-Day Trend:")}</div>
+                        <div className="chart-container">
+                            <canvas ref={chartRef}></canvas>
                         </div>
-                        <div className="chart-container"><canvas ref={canvasRef}></canvas></div>
                     </div>
-                    <div className="section-title">{t("Period Averages")}</div>
-                    <div className="row g-2 mb-3">
-                        <div className="col-4"><div className="avg-card"><div className="avg-label">{t("Trend")}</div><div className="avg-value" style={{ color: stats.color }}>{stats.sign}{stats.loss}{t("KG")}</div></div></div>
-                        <div className="col-4"><div className="avg-card"><div className="avg-label">{t("Calories")}</div><div className="avg-value">{stats.kcal}</div></div></div>
-                        <div className="col-4"><div className="avg-card"><div className="avg-label">{t("Steps")}</div><div className="avg-value">{stats.steps}</div></div></div>
-                    </div>
+
                     <div className="section-title">{t("Daily History")}</div>
-                    <div className="card p-0 overflow-hidden mb-3">
+                    <div className="card border-0 shadow-sm p-0 overflow-hidden">
                         <div className="table-responsive">
-                            <table className="table table-sm m-0" style={{fontSize: '10px'}}>
+                            <table className="table table-borderless m-0 text-center" style={{fontSize: '11px'}}>
                                 <thead className="table-header-custom">
                                     <tr>
                                         <th>{t("Date")}</th>
                                         <th>{t("KG")}</th>
+                                        <th>{t("Steps")}</th>
                                         <th>{t("Cal")}</th>
                                         <th>{t("P/C/F")}</th>
-                                        <th>{t("Steps")}</th>
-                                        <th>{t("Water")}</th>
-                                        <th>{t("Sleep")}</th>
                                     </tr>
                                 </thead>
-                                <tbody>{logs.map((l, i) => (
-                                    <tr key={i}>
-                                        <td className="fw-bold">{l.log_date.split('-').slice(1).join('/')}</td>
-                                        <td>{l.weight}</td>
-                                        <td className="text-primary fw-bold">{(l.protein*4 + l.carbs*4 + l.fats*9) || 0}</td>
-                                        <td>{l.protein}/{l.carbs}/{l.fats}</td>
-                                        <td>{l.steps?.toLocaleString()}</td>
-                                        <td>{l.water_liters}L</td>
-                                        <td>{l.sleep_hours}h</td>
-                                    </tr>
-                                ))}</tbody>
+                                <tbody>
+                                    {logs.map(l => (
+                                        <tr key={l.date} className="border-bottom">
+                                            <td className="fw-bold">{l.date.split('-')[2]}</td>
+                                            <td className="fw-800 text-primary">{l.weight}</td>
+                                            <td>{l.steps}</td>
+                                            <td className="fw-bold">{(l.protein*4+l.carbs*4+l.fats*9) || '—'}</td>
+                                            <td className="text-muted">{l.protein}/{l.carbs}/{l.fats}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
                             </table>
                         </div>
                     </div>
-                    <div className="section-title">{t("Measurement History")}</div>
-                    <div className="card mb-5">
-                        <div className="row g-2 mb-3">
-                            <div className="col-6"><label className="toggle-label">{t("From")} {t("WEEK")}</label><select className="form-select" value={weekFrom} onChange={e=>setWeekFrom(parseInt(e.target.value))}>{[...Array(52)].map((_, i) => <option key={i+1} value={i+1}>{t("WEEK")} {i+1}</option>)}</select></div>
-                            <div className="col-6"><label className="toggle-label">{t("To")} {t("WEEK")}</label><select className="form-select" value={weekTo} onChange={e=>setWeekTo(parseInt(e.target.value))}>{[...Array(52)].map((_, i) => <option key={i+1} value={i+1}>{t("WEEK")} {i+1}</option>)}</select></div>
-                        </div>
+
+                    <div className="section-title mt-4">{t("Measurement History")}</div>
+                    <div className="card border-0 shadow-sm p-0 overflow-hidden">
                         <div className="table-responsive">
-                            <table className="table table-sm m-0" style={{fontSize: '11px'}}>
+                            <table className="table table-borderless m-0 text-center" style={{fontSize: '10px'}}>
                                 <thead className="table-header-custom">
                                     <tr>
-                                        <th>{t("WEEK")}</th>
+                                        <th>{t("Date")}</th>
                                         <th>{t("Waist")}</th>
                                         <th>{t("Chest")}</th>
                                         <th>{t("Glute")}</th>
@@ -872,16 +880,18 @@
                                         <th>{t("Thighs L/R")}</th>
                                     </tr>
                                 </thead>
-                                <tbody>{filteredMetrics.map((m, i) => (
-                                    <tr key={i}>
-                                        <td className="fw-bold">{m.week_number}</td>
-                                        <td>{m.waist}</td>
-                                        <td>{m.chest}</td>
-                                        <td>{m.glute}</td>
-                                        <td>{m.left_arm}/{m.right_arm}</td>
-                                        <td>{m.left_thigh}/{m.right_thigh}</td>
-                                    </tr>
-                                ))}</tbody>
+                                <tbody>
+                                    {weekly.map(m => (
+                                        <tr key={m.date} className="border-bottom">
+                                            <td className="fw-bold">{m.date.split('-')[1]}/{m.date.split('-')[2]}</td>
+                                            <td className="fw-800 text-danger">{m.waist}</td>
+                                            <td>{m.chest}</td>
+                                            <td>{m.glutes}</td>
+                                            <td>{m.left_arm}/{m.right_arm}</td>
+                                            <td>{m.left_thigh}/{m.right_thigh}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
                             </table>
                         </div>
                     </div>
