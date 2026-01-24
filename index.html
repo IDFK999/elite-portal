@@ -236,15 +236,13 @@
             font-size: 12px;
             font-weight: 700;
             cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 6px;
         }
         
         .rtl { direction: rtl; text-align: right; }
         .rtl .section-title::after { margin-left: 0; margin-right: 10px; }
         .rtl .coach-box { border-left: 0; border-right: 4px solid var(--accent-blue); border-radius: 10px 0 0 10px; }
 
+        /* Chart Centering Fix */
         .chart-container {
             position: relative;
             margin: auto;
@@ -350,7 +348,10 @@
                 "Chest": "الصدر",
                 "Glute": "الأرداف",
                 "Arms L/R": "الذراعين (ي/ي)",
-                "Thighs L/R": "الفخذين (ي/ي)"
+                "Thighs L/R": "الفخذين (ي/ي)",
+                "Steps": "الخطوات",
+                "Permanently delete this entire workout day?": "هل تريد حذف هذا اليوم التدريبي بالكامل نهائياً؟",
+                "Delete Exercise?": "حذف التمرين؟"
             }
         };
 
@@ -412,44 +413,29 @@
             };
 
             if (isBooting) return <div className="p-5 text-center text-muted">{t("Syncing...")}</div>;
+            if (!session) return <Login t={t} lang={lang} />;
 
             return (
                 <div className={`container py-4 ${lang === 'ar' ? 'rtl' : ''}`}>
-                    <button className="lang-toggle" onClick={toggleLang}>
-                        {lang === 'en' ? (
-                            <React.Fragment>
-                                <img src="https://flagcdn.com/w20/sa.png" alt="Saudi Arabia" style={{width: '18px', height: '12px'}} /> عربي
-                            </React.Fragment>
-                        ) : (
-                            <React.Fragment>
-                                <img src="https://flagcdn.com/w20/gb.png" alt="United Kingdom" style={{width: '18px', height: '12px'}} /> English
-                            </React.Fragment>
-                        )}
-                    </button>
+                    <button className="lang-toggle" onClick={toggleLang}>{lang === 'en' ? 'عربي' : 'English'}</button>
                     
-                    {!session ? (
-                        <Login t={t} lang={lang} />
-                    ) : (
-                        <>
-                            <div className="d-flex justify-content-between align-items-center mb-3">
-                                <h5 className="fw-bold m-0" style={{letterSpacing: '-0.5px'}}>{t("ELITE PERFORMANCE")}</h5>
-                                <div className="badge rounded-pill text-dark border">v11.5.3</div>
-                            </div>
+                    <div className="d-flex justify-content-between align-items-center mb-3">
+                        <h5 className="fw-bold m-0" style={{letterSpacing: '-0.5px'}}>{t("ELITE PERFORMANCE")}</h5>
+                        <div className="badge rounded-pill text-dark border">v11.5.3</div>
+                    </div>
 
-                            {view === 'workout' && <WorkoutManager user={session.user} t={t} />}
-                            {view === 'log' && <DailyLog user={session.user} t={t} />}
-                            {view === 'update' && <Metrics user={session.user} t={t} />}
-                            {view === 'stats' && <Stats user={session.user} t={t} goal_labels={{cut: t("Cut"), maintain: t("Maintain"), bulk: t("Bulk")}} />}
-                            
-                            <div className="nav-bottom">
-                                <div className={`nav-item ${view === 'workout' ? 'active' : ''}`} onClick={()=>setView('workout')}>{t("Workout")}</div>
-                                <div className={`nav-item ${view === 'log' ? 'active' : ''}`} onClick={()=>setView('log')}>{t("Log")}</div>
-                                <div className={`nav-item ${view === 'update' ? 'active' : ''}`} onClick={()=>setView('update')}>{t("Update")}</div>
-                                <div className={`nav-item ${view === 'stats' ? 'active' : ''}`} onClick={()=>setView('stats')}>{t("Stats")}</div>
-                                <div className="nav-item text-danger" onClick={handleSignOut}>{t("Exit")}</div>
-                            </div>
-                        </>
-                    )}
+                    {view === 'workout' && <WorkoutManager user={session.user} t={t} />}
+                    {view === 'log' && <DailyLog user={session.user} t={t} />}
+                    {view === 'update' && <Metrics user={session.user} t={t} />}
+                    {view === 'stats' && <Stats user={session.user} t={t} goal_labels={{cut: t("Cut"), maintain: t("Maintain"), bulk: t("Bulk")}} />}
+                    
+                    <div className="nav-bottom">
+                        <div className={`nav-item ${view === 'workout' ? 'active' : ''}`} onClick={()=>setView('workout')}>{t("Workout")}</div>
+                        <div className={`nav-item ${view === 'log' ? 'active' : ''}`} onClick={()=>setView('log')}>{t("Log")}</div>
+                        <div className={`nav-item ${view === 'update' ? 'active' : ''}`} onClick={()=>setView('update')}>{t("Update")}</div>
+                        <div className={`nav-item ${view === 'stats' ? 'active' : ''}`} onClick={()=>setView('stats')}>{t("Stats")}</div>
+                        <div className="nav-item text-danger" onClick={handleSignOut}>{t("Exit")}</div>
+                    </div>
                 </div>
             );
         }
@@ -489,7 +475,7 @@
             };
 
             const deleteDay = (dayId) => {
-                if (confirm("Permanently delete this entire workout day?")) {
+                if (confirm(t("Permanently delete this entire workout day?"))) {
                     saveAndSync(days.filter(d => d.id !== dayId));
                 }
             };
@@ -575,7 +561,7 @@
                                                         <span className="badge fw-800" style={{fontSize: '9px', padding: '4px 6px', backgroundColor: wDelta > 0 ? '#fef5e7' : wDelta < 0 ? '#fdedec' : '#ffffff', color: wDelta > 0 ? '#e67e22' : wDelta < 0 ? '#e74c3c' : '#666', border: `1px solid ${wDelta > 0 ? '#e67e22' : wDelta < 0 ? '#e74c3c' : '#ddd'}`}}>{currentTotalWeight}{t("KG")} {wDelta > 0 ? '↑' : wDelta < 0 ? '↓' : '—'}</span>
                                                     </div>
                                                 </div>
-                                                <button className="btn btn-sm text-danger p-0 ms-2" onClick={(e) => { e.stopPropagation(); if(confirm("Delete Exercise?")) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.filter(e => e.id !== ex.id)} : d)); }}>✕</button>
+                                                <button className="btn btn-sm text-danger p-0 ms-2" onClick={(e) => { e.stopPropagation(); if(confirm(t("Delete Exercise?"))) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.filter(e => e.id !== ex.id)} : d)); }}>✕</button>
                                             </div>
                                             {expandedEx[ex.id] && (
                                                 <div className="mt-2 pt-2 border-top">
@@ -672,7 +658,7 @@
                         <div className="section-title mt-2">{t("Nutrient Intake")}</div>
                         <div className="row g-2">
                             <div className="col-4"><label className="toggle-label">{t("P")}</label><input type="number" inputMode="numeric" className="form-control" value={f.p} onChange={e=>setF({...f, p: cleanNum(e.target.value)})} /></div>
-                            <div className="col-4"><label className="toggle-label">{t("C")}</label><input type="number" inputMode="numeric" className="form-control" value={f.c} onChange={e=>setF({...f, c: cleanNum(e.target.value)})} /></div>
+                            <div className="col-4"><label className="toggle-label">{t("C")}</label><input type="number" inputMode="numeric" className="form-control" value={f.p} onChange={e=>setF({...f, c: cleanNum(e.target.value)})} /></div>
                             <div className="col-4"><label className="toggle-label">{t("F")}</label><input type="number" inputMode="numeric" className="form-control" value={f.f} onChange={e=>setF({...f, f: cleanNum(e.target.value)})} /></div>
                         </div>
                         <div className="section-title mt-2">{t("Recovery")}</div>
@@ -910,7 +896,7 @@
             const [email, setEmail] = useState('');
             const [pass, setPass] = useState('');
             return (
-                <div className="vh-100 d-flex align-items-center">
+                <div className={`container vh-100 d-flex align-items-center ${lang === 'ar' ? 'rtl' : ''}`}>
                     <div className="card w-100 text-center py-5">
                         <h2 className="fw-bold mb-4" style={{letterSpacing: '-1px'}}>{t("ELITE PERFORMANCE")}</h2>
                         <input className="form-control" placeholder={t("Email Address")} onChange={e=>setEmail(e.target.value)} />
