@@ -518,21 +518,20 @@
 
                             <div className="d-grid gap-2">
                                 {day.exercises.map(ex => {
-                                    const currentSets = ex.sets || [];
-                                    const prevSets = ex.history || [];
-                                    const hasHistory = prevSets.length > 0;
-
-                                    // Metrics Logic
-                                    const currentTotalReps = currentSets.reduce((sum, s) => sum + (Number(s.reps) || 0), 0);
-                                    const prevTotalReps = hasHistory ? prevSets.reduce((sum, s) => sum + (Number(s.reps) || 0), 0) : 0;
+                                    const hasHistory = ex.history && ex.history.length > 0;
                                     
-                                    const currentAvgWeight = currentSets.length > 0 ? (currentSets.reduce((sum, s) => sum + (Number(s.weight) || 0), 0) / currentSets.length) : 0;
-                                    const prevAvgWeight = hasHistory ? (prevSets.reduce((sum, s) => sum + (Number(s.weight) || 0), 0) / prevSets.length) : 0;
-
-                                    // Deltas
+                                    // 1. Gather total reps for the current 3 (or more) sets
+                                    const currentTotalReps = ex.sets.reduce((sum, s) => sum + (Number(s.reps) || 0), 0);
+                                    
+                                    // 2. Gather total reps from the previous session's sets
+                                    const prevTotalReps = hasHistory ? ex.history.reduce((sum, s) => sum + (Number(s.reps) || 0), 0) : 0;
+                                    
+                                    // 3. Calculate the difference (e.g., +1)
                                     const rDelta = hasHistory ? currentTotalReps - prevTotalReps : 0;
+
+                                    const currentAvgWeight = ex.sets.length > 0 ? (ex.sets.reduce((sum, s) => sum + (Number(s.weight) || 0), 0) / ex.sets.length) : 0;
+                                    const prevAvgWeight = hasHistory ? (ex.history.reduce((sum, s) => sum + (Number(s.weight) || 0), 0) / ex.history.length) : 0;
                                     const wDelta = hasHistory ? currentAvgWeight - prevAvgWeight : 0;
-                                    const setDelta = hasHistory ? currentSets.length - prevSets.length : 0;
 
                                     const bestSet = [...ex.sets].sort((a,b) => calc1RM(b.weight, b.reps) - calc1RM(a.weight, a.reps))[0];
 
@@ -553,36 +552,27 @@
                                                     <div className="d-flex gap-1 flex-wrap mt-1 align-items-center">
                                                         {bestSet && <span className="badge bg-white text-primary border fw-800" style={{fontSize: '9px', padding: '4px 6px'}}>1RM: {calc1RM(bestSet.weight, bestSet.reps)}{t("KG")}</span>}
                                                         
-                                                        {/* Sets Badge */}
-                                                        <span className="badge fw-800 bg-white border text-dark" style={{fontSize: '9px', padding: '4px 6px'}}>
-                                                            {currentSets.length} {t("SETS")} 
-                                                            {hasHistory && setDelta !== 0 && (
-                                                                <span style={{color: setDelta > 0 ? '#27ae60' : '#e74c3c'}}> ({setDelta > 0 ? '+' : ''}{setDelta})</span>
-                                                            )}
-                                                        </span>
-
-                                                        {/* Reps Badge - Shows +1 if 31 vs 30 */}
+                                                        {/* REPS BADGE: This compares total of current 3 sets vs last session's 3 sets */}
                                                         <span className="badge fw-800" style={{
                                                             fontSize: '9px', 
                                                             padding: '4px 6px', 
-                                                            backgroundColor: hasHistory && rDelta > 0 ? '#eafaf1' : hasHistory && rDelta < 0 ? '#fdedec' : '#ffffff', 
-                                                            color: hasHistory && rDelta > 0 ? '#27ae60' : hasHistory && rDelta < 0 ? '#e74c3c' : '#666', 
-                                                            border: `1px solid ${hasHistory && rDelta > 0 ? '#27ae60' : hasHistory && rDelta < 0 ? '#e74c3c' : '#ddd'}`
+                                                            backgroundColor: hasHistory && rDelta >= 0 ? '#eafaf1' : hasHistory && rDelta < 0 ? '#fdedec' : '#ffffff', 
+                                                            color: hasHistory && rDelta >= 0 ? '#27ae60' : hasHistory && rDelta < 0 ? '#e74c3c' : '#666', 
+                                                            border: `1px solid ${hasHistory && rDelta >= 0 ? '#27ae60' : hasHistory && rDelta < 0 ? '#e74c3c' : '#ddd'}`
                                                         }}>
                                                             {currentTotalReps} {t("REPS")} 
-                                                            {hasHistory && rDelta !== 0 && ` (${rDelta > 0 ? '+' : ''}${rDelta})`}
+                                                            {hasHistory && rDelta !== 0 ? ` (${rDelta > 0 ? '+' : ''}${rDelta})` : (hasHistory && rDelta === 0 ? ' (=)' : '')}
                                                         </span>
 
-                                                        {/* Weight Badge - Now based on Average to show real intensity */}
                                                         <span className="badge fw-800" style={{
                                                             fontSize: '9px', 
                                                             padding: '4px 6px', 
-                                                            backgroundColor: hasHistory && wDelta > 0 ? '#fef5e7' : hasHistory && wDelta < 0 ? '#fdedec' : '#ffffff', 
-                                                            color: hasHistory && wDelta > 0 ? '#e67e22' : hasHistory && wDelta < 0 ? '#e74c3c' : '#666', 
-                                                            border: `1px solid ${hasHistory && wDelta > 0 ? '#e67e22' : hasHistory && wDelta < 0 ? '#e74c3c' : '#ddd'}`
+                                                            backgroundColor: hasHistory && wDelta >= 0 ? '#fef5e7' : hasHistory && wDelta < 0 ? '#fdedec' : '#ffffff', 
+                                                            color: hasHistory && wDelta >= 0 ? '#e67e22' : hasHistory && wDelta < 0 ? '#e74c3c' : '#666', 
+                                                            border: `1px solid ${hasHistory && wDelta >= 0 ? '#e67e22' : hasHistory && wDelta < 0 ? '#e74c3c' : '#ddd'}`
                                                         }}>
                                                             {currentAvgWeight.toFixed(1)}{t("KG")} (Avg)
-                                                            {hasHistory && wDelta !== 0 && ` (${wDelta > 0 ? '+' : ''}${wDelta.toFixed(1)})`}
+                                                            {hasHistory && wDelta !== 0 ? ` (${wDelta > 0 ? '+' : ''}${wDelta.toFixed(1)})` : ''}
                                                         </span>
                                                     </div>
                                                 </div>
