@@ -290,6 +290,7 @@
                 "Core Metrics": "المقاييس الأساسية",
                 "Weight (kg) *": "الوزن (كجم) *",
                 "Steps *": "الخطوات *",
+                "Steps": "الخطوات",
                 "Nutrient Intake": "تناول العناصر الغذائية",
                 "Recovery": "الاستشفاء",
                 "Water (L)": "الماء (لتر)",
@@ -348,7 +349,9 @@
                 "Chest": "الصدر",
                 "Glute": "الأرداف",
                 "Arms L/R": "الذراعين (ي/ي)",
-                "Thighs L/R": "الفخذين (ي/ي)"
+                "Thighs L/R": "الفخذين (ي/ي)",
+                "Permanently delete this entire workout day?": "هل تريد حذف هذا اليوم التدريبي بالكامل نهائياً؟",
+                "Delete Exercise?": "حذف التمرين؟"
             }
         };
 
@@ -472,7 +475,7 @@
             };
 
             const deleteDay = (dayId) => {
-                if (confirm("Permanently delete this entire workout day?")) {
+                if (confirm(t("Permanently delete this entire workout day?"))) {
                     saveAndSync(days.filter(d => d.id !== dayId));
                 }
             };
@@ -558,7 +561,7 @@
                                                         <span className="badge fw-800" style={{fontSize: '9px', padding: '4px 6px', backgroundColor: wDelta > 0 ? '#fef5e7' : wDelta < 0 ? '#fdedec' : '#ffffff', color: wDelta > 0 ? '#e67e22' : wDelta < 0 ? '#e74c3c' : '#666', border: `1px solid ${wDelta > 0 ? '#e67e22' : wDelta < 0 ? '#e74c3c' : '#ddd'}`}}>{currentTotalWeight}{t("KG")} {wDelta > 0 ? '↑' : wDelta < 0 ? '↓' : '—'}</span>
                                                     </div>
                                                 </div>
-                                                <button className="btn btn-sm text-danger p-0 ms-2" onClick={(e) => { e.stopPropagation(); if(confirm("Delete Exercise?")) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.filter(e => e.id !== ex.id)} : d)); }}>✕</button>
+                                                <button className="btn btn-sm text-danger p-0 ms-2" onClick={(e) => { e.stopPropagation(); if(confirm(t("Delete Exercise?"))) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.filter(e => e.id !== ex.id)} : d)); }}>✕</button>
                                             </div>
                                             {expandedEx[ex.id] && (
                                                 <div className="mt-2 pt-2 border-top">
