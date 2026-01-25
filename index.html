@@ -450,213 +450,205 @@
             );
         }
 
-                    function WorkoutManager({ user, t }) {
-                const [days, setDays] = useState([]);
-                const [expandedEx, setExpandedEx] = useState({});
-                const [loading, setLoading] = useState(true);
-            
-                useEffect(() => {
-                    const fetchWorkouts = async () => {
-                        const { data } = await _supabase.from('user_settings').select('workout_data').eq('user_id', user.id).maybeSingle();
-                        if (data?.workout_data) setDays(data.workout_data);
-                        setLoading(false);
+                                    function WorkoutManager({ user, t }) {
+                    const [days, setDays] = useState([]);
+                    const [expandedEx, setExpandedEx] = useState({});
+                    const [loading, setLoading] = useState(true);
+                
+                    useEffect(() => {
+                        const fetchWorkouts = async () => {
+                            const { data } = await _supabase.from('user_settings').select('workout_data').eq('user_id', user.id).maybeSingle();
+                            if (data?.workout_data) setDays(data.workout_data);
+                            setLoading(false);
+                        };
+                        fetchWorkouts();
+                    }, [user.id]);
+                
+                    const saveAndSync = async (newData) => {
+                        setDays(newData);
+                        await _supabase.from('user_settings').upsert({ user_id: user.id, workout_data: newData }, { onConflict: 'user_id' });
                     };
-                    fetchWorkouts();
-                }, [user.id]);
-            
-                const saveAndSync = async (newData) => {
-                    setDays(newData);
-                    await _supabase.from('user_settings').upsert({ user_id: user.id, workout_data: newData }, { onConflict: 'user_id' });
-                };
-            
-                const calc1RM = (w, r) => {
-                    if (!w || !r) return 0;
-                    return r === 1 ? w : Math.round(w / (1.0278 - (0.0278 * r)));
-                };
-            
-                const getDaysAgo = (dateStr) => {
-                    if (!dateStr) return t("NEVER");
-                    const today = new Date();
-                    today.setHours(0, 0, 0, 0);
-                    const logDate = new Date(dateStr);
-                    logDate.setHours(0, 0, 0, 0);
-                    const diffDays = Math.floor((today - logDate) / (1000 * 60 * 60 * 24));
-                    return diffDays === 0 ? t("Today") : diffDays === 1 ? t("Yesterday") : `${diffDays}${t("d ago")}`;
-                };
-            
-                const deleteDay = (dayId) => {
-                    if (confirm(t("Permanently delete this entire workout day?"))) {
-                        saveAndSync(days.filter(d => d.id !== dayId));
-                    }
-                };
-            
-                const addSet = (dayId, exId) => {
-                    const now = new Date();
-                    const todayStr = now.toISOString().split('T')[0];
-                    const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                    
-                    saveAndSync(days.map(d => {
-                        if (d.id === dayId) {
-                            const isNewSession = d.lastPerformed !== todayStr;
-                            return {
-                                ...d, 
-                                lastPerformed: todayStr, 
-                                exercises: d.exercises.map(ex => {
-                                    if (ex.id === exId) {
-                                        // If it's a new day, move current sets to history before starting fresh
-                                        const history = isNewSession ? ex.sets : (ex.history || []);
-                                        const sets = isNewSession ? [] : ex.sets;
-                                        return { 
-                                            ...ex, 
-                                            history, 
-                                            sets: [...sets, { 
-                                                id: Date.now(), 
-                                                reps: 0, 
-                                                weight: 0,
-                                                addedAt: timeStr 
-                                            }] 
-                                        };
-                                    }
-                                    return ex;
-                                })
-                            };
+                
+                    const calc1RM = (w, r) => {
+                        if (!w || !r) return 0;
+                        return r === 1 ? w : Math.round(w / (1.0278 - (0.0278 * r)));
+                    };
+                
+                    const getDaysAgo = (dateStr) => {
+                        if (!dateStr) return t("NEVER");
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        const logDate = new Date(dateStr);
+                        logDate.setHours(0, 0, 0, 0);
+                        const diffDays = Math.floor((today - logDate) / (1000 * 60 * 60 * 24));
+                        return diffDays === 0 ? t("Today") : diffDays === 1 ? t("Yesterday") : `${diffDays}${t("d ago")}`;
+                    };
+                
+                    const deleteDay = (dayId) => {
+                        if (confirm(t("Permanently delete this entire workout day?"))) {
+                            saveAndSync(days.filter(d => d.id !== dayId));
                         }
-                        return d;
-                    }));
-                };
-            
-                if (loading) return <div className="text-center p-5 text-muted small fw-bold">{t("Syncing...")}</div>;
-            
-                return (
-                    <div className="pb-5">
-                        <button className="btn btn-dark w-100 mb-4 fw-800 py-3 shadow-sm" style={{fontSize: '12px', letterSpacing: '1px'}} onClick={() => {
-                            const name = prompt(t("Day Name (e.g. Push Day):"));
-                            if (name) saveAndSync([...days, { id: Date.now(), name, lastPerformed: null, exercises: [] }]);
-                        }}>{t("+ NEW WORKOUT DAY")}</button>
+                    };
+                
+                    const addSet = (dayId, exId) => {
+                        const now = new Date();
+                        const todayStr = now.toISOString().split('T')[0];
+                        const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                         
-                        {days.map(day => (
-                            <div key={day.id} className="card border-0 mb-4 shadow-sm" style={{borderLeft: '4px solid var(--accent-blue)', borderRadius: '12px', padding: '15px'}}>
-                                <div className="d-flex justify-content-between align-items-center mb-1">
-                                    <div className="d-flex align-items-center gap-2">
-                                        <h6 className="fw-800 m-0" style={{fontSize:'16px'}}>{day.name}</h6>
-                                        <button className="btn btn-sm p-0 text-muted" onClick={() => {
-                                            const newName = prompt(t("Edit Day Name:"), day.name);
-                                            if (newName) saveAndSync(days.map(d => d.id === day.id ? {...d, name: newName} : d));
-                                        }} style={{fontSize: '12px'}}>✎</button>
+                        saveAndSync(days.map(d => {
+                            if (d.id === dayId) {
+                                const isNewSession = d.lastPerformed !== todayStr;
+                                return {
+                                    ...d, 
+                                    lastPerformed: todayStr, 
+                                    exercises: d.exercises.map(ex => {
+                                        if (ex.id === exId) {
+                                            // Update: Maintain a rolling 3-session history array
+                                            let newHistory = Array.isArray(ex.history) ? [...ex.history] : [];
+                                            if (isNewSession && ex.sets.length > 0) {
+                                                newHistory = [{ date: d.lastPerformed, sets: ex.sets }, ...newHistory].slice(0, 3);
+                                            }
+                
+                                            return { 
+                                                ...ex, 
+                                                history: newHistory, 
+                                                sets: [...(isNewSession ? [] : ex.sets), { 
+                                                    id: Date.now(), 
+                                                    reps: 0, 
+                                                    weight: 0,
+                                                    addedAt: timeStr 
+                                                }] 
+                                            };
+                                        }
+                                        return ex;
+                                    })
+                                };
+                            }
+                            return d;
+                        }));
+                    };
+                
+                    if (loading) return <div className="text-center p-5 text-muted small fw-bold">{t("Syncing...")}</div>;
+                
+                    return (
+                        <div className="pb-5">
+                            <button className="btn btn-dark w-100 mb-4 fw-800 py-3 shadow-sm" style={{fontSize: '12px', letterSpacing: '1px'}} onClick={() => {
+                                const name = prompt(t("Day Name (e.g. Push Day):"));
+                                if (name) saveAndSync([...days, { id: Date.now(), name, lastPerformed: null, exercises: [] }]);
+                            }}>{t("+ NEW WORKOUT DAY")}</button>
+                            
+                            {days.map(day => (
+                                <div key={day.id} className="card border-0 mb-4 shadow-sm" style={{borderLeft: '4px solid var(--accent-blue)', borderRadius: '12px', padding: '15px'}}>
+                                    <div className="d-flex justify-content-between align-items-center mb-1">
+                                        <div className="d-flex align-items-center gap-2">
+                                            <h6 className="fw-800 m-0" style={{fontSize:'16px'}}>{day.name}</h6>
+                                            <button className="btn btn-sm p-0 text-muted" onClick={() => {
+                                                const newName = prompt(t("Edit Day Name:"), day.name);
+                                                if (newName) saveAndSync(days.map(d => d.id === day.id ? {...d, name: newName} : d));
+                                            }} style={{fontSize: '12px'}}>✎</button>
+                                        </div>
+                                        <div className="d-flex align-items-center gap-2">
+                                            <span className="badge rounded-pill bg-light text-primary border fw-bold" style={{fontSize: '10px'}}>{getDaysAgo(day.lastPerformed)}</span>
+                                            <button className="btn btn-sm text-danger p-0 border-0 bg-transparent" onClick={() => deleteDay(day.id)} style={{fontSize: '14px'}}>✕</button>
+                                        </div>
                                     </div>
-                                    <div className="d-flex align-items-center gap-2">
-                                        <span className="badge rounded-pill bg-light text-primary border fw-bold" style={{fontSize: '10px'}}>{getDaysAgo(day.lastPerformed)}</span>
-                                        <button className="btn btn-sm text-danger p-0 border-0 bg-transparent" onClick={() => deleteDay(day.id)} style={{fontSize: '14px'}}>✕</button>
-                                    </div>
-                                </div>
-                                <div className="text-muted mb-3" style={{fontSize: '10px', fontWeight: '700'}}>{t("LAST SESSION:")} {day.lastPerformed || t("NEVER")}</div>
-            
-                                <div className="d-grid gap-2">
-                                    {day.exercises.map(ex => {
-                                        const hasHistory = ex.history && ex.history.length > 0;
-                                        
-                                        // PROGRESSIVE OVERLOAD LOGIC FIX:
-                                        // We compare "Total Reps Today" vs "Total Reps Last Session"
-                                        const currentTotalReps = ex.sets.reduce((sum, s) => sum + (Number(s.reps) || 0), 0);
-                                        const prevTotalReps = hasHistory ? ex.history.reduce((sum, s) => sum + (Number(s.reps) || 0), 0) : 0;
-                                        
-                                        // Only show green/red if the user has actually finished as many sets as last time
-                                        // Otherwise, it stays neutral (grey) until you've at least matched the set count
-                                        const isOverloadAchieved = currentTotalReps > prevTotalReps;
-                                        const isRegressed = (ex.sets.length >= ex.history.length) && (currentTotalReps < prevTotalReps) && currentTotalReps > 0;
-                                        const rDelta = currentTotalReps - prevTotalReps;
-            
-                                        const currentAvgWeight = ex.sets.length > 0 ? (ex.sets.reduce((sum, s) => sum + (Number(s.weight) || 0), 0) / ex.sets.length) : 0;
-                                        const prevAvgWeight = hasHistory ? (ex.history.reduce((sum, s) => sum + (Number(s.weight) || 0), 0) / ex.history.length) : 0;
-                                        const wDelta = currentAvgWeight - prevAvgWeight;
-            
-                                        const bestSet = [...ex.sets].sort((a,b) => calc1RM(b.weight, b.reps) - calc1RM(a.weight, a.reps))[0];
-            
-                                        return (
-                                            <div key={ex.id} className="bg-light rounded-3 p-2 border-start border-3">
-                                                <div className="d-flex justify-content-between align-items-start">
-                                                    <div style={{flex: 1}} onClick={() => setExpandedEx({...expandedEx, [ex.id]: !expandedEx[ex.id]})}>
-                                                        <div className="d-flex align-items-center justify-content-between">
-                                                            <div className="fw-800 text-uppercase" style={{fontSize: '11px'}}>
-                                                                {expandedEx[ex.id] ? '▼' : '▶'} {ex.name}
+                                    <div className="text-muted mb-3" style={{fontSize: '10px', fontWeight: '700'}}>{t("LAST SESSION:")} {day.lastPerformed || t("NEVER")}</div>
+                
+                                    <div className="d-grid gap-2">
+                                        {day.exercises.map(ex => {
+                                            const historyList = Array.isArray(ex.history) ? ex.history : [];
+                                            const latestHistory = historyList[0] || { sets: [] };
+                                            const hasHistory = latestHistory.sets.length > 0;
+                                            
+                                            const currentTotalReps = ex.sets.reduce((sum, s) => sum + (Number(s.reps) || 0), 0);
+                                            const prevTotalReps = latestHistory.sets.reduce((sum, s) => sum + (Number(s.reps) || 0), 0);
+                                            const rDelta = currentTotalReps - prevTotalReps;
+                
+                                            const currentAvgWeight = ex.sets.length > 0 ? (ex.sets.reduce((sum, s) => sum + (Number(s.weight) || 0), 0) / ex.sets.length) : 0;
+                                            const prevAvgWeight = hasHistory ? (latestHistory.sets.reduce((sum, s) => sum + (Number(s.weight) || 0), 0) / latestHistory.sets.length) : 0;
+                                            const wDelta = currentAvgWeight - prevAvgWeight;
+                
+                                            const bestSet = [...ex.sets].sort((a,b) => calc1RM(b.weight, b.reps) - calc1RM(a.weight, a.reps))[0];
+                
+                                            return (
+                                                <div key={ex.id} className="bg-light rounded-3 p-2 border-start border-3">
+                                                    <div className="d-flex justify-content-between align-items-start" onClick={() => setExpandedEx({...expandedEx, [ex.id]: !expandedEx[ex.id]})}>
+                                                        <div style={{flex: 1}}>
+                                                            <div className="d-flex align-items-center justify-content-between">
+                                                                <div className="fw-800 text-uppercase" style={{fontSize: '11px'}}>
+                                                                    {expandedEx[ex.id] ? '▼' : '▶'} {ex.name}
+                                                                </div>
+                                                                <div className="fw-800 text-dark" style={{fontSize: '10px'}} onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    const newNote = prompt(t("Enter Notes:"), ex.target || "");
+                                                                    if (newNote !== null) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(eItem => eItem.id === ex.id ? {...eItem, target: newNote} : eItem)} : d));
+                                                                }}>{ex.target || 'ADD NOTE'}</div>
                                                             </div>
-                                                            <div className="fw-800 text-dark" style={{fontSize: '12px', cursor: 'pointer'}} onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                const newNote = prompt(t("Enter Notes:"), ex.target || "");
-                                                                if (newNote !== null) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(eItem => eItem.id === ex.id ? {...eItem, target: newNote} : eItem)} : d));
-                                                            }}>{ex.target || 'ADD'}</div>
-                                                        </div>
-                                                        <div className="d-flex gap-1 flex-wrap mt-1 align-items-center">
-                                                            {bestSet && bestSet.weight > 0 && <span className="badge bg-white text-primary border fw-800" style={{fontSize: '9px', padding: '4px 6px'}}>1RM: {calc1RM(bestSet.weight, bestSet.reps)}{t("KG")}</span>}
-                                                            
-                                                            <span className="badge fw-800" style={{
-                                                                fontSize: '9px', 
-                                                                padding: '4px 6px', 
-                                                                backgroundColor: isOverloadAchieved ? '#eafaf1' : isRegressed ? '#fdedec' : '#ffffff', 
-                                                                color: isOverloadAchieved ? '#27ae60' : isRegressed ? '#e74c3c' : '#666', 
-                                                                border: `1px solid ${isOverloadAchieved ? '#27ae60' : isRegressed ? '#e74c3c' : '#ddd'}`
-                                                            }}>
-                                                                {currentTotalReps} {t("REPS")} 
-                                                                {hasHistory && (
-                                                                    rDelta > 0 ? ` (+${rDelta})` : 
-                                                                    rDelta < 0 ? ` (${rDelta})` : ' (=)'
-                                                                )}
-                                                            </span>
-            
-                                                            <span className="badge fw-800" style={{
-                                                                fontSize: '9px', 
-                                                                padding: '4px 6px', 
-                                                                backgroundColor: hasHistory && wDelta > 0 ? '#fef5e7' : hasHistory && wDelta < 0 ? '#fdedec' : '#ffffff', 
-                                                                color: hasHistory && wDelta > 0 ? '#e67e22' : hasHistory && wDelta < 0 ? '#e74c3c' : '#666', 
-                                                                border: `1px solid ${hasHistory && wDelta > 0 ? '#e67e22' : hasHistory && wDelta < 0 ? '#e74c3c' : '#ddd'}`
-                                                            }}>
-                                                                {currentAvgWeight.toFixed(1)}{t("KG")}
-                                                                {hasHistory && wDelta !== 0 ? ` (${wDelta > 0 ? '+' : ''}${wDelta.toFixed(1)})` : ''}
-                                                            </span>
+                                                            <div className="d-flex gap-1 flex-wrap mt-1 align-items-center">
+                                                                <span className="badge bg-primary text-white fw-800" style={{fontSize: '8px'}}>
+                                                                    NOW: {currentTotalReps}R
+                                                                    {hasHistory && (rDelta >= 0 ? ` (+${rDelta})` : ` (${rDelta})`)}
+                                                                </span>
+                                                                {historyList.map((h, idx) => (
+                                                                    <span key={idx} className="badge bg-secondary text-white opacity-75" style={{fontSize: '8px'}}>
+                                                                        {idx + 1}W: {h.sets.reduce((sum, s) => sum + (Number(s.reps) || 0), 0)}R
+                                                                    </span>
+                                                                ))}
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                    <button className="btn btn-sm text-danger p-0 ms-2" onClick={(e) => { e.stopPropagation(); if(confirm(t("Delete Exercise?"))) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.filter(e => e.id !== ex.id)} : d)); }}>✕</button>
-                                                </div>
-                                                {expandedEx[ex.id] && (
-                                                    <div className="mt-2 pt-2 border-top">
-                                                        {ex.sets.map((s, i) => (
-                                                            <div key={s.id} className="mb-2">
-                                                                <div className="d-flex align-items-center gap-2 bg-white p-2 rounded shadow-sm">
-                                                                    <div className="d-flex flex-column align-items-center" style={{minWidth: '35px'}}>
-                                                                        <div className="fw-800 text-muted" style={{fontSize: '9px'}}>{t("S")}{i+1}</div>
-                                                                        <div className="text-muted" style={{fontSize: '7px', marginTop: '-2px'}}>{s.addedAt || '--:--'}</div>
-                                                                    </div>
-                                                                    <div className="d-flex align-items-center flex-grow-1 gap-1">
-                                                                        <input type="number" inputMode="numeric" placeholder="Reps" className="form-control form-control-sm text-center fw-bold border-0 bg-light" style={{color: '#27ae60'}} value={s.reps || ''} onChange={e => {
-                                                                            const val = parseInt(e.target.value) || 0;
-                                                                            saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(exItem => exItem.id === ex.id ? {...exItem, sets: exItem.sets.map(setItem => setItem.id === s.id ? {...setItem, reps: val} : setItem)} : exItem)} : d));
-                                                                        }} />
-                                                                        <span className="text-muted small">×</span>
-                                                                        <input type="number" inputMode="decimal" placeholder="Kg" className="form-control form-control-sm text-center fw-bold border-0 bg-light" style={{color: '#E67E22'}} value={s.weight || ''} onChange={e => {
-                                                                            const val = parseFloat(e.target.value) || 0;
-                                                                            saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(exItem => exItem.id === ex.id ? {...exItem, sets: exItem.sets.map(setItem => setItem.id === s.id ? {...setItem, weight: val} : setItem)} : exItem)} : d));
-                                                                        }} />
-                                                                    </div>
+                
+                                                    {expandedEx[ex.id] && (
+                                                        <div className="mt-2 pt-2 border-top">
+                                                            {/* CURRENT SESSION LOG */}
+                                                            <div className="small fw-bold mb-2 text-primary">CURRENT SESSION</div>
+                                                            {ex.sets.map((s, i) => (
+                                                                <div key={s.id} className="d-flex align-items-center gap-2 bg-white p-2 rounded shadow-sm mb-2">
+                                                                    <div className="fw-800 text-muted" style={{fontSize: '9px', minWidth: '20px'}}>S{i+1}</div>
+                                                                    <input type="number" inputMode="numeric" className="form-control form-control-sm text-center fw-bold border-0 bg-light" style={{color: '#27ae60'}} value={s.reps || ''} onChange={e => {
+                                                                        const val = parseInt(e.target.value) || 0;
+                                                                        saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(exItem => exItem.id === ex.id ? {...exItem, sets: exItem.sets.map(setItem => setItem.id === s.id ? {...setItem, reps: val} : setItem)} : exItem)} : d));
+                                                                    }} />
+                                                                    <span className="text-muted small">×</span>
+                                                                    <input type="number" inputMode="decimal" className="form-control form-control-sm text-center fw-bold border-0 bg-light" style={{color: '#E67E22'}} value={s.weight || ''} onChange={e => {
+                                                                        const val = parseFloat(e.target.value) || 0;
+                                                                        saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(exItem => exItem.id === ex.id ? {...exItem, sets: exItem.sets.map(setItem => setItem.id === s.id ? {...setItem, weight: val} : setItem)} : exItem)} : d));
+                                                                    }} />
                                                                     <button className="btn btn-sm p-0 text-danger" onClick={() => saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(e => e.id === ex.id ? {...e, sets: e.sets.filter(st => st.id !== s.id)} : e)} : d))}>✕</button>
                                                                 </div>
-                                                            </div>
-                                                        ))}
-                                                        <button className="btn btn-outline-primary btn-sm w-100 fw-bold mt-1" style={{fontSize: '10px', borderStyle: 'dashed'}} onClick={() => addSet(day.id, ex.id)}>{t("+ ADD SET")}</button>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        );
-                                    })}
+                                                            ))}
+                                                            <button className="btn btn-outline-primary btn-sm w-100 fw-bold mb-3" style={{fontSize: '10px', borderStyle: 'dashed'}} onClick={() => addSet(day.id, ex.id)}>+ ADD SET</button>
+                
+                                                            {/* STACKED HISTORY SESSIONS */}
+                                                            {historyList.map((session, hIdx) => (
+                                                                <div key={hIdx} className="mt-3 p-2 rounded bg-white border-start border-3 border-secondary opacity-75">
+                                                                    <div className="d-flex justify-content-between mb-1" style={{fontSize: '9px'}}>
+                                                                        <span className="fw-bold text-muted">{session.date} ({hIdx + 1} SESSION AGO)</span>
+                                                                        <span className="fw-bold">{session.sets.reduce((sum, s) => sum + (Number(s.reps) || 0), 0)} TOTAL REPS</span>
+                                                                    </div>
+                                                                    {session.sets.map((s, i) => (
+                                                                        <div key={i} className="d-flex justify-content-between border-bottom border-light py-1" style={{fontSize: '10px'}}>
+                                                                            <span>SET {i+1}</span>
+                                                                            <span className="fw-800">{s.reps} reps × {s.weight}kg</span>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                    <button className="btn btn-primary btn-sm w-100 mt-3 fw-bold py-2" onClick={() => {
+                                        const name = prompt(t("Exercise Name:"));
+                                        if (name) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: [...d.exercises, { id: Date.now(), name, sets: [], history: [], target: "" }]} : d));
+                                    }}>{t("ADD EXERCISE")}</button>
                                 </div>
-                                <button className="btn btn-primary btn-sm w-100 mt-3 fw-bold py-2" onClick={() => {
-                                    const name = prompt(t("Exercise Name:"));
-                                    if (name) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: [...d.exercises, { id: Date.now(), name, sets: [], history: [], target: "" }]} : d));
-                                }}>{t("ADD EXERCISE")}</button>
-                            </div>
-                        ))}
-                    </div>
-                );
-            }
+                            ))}
+                        </div>
+                    );
+                }
 
         function DailyLog({ user, t }) {
             const [f, setF] = useState({ date: new Date().toISOString().split('T')[0], weight:'', steps:'', p:'', c:'', f:'', water:'', sleep:'' });
