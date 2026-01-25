@@ -596,19 +596,17 @@
                     }}>
                         <div style={{
                             const circleStyle = {
-                              width: '100px',
-                              height: '100px',
-                              borderRadius: '50%',
-                              background: `conic-gradient(
-                                ${progressColor} 0% ${percentage}%,
-                                ${COLORS.timerBlack} ${percentage}% 100%
-                              )`,
-                              transition: 'background 1s linear',
-                              display: 'flex',
-                              justifyContent: 'center',
-                              alignItems: 'center',
-                              position: 'relative',
-                              boxShadow: '0 4px 15px rgba(0,0,0,0.15)',
+                            width: '100px',
+                            height: '100px',
+                            borderRadius: '50%',
+                            // This creates the Navy progress bar against the Black background
+                            background: `conic-gradient(${progressColor} ${percentage}%, ${COLORS.timerBlack} 0)`,
+                            transition: 'background 1s linear', 
+                            display: 'flex',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            position: 'relative',
+                            boxShadow: '0 4px 15px rgba(0,0,0,0.15)'
                                 };
                         }}>
                             <div style={{
