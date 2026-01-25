@@ -1134,7 +1134,7 @@
             );
         }
 
-        ffunction Stats({ user, t, goal_labels }) {
+        function Stats({ user, t, goal_labels }) {
             const [logs, setLogs] = useState([]);
             const [metrics, setMetrics] = useState([]);
             const [dateFrom, setDateFrom] = useState(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
