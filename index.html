@@ -459,12 +459,11 @@
         const fetchWorkouts = async () => {
             const { data } = await _supabase.from('user_settings').select('workout_data').eq('user_id', user.id).maybeSingle();
             if (data?.workout_data) {
-                // MIGRATION LOGIC: Ensures old data formats don't crash the app
+                // DATA MIGRATION: Fix old data format to prevent blank screen
                 const migratedData = data.workout_data.map(day => ({
                     ...day,
                     exercises: (day.exercises || []).map(ex => {
                         let validHistory = Array.isArray(ex.history) ? ex.history : [];
-                        // Wrap old-style history (simple set array) into new session format
                         if (validHistory.length > 0 && validHistory[0].reps !== undefined) {
                             validHistory = [{ date: "Previous", sets: validHistory }];
                         }
@@ -481,16 +480,6 @@
     const saveAndSync = async (newData) => {
         setDays(newData);
         await _supabase.from('user_settings').upsert({ user_id: user.id, workout_data: newData }, { onConflict: 'user_id' });
-    };
-
-    const getDaysAgo = (dateStr) => {
-        if (!dateStr) return t("NEVER");
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const logDate = new Date(dateStr);
-        logDate.setHours(0, 0, 0, 0);
-        const diffDays = Math.floor((today - logDate) / (1000 * 60 * 60 * 24));
-        return diffDays === 0 ? t("Today") : diffDays === 1 ? t("Yesterday") : `${diffDays}${t("d ago")}`;
     };
 
     const addSet = (dayId, exId) => {
@@ -540,22 +529,23 @@
                 <div key={day.id} className="card border-0 mb-4 shadow-sm p-3" style={{borderLeft: '4px solid var(--accent-blue)', borderRadius: '15px'}}>
                     <div className="d-flex justify-content-between align-items-center mb-1">
                         <h6 className="fw-800 m-0">{day.name}</h6>
-                        <div className="d-flex gap-2">
-                            <span className="badge rounded-pill bg-light text-primary border" style={{fontSize: '10px'}}>{getDaysAgo(day.lastPerformed)}</span>
-                            <button className="btn btn-sm text-danger p-0" onClick={() => { if(confirm(t("Permanently delete this entire workout day?"))) saveAndSync(days.filter(d => d.id !== day.id)); }}>✕</button>
-                        </div>
+                        <button className="btn btn-sm text-danger p-0" onClick={() => { if(confirm(t("Delete Day?"))) saveAndSync(days.filter(d => d.id !== day.id)); }}>✕</button>
                     </div>
 
                     <div className="d-grid gap-2 mt-3">
                         {day.exercises.map(ex => {
                             const history = Array.isArray(ex.history) ? ex.history : [];
-                            const lastTotal = (history[0]?.sets || []).reduce((s, x) => s + (Number(x.reps) || 0), 0);
-                            const currentTotal = ex.sets.reduce((s, x) => s + (Number(s.reps) || 0), 0);
-                            const diff = currentTotal - lastTotal;
+                            
+                            // CALCULATE VOLUME (Weight x Reps)
+                            const currentVol = ex.sets.reduce((sum, s) => sum + ((Number(s.reps) || 0) * (Number(s.weight) || 0)), 0);
+                            const lastVol = (history[0]?.sets || []).reduce((sum, s) => sum + ((Number(s.reps) || 0) * (Number(s.weight) || 0)), 0);
+                            const volDiff = currentVol - lastVol;
+
+                            const currentReps = ex.sets.reduce((sum, s) => sum + (Number(s.reps) || 0), 0);
 
                             return (
-                                <div key={ex.id} className="bg-light rounded-3 p-2 border-start border-3">
-                                    <div className="d-flex justify-content-between align-items-center" onClick={() => setExpandedEx({...expandedEx, [ex.id]: !expandedEx[ex.id]})}>
+                                <div key={ex.id} className="bg-light rounded-3 p-2">
+                                    <div className="d-flex justify-content-between align-items-start" onClick={() => setExpandedEx({...expandedEx, [ex.id]: !expandedEx[ex.id]})}>
                                         <div style={{flex: 1}}>
                                             <div className="d-flex justify-content-between align-items-center me-2">
                                                 <div className="fw-800 text-uppercase" style={{fontSize: '11px'}}>{expandedEx[ex.id] ? '▼' : '▶'} {ex.name}</div>
@@ -565,10 +555,13 @@
                                                     if (n !== null) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(ei => ei.id === ex.id ? {...ei, target: n} : ei)} : d));
                                                 }}>{ex.target || 'NOTES+'}</div>
                                             </div>
-                                            <div className="d-flex gap-1 mt-1 overflow-auto">
-                                                <span className={`badge ${diff >= 0 ? 'bg-success' : 'bg-danger'}`} style={{fontSize: '8px'}}>{currentTotal}R ({diff >= 0 ? '+' : ''}{diff})</span>
-                                                {history.slice(0, 3).map((h, i) => (
-                                                    <span key={i} className="badge bg-white text-muted border" style={{fontSize: '7px'}}>W{i+1}: {h.sets.reduce((s, x) => s + (Number(x.reps) || 0), 0)}</span>
+                                            <div className="d-flex gap-1 mt-1">
+                                                <span className="badge bg-white text-dark border" style={{fontSize: '8px'}}>{currentReps} Reps</span>
+                                                <span className={`badge ${volDiff >= 0 ? 'bg-success' : 'bg-danger'}`} style={{fontSize: '8px'}}>
+                                                    {currentVol.toLocaleString()}kg Vol ({volDiff >= 0 ? '+' : ''}{volDiff.toLocaleString()})
+                                                </span>
+                                                {history.slice(0, 2).map((h, i) => (
+                                                    <span key={i} className="badge bg-white text-muted border" style={{fontSize: '7px'}}>W{i+1}: {h.sets.reduce((s, x) => s + (Number(x.reps)*Number(x.weight)), 0).toLocaleString()}</span>
                                                 ))}
                                             </div>
                                         </div>
@@ -600,14 +593,14 @@
                                                     <button className="btn btn-sm text-danger p-0 px-1" onClick={() => saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(ei => ei.id === ex.id ? {...ei, sets: ei.sets.filter(si => si.id !== s.id)} : ei)} : d))}>✕</button>
                                                 </div>
                                             ))}
-                                            <button className="btn btn-outline-primary btn-sm w-100 fw-bold mb-3" style={{fontSize: '10px', borderStyle: 'dashed'}} onClick={() => addSet(day.id, ex.id)}>{t("+ ADD SET")}</button>
+                                            <button className="btn btn-outline-primary btn-sm w-100 fw-bold mb-3" onClick={() => addSet(day.id, ex.id)}>{t("+ ADD SET")}</button>
 
                                             {history.map((session, sIdx) => (
                                                 <div key={sIdx} className="p-2 mb-2 bg-white rounded border-start border-3 border-secondary" style={{opacity: 0.85}}>
-                                                    <div className="fw-bold text-muted small mb-1">{session.date}</div>
+                                                    <div className="fw-bold text-muted small mb-1">{session.date} (Vol: {session.sets.reduce((sum, s) => sum + (s.reps * s.weight), 0).toLocaleString()}kg)</div>
                                                     {session.sets.map((ps, pi) => (
-                                                        <div key={pi} className="d-flex justify-content-between small border-bottom border-light py-1">
-                                                            <span>Set {pi+1} <small className="text-muted">({ps.addedAt || '00:00'})</small></span>
+                                                        <div key={pi} className="d-flex justify-content-between small py-1">
+                                                            <span>Set {pi+1} <small className="text-muted">({ps.addedAt})</small></span>
                                                             <span className="fw-800">{ps.reps} × {ps.weight}kg @{ps.rpe || 8}</span>
                                                         </div>
                                                     ))}
