@@ -343,6 +343,7 @@
                 "Recent Sessions" : "الجلسات الأخيرة",
                 "Delete Exercise?": "حذف التمرين؟",
                 "CANCEL": "إلغاء",
+                "Are you sure you want to delete this set?": "هل أنت متأكد من رغبتك في حذف هذه الجولة؟",
                 "CLOSE": "إغلاق"
             }
         };
@@ -461,316 +462,313 @@
         }
 
         function WorkoutManager({ user, t }) {
-    const [days, setDays] = useState([]);
-    const [expandedEx, setExpandedEx] = useState({});
-    const [loading, setLoading] = useState(true);
-    
-    const [timeLeft, setTimeLeft] = useState(0);
-    const [timerActive, setTimerActive] = useState(false);
-    const TOTAL_TIME = 90;
+            const [days, setDays] = useState([]);
+            const [expandedEx, setExpandedEx] = useState({});
+            const [loading, setLoading] = useState(true);
+            const [timeLeft, setTimeLeft] = useState(0);
+            const [timerActive, setTimerActive] = useState(false);
+            const TOTAL_TIME = 90;
 
-    const COLORS = {
-        bg: '#f4f4f4',
-        card: '#ffffff',
-        textMain: '#1a1a1a',
-        textMuted: '#636e72',
-        primaryBtn: '#1a1a1a', 
-        secondaryBtn: '#636e72',
-        successMuted: '#27ae60', 
-        dangerMuted: '#c0392b',  
-        neutral: '#b2bec3',      
-        border: '#e0e0e0',
-        timerBlue: '#00a8ff', // New Blue
-        timerBlack: '#000000' // New Black
-    };
+            const COLORS = {
+                bg: '#f4f4f4',
+                card: '#ffffff',
+                textMain: '#1a1a1a',
+                textMuted: '#636e72',
+                primaryBtn: '#1a1a1a', 
+                secondaryBtn: '#636e72',
+                successMuted: '#27ae60', 
+                dangerMuted: '#c0392b',  
+                neutral: '#b2bec3',      
+                border: '#e0e0e0',
+                timerBlue: '#A3D8FF',
+                timerRing: '#E3F2FD'
+            };
 
-    useEffect(() => {
-        let interval = null;
-        if (timerActive && timeLeft > 0) {
-            interval = setInterval(() => {
-                setTimeLeft((prev) => prev - 1);
-            }, 1000);
-        } else if (timeLeft === 0 && timerActive) {
-            clearInterval(interval);
-        }
-        return () => clearInterval(interval);
-    }, [timerActive, timeLeft]);
+            useEffect(() => {
+                let interval = null;
+                if (timerActive && timeLeft > 0) {
+                    interval = setInterval(() => {
+                        setTimeLeft((prev) => prev - 1);
+                    }, 1000);
+                } else if (timeLeft === 0 && timerActive) {
+                    clearInterval(interval);
+                }
+                return () => clearInterval(interval);
+            }, [timerActive, timeLeft]);
 
-    const startTimer = (seconds = 90) => {
-        setTimeLeft(seconds);
-        setTimerActive(true);
-    };
+            const startTimer = (seconds = 90) => {
+                setTimeLeft(seconds);
+                setTimerActive(true);
+            };
 
-    const percentage = (timeLeft / TOTAL_TIME) * 100;
-    // Timer ring is blue, or gray if finished
-    const progressColor = timeLeft === 0 ? COLORS.neutral : COLORS.timerBlue;
+            const percentage = (timeLeft / TOTAL_TIME) * 100;
+            const progressColor = timeLeft === 0 ? COLORS.neutral : COLORS.timerBlue;
 
-    useEffect(() => {
-        const fetchWorkouts = async () => {
-            const { data } = await _supabase.from('user_settings').select('workout_data').eq('user_id', user.id).maybeSingle();
-            if (data?.workout_data) {
-                const migratedData = data.workout_data.map(day => ({
-                    ...day,
-                    exercises: (day.exercises || []).map(ex => {
-                        let validHistory = Array.isArray(ex.history) ? ex.history : [];
-                        if (validHistory.length > 0 && validHistory[0].reps !== undefined) {
-                            validHistory = [{ date: t("Previous"), sets: validHistory }];
-                        }
-                        return { ...ex, history: validHistory, target: ex.target || "" };
-                    })
-                }));
-                setDays(migratedData);
-            }
-            setLoading(false);
-        };
-        fetchWorkouts();
-    }, [user.id, t]);
-
-    const saveAndSync = async (newData) => {
-        setDays(newData);
-        await _supabase.from('user_settings').upsert({ user_id: user.id, workout_data: newData }, { onConflict: 'user_id' });
-    };
-
-    const getDaysAgo = (dateStr) => {
-        if (!dateStr) return t("NEVER");
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const logDate = new Date(dateStr);
-        logDate.setHours(0, 0, 0, 0);
-        const diffDays = Math.floor((today - logDate) / (1000 * 60 * 60 * 24));
-        if (diffDays === 0) return t("Today");
-        if (diffDays === 1) return t("Yesterday");
-        return `${diffDays}${t("d ago")}`;
-    };
-
-    const addSet = (dayId, exId) => {
-        const now = new Date();
-        const todayStr = now.toISOString().split('T')[0];
-        const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-        
-        saveAndSync(days.map(d => {
-            if (d.id === dayId) {
-                const isNewSession = d.lastPerformed !== todayStr;
-                return {
-                    ...d, 
-                    lastPerformed: todayStr, 
-                    exercises: d.exercises.map(ex => {
-                        if (ex.id === exId) {
-                            const currentHistory = Array.isArray(ex.history) ? ex.history : [];
-                            const updatedHistory = (isNewSession && ex.sets.length > 0)
-                                ? [{ date: d.lastPerformed || todayStr, sets: [...ex.sets] }, ...currentHistory]
-                                : currentHistory;
-                            return { 
-                                ...ex, 
-                                history: updatedHistory.slice(0, 6),
-                                sets: isNewSession 
-                                    ? [{ id: Date.now(), reps: 0, weight: 0, rpe: 8, addedAt: timeStr, logged: false }] 
-                                    : [...ex.sets, { id: Date.now(), reps: 0, weight: 0, rpe: 8, addedAt: timeStr, logged: false }] 
-                            };
-                        }
-                        return ex;
-                    } )
+            useEffect(() => {
+                const fetchWorkouts = async () => {
+                    const { data } = await _supabase.from('user_settings').select('workout_data').eq('user_id', user.id).maybeSingle();
+                    if (data?.workout_data) {
+                        const migratedData = data.workout_data.map(day => ({
+                            ...day,
+                            exercises: (day.exercises || []).map(ex => {
+                                let validHistory = Array.isArray(ex.history) ? ex.history : [];
+                                if (validHistory.length > 0 && validHistory[0].reps !== undefined) {
+                                    validHistory = [{ date: t("Previous"), sets: validHistory }];
+                                }
+                                return { ...ex, history: validHistory, target: ex.target || "" };
+                            })
+                        }));
+                        setDays(migratedData);
+                    }
+                    setLoading(false);
                 };
-            }
-            return d;
-        }));
-    };
+                fetchWorkouts();
+            }, [user.id, t]);
 
-    if (loading) return <div className="text-center p-5 text-muted small fw-bold">{t("Syncing...")}</div>;
+            const saveAndSync = async (newData) => {
+                setDays(newData);
+                await _supabase.from('user_settings').upsert({ user_id: user.id, workout_data: newData }, { onConflict: 'user_id' });
+            };
 
-    return (
-        <div className="pb-5 px-2" style={{ backgroundColor: COLORS.bg, minHeight: '100vh' }}>
-            
-            {/* STICKY CIRCULAR REST TIMER - BLUE & BLACK THEME */}
-            <div style={{
-                position: 'sticky',
-                top: 'var(--header-height)',
-                zIndex: 1100,
-                height: timerActive ? '180px' : '0px',
-                opacity: timerActive ? 1 : 0,
-                overflow: 'hidden',
-                transition: 'all 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                margin: '0 -12px 20px -12px'
-            }}>
-                <div style={{
-                    width: '100px',
-                    height: '100px',
-                    borderRadius: '50%',
-                    background: `conic-gradient(${progressColor} ${percentage}%, ${COLORS.border} ${percentage}%)`,
-                    transition: 'background 1s linear', 
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    position: 'relative'
-                }}>
+            const getDaysAgo = (dateStr) => {
+                if (!dateStr) return t("NEVER");
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const logDate = new Date(dateStr);
+                logDate.setHours(0, 0, 0, 0);
+                const diffDays = Math.floor((today - logDate) / (1000 * 60 * 60 * 24));
+                if (diffDays === 0) return t("Today");
+                if (diffDays === 1) return t("Yesterday");
+                return `${diffDays}${t("d ago")}`;
+            };
+
+            const addSet = (dayId, exId) => {
+                const now = new Date();
+                const todayStr = now.toISOString().split('T')[0];
+                const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+                
+                saveAndSync(days.map(d => {
+                    if (d.id === dayId) {
+                        const isNewSession = d.lastPerformed !== todayStr;
+                        return {
+                            ...d, 
+                            lastPerformed: todayStr, 
+                            exercises: d.exercises.map(ex => {
+                                if (ex.id === exId) {
+                                    const currentHistory = Array.isArray(ex.history) ? ex.history : [];
+                                    const updatedHistory = (isNewSession && ex.sets.length > 0)
+                                        ? [{ date: d.lastPerformed || todayStr, sets: [...ex.sets] }, ...currentHistory]
+                                        : currentHistory;
+                                    return { 
+                                        ...ex, 
+                                        history: updatedHistory.slice(0, 6),
+                                        sets: isNewSession 
+                                            ? [{ id: Date.now(), reps: 0, weight: 0, rpe: 8, addedAt: timeStr, logged: false }] 
+                                            : [...ex.sets, { id: Date.now(), reps: 0, weight: 0, rpe: 8, addedAt: timeStr, logged: false }] 
+                                    };
+                                }
+                                return ex;
+                            } )
+                        };
+                    }
+                    return d;
+                }));
+            };
+
+            if (loading) return <div className="text-center p-5 text-muted small fw-bold">{t("Syncing...")}</div>;
+
+            return (
+                <div className="pb-5 px-2" style={{ backgroundColor: COLORS.bg, minHeight: '100vh' }}>
+                    
                     <div style={{
-                        width: '88px',
-                        height: '88px',
-                        borderRadius: '50%',
-                        backgroundColor: COLORS.timerBlack, // Black Center
+                        position: 'sticky',
+                        top: 'var(--header-height)',
+                        zIndex: 1100,
+                        height: timerActive ? '180px' : '0px',
+                        opacity: timerActive ? 1 : 0,
+                        overflow: 'hidden',
+                        transition: 'all 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
                         display: 'flex',
                         flexDirection: 'column',
-                        justifyContent: 'center',
                         alignItems: 'center',
-                        color: 'white',
-                        zIndex: 2
+                        justifyContent: 'center',
+                        margin: '0 -12px 20px -12px'
                     }}>
-                        <div className="fw-800" style={{fontSize: '20px', color: COLORS.timerBlue}}>
-                            {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
+                        <div style={{
+                            width: '100px',
+                            height: '100px',
+                            borderRadius: '50%',
+                            background: `conic-gradient(${progressColor} ${percentage}%, ${COLORS.timerRing} ${percentage}%)`,
+                            transition: 'background 1s linear', 
+                            display: 'flex',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            position: 'relative',
+                            boxShadow: '0 4px 15px rgba(0,0,0,0.05)'
+                        }}>
+                            <div style={{
+                                width: '88px',
+                                height: '88px',
+                                borderRadius: '50%',
+                                backgroundColor: '#FFFFFF',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                color: COLORS.textMain,
+                                zIndex: 2
+                            }}>
+                                <div className="fw-800" style={{fontSize: '20px', color: COLORS.secondaryBtn}}>
+                                    {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div className="d-flex gap-3 mt-3">
+                            <button 
+                                className="btn btn-sm rounded-pill px-3 fw-bold border-0 shadow-sm" 
+                                style={{backgroundColor: COLORS.timerBlue, color: '#004A80', fontSize: '11px'}}
+                                onClick={() => setTimeLeft(prev => prev + 30)}
+                            >
+                                +30s
+                            </button>
+                            <button 
+                                className="btn btn-sm rounded-pill px-3 fw-bold border-0 shadow-sm" 
+                                style={{backgroundColor: COLORS.dangerMuted, color: 'white', fontSize: '11px'}}
+                                onClick={() => setTimerActive(false)}
+                            >
+                                {timeLeft === 0 ? t("CLOSE") : t("CANCEL")}
+                            </button>
                         </div>
                     </div>
-                </div>
-                
-                <div className="d-flex gap-3 mt-3">
-                    <button 
-                        className="btn btn-sm rounded-pill px-3 fw-bold border-0 shadow-sm" 
-                        style={{backgroundColor: COLORS.timerBlack, color: '#fff', fontSize: '11px'}}
-                        onClick={() => setTimeLeft(prev => prev + 30)}
-                    >
-                        +30s
-                    </button>
-                    <button 
-                        className="btn btn-sm rounded-pill px-3 fw-bold border-0 shadow-sm" 
-                        style={{backgroundColor: COLORS.dangerMuted, color: 'white', fontSize: '11px'}}
-                        onClick={() => setTimerActive(false)}
-                    >
-                        {timeLeft === 0 ? t("CLOSE") : t("CANCEL")}
-                    </button>
-                </div>
-            </div>
 
-            <div style={{ transition: 'margin 0.4s' }}>
-                <button className="btn w-100 mb-4 fw-800 py-3 text-white border-0 shadow-sm" 
-                        style={{ backgroundColor: COLORS.primaryBtn, borderRadius: '8px' }}
-                        onClick={() => {
-                            const name = prompt(t("Day Name (e.g. Push Day):"));
-                            if (name) saveAndSync([...days, { id: Date.now(), name, lastPerformed: null, exercises: [] }]);
-                        }}>{t("+ NEW WORKOUT DAY")}</button>
-                
-                {days.map(day => (
-                    <div key={day.id} className="card border-0 mb-4 shadow-sm p-3" style={{ borderRadius: '12px', backgroundColor: COLORS.card }}>
-                        <div className="d-flex justify-content-between align-items-center mb-3">
-                            <div>
-                                <h6 className="fw-800 m-0" style={{ color: COLORS.textMain }}>{day.name}</h6>
-                                <span className="text-uppercase fw-bold" style={{fontSize: '9px', color: COLORS.secondaryBtn}}>
-                                    {getDaysAgo(day.lastPerformed)}
-                                </span>
-                            </div>
-                            <button className="btn btn-sm p-0" style={{ color: COLORS.border }} onClick={() => { if(confirm(t("Delete Day?"))) saveAndSync(days.filter(d => d.id !== day.id)); }}>✕</button>
-                        </div>
+                    <div style={{ transition: 'margin 0.4s' }}>
+                        <button className="btn w-100 mb-4 fw-800 py-3 text-white border-0 shadow-sm" 
+                                style={{ backgroundColor: COLORS.primaryBtn, borderRadius: '8px' }}
+                                onClick={() => {
+                                    const name = prompt(t("Day Name (e.g. Push Day):"));
+                                    if (name) saveAndSync([...days, { id: Date.now(), name, lastPerformed: null, exercises: [] }]);
+                                }}>{t("+ NEW WORKOUT DAY")}</button>
+                        
+                        {days.map(day => (
+                            <div key={day.id} className="card border-0 mb-4 shadow-sm p-3" style={{ borderRadius: '12px', backgroundColor: COLORS.card }}>
+                                <div className="d-flex justify-content-between align-items-center mb-3">
+                                    <div>
+                                        <h6 className="fw-800 m-0" style={{ color: COLORS.textMain }}>{day.name}</h6>
+                                        <span className="text-uppercase fw-bold" style={{fontSize: '9px', color: COLORS.secondaryBtn}}>
+                                            {getDaysAgo(day.lastPerformed)}
+                                        </span>
+                                    </div>
+                                    <button className="btn btn-sm p-0" style={{ color: COLORS.border }} onClick={() => { if(confirm(t("Delete Day?"))) saveAndSync(days.filter(d => d.id !== day.id)); }}>✕</button>
+                                </div>
 
-                        <div className="d-grid gap-2">
-                            {day.exercises.map(ex => {
-                                const history = Array.isArray(ex.history) ? ex.history : [];
-                                const currentReps = ex.sets.reduce((sum, s) => sum + (Number(s.reps) || 0), 0);
-                                const lastReps = history[0] ? history[0].sets.reduce((sum, s) => sum + (Number(s.reps) || 0), 0) : null;
-                                const repsDiff = lastReps !== null ? currentReps - lastReps : 0;
+                                <div className="d-grid gap-2">
+                                    {day.exercises.map(ex => {
+                                        const history = Array.isArray(ex.history) ? ex.history : [];
+                                        const currentReps = ex.sets.reduce((sum, s) => sum + (Number(s.reps) || 0), 0);
+                                        const lastReps = history[0] ? history[0].sets.reduce((sum, s) => sum + (Number(s.reps) || 0), 0) : null;
+                                        const repsDiff = lastReps !== null ? currentReps - lastReps : 0;
+                                        const currentVol = ex.sets.reduce((sum, s) => sum + ((Number(s.reps) || 0) * (Number(s.weight) || 0)), 0);
+                                        const lastVol = history[0] ? history[0].sets.reduce((sum, s) => sum + ((Number(s.reps) || 0) * (Number(s.weight) || 0)), 0) : null;
+                                        const volDiff = lastVol !== null ? currentVol - lastVol : 0;
 
-                                const currentVol = ex.sets.reduce((sum, s) => sum + ((Number(s.reps) || 0) * (Number(s.weight) || 0)), 0);
-                                const lastVol = history[0] ? history[0].sets.reduce((sum, s) => sum + ((Number(s.reps) || 0) * (Number(s.weight) || 0)), 0) : null;
-                                const volDiff = lastVol !== null ? currentVol - lastVol : 0;
+                                        const getBadgeColor = (diff, lastValue) => {
+                                            if (lastValue === null || diff === 0) return COLORS.neutral;
+                                            return diff > 0 ? COLORS.successMuted : COLORS.dangerMuted;
+                                        };
 
-                                const getBadgeColor = (diff, lastValue) => {
-                                    if (lastValue === null || diff === 0) return COLORS.neutral;
-                                    return diff > 0 ? COLORS.successMuted : COLORS.dangerMuted;
-                                };
-
-                                return (
-                                    <div key={ex.id} className="rounded-2 p-2 border" style={{ backgroundColor: '#fff', borderColor: COLORS.border }}>
-                                        <div className="d-flex justify-content-between align-items-start" onClick={() => setExpandedEx({...expandedEx, [ex.id]: !expandedEx[ex.id]})}>
-                                            <div style={{flex: 1}}>
-                                                <div className="d-flex justify-content-between align-items-center me-2">
-                                                    <div className="fw-800 text-uppercase" style={{fontSize: '11px', color: COLORS.textMain}}>{expandedEx[ex.id] ? '▼' : '▶'} {ex.name}</div>
-                                                    <div className="fw-bold" style={{fontSize: '10px', color: COLORS.secondaryBtn, cursor: 'pointer'}} onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        const n = prompt(t("Enter Notes:"), ex.target || "");
-                                                        if (n !== null) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(ei => ei.id === ex.id ? {...ei, target: n} : ei)} : d));
-                                                    }}>{ex.target || t("NOTES+")}</div>
-                                                </div>
-                                                <div className="d-flex gap-1 mt-1 flex-wrap">
-                                                    <span className="badge fw-bold" style={{fontSize: '8px', color: '#fff', backgroundColor: getBadgeColor(repsDiff, lastReps)}}>
-                                                        {currentReps}R ({repsDiff >= 0 ? '+' : ''}{repsDiff})
-                                                    </span>
-                                                    <span className="badge fw-bold" style={{fontSize: '8px', color: '#fff', backgroundColor: getBadgeColor(volDiff, lastVol)}}>
-                                                        {currentVol.toLocaleString()}KG ({volDiff >= 0 ? '+' : ''}{volDiff.toLocaleString()})
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            <button className="btn btn-sm p-0 px-1" style={{color: COLORS.border}} onClick={(e) => { e.stopPropagation(); if(confirm(t("Delete Exercise?"))) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.filter(ei => ei.id !== ex.id)} : d)); }}>✕</button>
-                                        </div>
-
-                                        {expandedEx[ex.id] && (
-                                            <div className="mt-2 pt-2 border-top" style={{ borderColor: COLORS.border }}>
-                                                {ex.sets.map((s, i) => (
-                                                    <div key={s.id} className="d-flex align-items-center gap-1 p-1 rounded mb-2 border" style={{backgroundColor: s.logged ? '#f1f8f5' : '#fafafa', opacity: s.logged ? 0.8 : 1}}>
-                                                        <div className="text-center" style={{minWidth: '28px'}}>
-                                                            <div className="fw-800" style={{fontSize: '9px', color: COLORS.textMuted}}>{t("S")}{i+1}</div>
-                                                            <div style={{fontSize: '7px', color: '#ccc'}}>{s.addedAt}</div>
+                                        return (
+                                            <div key={ex.id} className="rounded-2 p-2 border" style={{ backgroundColor: '#fff', borderColor: COLORS.border }}>
+                                                <div className="d-flex justify-content-between align-items-start" onClick={() => setExpandedEx({...expandedEx, [ex.id]: !expandedEx[ex.id]})}>
+                                                    <div style={{flex: 1}}>
+                                                        <div className="d-flex justify-content-between align-items-center me-2">
+                                                            <div className="fw-800 text-uppercase" style={{fontSize: '11px', color: COLORS.textMain}}>{expandedEx[ex.id] ? '▼' : '▶'} {ex.name}</div>
+                                                            <div className="fw-bold" style={{fontSize: '10px', color: COLORS.secondaryBtn, cursor: 'pointer'}} onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                const n = prompt(t("Enter Notes:"), ex.target || "");
+                                                                if (n !== null) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(ei => ei.id === ex.id ? {...ei, target: n} : ei)} : d));
+                                                            }}>{ex.target || t("NOTES+")}</div>
                                                         </div>
-                                                        <input type="number" inputMode="numeric" readOnly={s.logged} className="form-control form-control-sm text-center fw-bold border-0 bg-transparent" placeholder={t("R")} value={s.reps || ''} onChange={e => {
-                                                            const val = parseInt(e.target.value) || 0;
-                                                            saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(ei => ei.id === ex.id ? {...ei, sets: ei.sets.map(si => si.id === s.id ? {...si, reps: val} : si)} : ei)} : d));
-                                                        }} />
-                                                        <input type="number" inputMode="decimal" readOnly={s.logged} className="form-control form-control-sm text-center fw-bold border-0 bg-transparent" placeholder={t("KG")} value={s.weight || ''} onChange={e => {
-                                                            const val = parseFloat(e.target.value) || 0;
-                                                            saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(ei => ei.id === ex.id ? {...ei, sets: ei.sets.map(si => si.id === s.id ? {...si, weight: val} : si)} : ei)} : d));
-                                                        }} />
-                                                        <select disabled={s.logged} className="form-select form-select-sm border-0 fw-bold bg-transparent" style={{width: '60px', fontSize: '10px'}} value={s.rpe || 8} onChange={e => {
-                                                            const val = parseFloat(e.target.value);
-                                                            saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(ei => ei.id === ex.id ? {...ei, sets: ei.sets.map(si => si.id === s.id ? {...si, rpe: val} : si)} : ei)} : d));
-                                                        }}>
-                                                            {[10, 9.5, 9, 8.5, 8, 7.5, 7].map(v => <option key={v} value={v}>@{v}</option>)}
-                                                        </select>
-                                                        
-                                                        {!s.logged && (
-                                                            <button className="btn btn-sm p-1 fw-bold" style={{color: COLORS.successMuted}} onClick={() => {
-                                                                startTimer(TOTAL_TIME);
-                                                                saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(ei => ei.id === ex.id ? {...ei, sets: ei.sets.map(si => si.id === s.id ? {...si, logged: true} : si)} : ei)} : d));
-                                                            }}>✓</button>
-                                                        )}
-
-                                                        <button className="btn btn-sm p-1" style={{color: COLORS.border}} onClick={() => {
-                                                            if(confirm(t("Are you sure you want to delete this set?"))) {
-                                                                saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(ei => ei.id === ex.id ? {...ei, sets: ei.sets.filter(si => si.id !== s.id)} : ei)} : d));
-                                                            }
-                                                        }}>✕</button>
+                                                        <div className="d-flex gap-1 mt-1 flex-wrap">
+                                                            <span className="badge fw-bold" style={{fontSize: '8px', color: '#fff', backgroundColor: getBadgeColor(repsDiff, lastReps)}}>
+                                                                {currentReps}R ({repsDiff >= 0 ? '+' : ''}{repsDiff})
+                                                            </span>
+                                                            <span className="badge fw-bold" style={{fontSize: '8px', color: '#fff', backgroundColor: getBadgeColor(volDiff, lastVol)}}>
+                                                                {currentVol.toLocaleString()}KG ({volDiff >= 0 ? '+' : ''}{volDiff.toLocaleString()})
+                                                            </span>
+                                                        </div>
                                                     </div>
-                                                ))}
-                                                <button className="btn btn-sm w-100 fw-bold mb-3 py-2 border-0 shadow-sm" style={{ color: '#fff', backgroundColor: COLORS.secondaryBtn, borderRadius: '6px' }} onClick={() => addSet(day.id, ex.id)}>{t("+ ADD SET")}</button>
-                                                
-                                                {history.length > 0 && (
-                                                    <div className="mt-2 p-2 rounded" style={{ backgroundColor: COLORS.bg, fontSize: '9px' }}>
-                                                        <div className="fw-800 text-uppercase mb-1 opacity-50">{t("Recent Sessions")}</div>
-                                                        {history.map((h, idx) => (
-                                                            <div key={idx} className="d-flex justify-content-between border-bottom py-1" style={{ borderColor: COLORS.border }}>
-                                                                <span className="fw-bold">{h.date === 'Previous' ? t("Previous") : h.date}</span>
-                                                                <span>{h.sets.map(s => `${s.reps}x${s.weight}kg`).join(', ')}</span>
+                                                    <button className="btn btn-sm p-0 px-1" style={{color: COLORS.border}} onClick={(e) => { e.stopPropagation(); if(confirm(t("Delete Exercise?"))) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.filter(ei => ei.id !== ex.id)} : d)); }}>✕</button>
+                                                </div>
+
+                                                {expandedEx[ex.id] && (
+                                                    <div className="mt-2 pt-2 border-top" style={{ borderColor: COLORS.border }}>
+                                                        {ex.sets.map((s, i) => (
+                                                            <div key={s.id} className="d-flex align-items-center gap-1 p-1 rounded mb-2 border" style={{backgroundColor: s.logged ? '#f1f8f5' : '#fafafa', opacity: s.logged ? 0.8 : 1}}>
+                                                                <div className="text-center" style={{minWidth: '28px'}}>
+                                                                    <div className="fw-800" style={{fontSize: '9px', color: COLORS.textMuted}}>{t("S")}{i+1}</div>
+                                                                    <div style={{fontSize: '7px', color: '#ccc'}}>{s.addedAt}</div>
+                                                                </div>
+                                                                <input type="number" inputMode="numeric" readOnly={s.logged} className="form-control form-control-sm text-center fw-bold border-0 bg-transparent" placeholder={t("R")} value={s.reps || ''} onChange={e => {
+                                                                    const val = parseInt(e.target.value) || 0;
+                                                                    saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(ei => ei.id === ex.id ? {...ei, sets: ei.sets.map(si => si.id === s.id ? {...si, reps: val} : si)} : ei)} : d));
+                                                                }} />
+                                                                <input type="number" inputMode="decimal" readOnly={s.logged} className="form-control form-control-sm text-center fw-bold border-0 bg-transparent" placeholder={t("KG")} value={s.weight || ''} onChange={e => {
+                                                                    const val = parseFloat(e.target.value) || 0;
+                                                                    saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(ei => ei.id === ex.id ? {...ei, sets: ei.sets.map(si => si.id === s.id ? {...si, weight: val} : si)} : ei)} : d));
+                                                                }} />
+                                                                <select disabled={s.logged} className="form-select form-select-sm border-0 fw-bold bg-transparent" style={{width: '60px', fontSize: '10px'}} value={s.rpe || 8} onChange={e => {
+                                                                    const val = parseFloat(e.target.value);
+                                                                    saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(ei => ei.id === ex.id ? {...ei, sets: ei.sets.map(si => si.id === s.id ? {...si, rpe: val} : si)} : ei)} : d));
+                                                                }}>
+                                                                    {[10, 9.5, 9, 8.5, 8, 7.5, 7].map(v => <option key={v} value={v}>@{v}</option>)}
+                                                                </select>
+                                                                
+                                                                {!s.logged && (
+                                                                    <button className="btn btn-sm p-1 fw-bold" style={{color: COLORS.successMuted}} onClick={() => {
+                                                                        startTimer(TOTAL_TIME);
+                                                                        saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(ei => ei.id === ex.id ? {...ei, sets: ei.sets.map(si => si.id === s.id ? {...si, logged: true} : si)} : ei)} : d));
+                                                                    }}>✓</button>
+                                                                )}
+
+                                                                <button className="btn btn-sm p-1" style={{color: COLORS.border}} onClick={() => {
+                                                                    if(confirm(t("Are you sure you want to delete this set?"))) {
+                                                                        saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(ei => ei.id === ex.id ? {...ei, sets: ei.sets.filter(si => si.id !== s.id)} : ei)} : d));
+                                                                    }
+                                                                }}>✕</button>
                                                             </div>
                                                         ))}
+                                                        <button className="btn btn-sm w-100 fw-bold mb-3 py-2 border-0 shadow-sm" style={{ color: '#fff', backgroundColor: COLORS.secondaryBtn, borderRadius: '6px' }} onClick={() => addSet(day.id, ex.id)}>{t("+ ADD SET")}</button>
+                                                        
+                                                        {history.length > 0 && (
+                                                            <div className="mt-2 p-2 rounded" style={{ backgroundColor: COLORS.bg, fontSize: '9px' }}>
+                                                                <div className="fw-800 text-uppercase mb-1 opacity-50">{t("Recent Sessions")}</div>
+                                                                {history.map((h, idx) => (
+                                                                    <div key={idx} className="d-flex justify-content-between border-bottom py-1" style={{ borderColor: COLORS.border }}>
+                                                                        <span className="fw-bold">{h.date === 'Previous' ? t("Previous") : h.date}</span>
+                                                                        <span>{h.sets.map(s => `${s.reps}x${s.weight}kg`).join(', ')}</span>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 )}
                                             </div>
-                                        )}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                        <button className="btn w-100 mt-3 py-2 fw-bold text-white border-0 shadow-sm" 
-                                style={{ backgroundColor: COLORS.primaryBtn, borderRadius: '8px', fontSize: '12px' }}
-                                onClick={() => {
-                                    const name = prompt(t("Exercise Name:"));
-                                    if (name) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: [...d.exercises, { id: Date.now(), name, sets: [], history: [], target: "" }]} : d));
-                                }}>{t("ADD EXERCISE")}</button>
+                                        );
+                                    })}
+                                </div>
+                                <button className="btn w-100 mt-3 py-2 fw-bold text-white border-0 shadow-sm" 
+                                        style={{ backgroundColor: COLORS.primaryBtn, borderRadius: '8px', fontSize: '12px' }}
+                                        onClick={() => {
+                                            const name = prompt(t("Exercise Name:"));
+                                            if (name) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: [...d.exercises, { id: Date.now(), name, sets: [], history: [], target: "" }]} : d));
+                                        }}>{t("ADD EXERCISE")}</button>
+                            </div>
+                        ))}
                     </div>
-                ))}
-            </div>
-        </div>
-    );
-}
+                </div>
+            );
+        }
 
         function DailyLog({ user, t }) {
             const [f, setF] = useState({ date: new Date().toISOString().split('T')[0], weight:'', steps:'', p:'', c:'', f:'', water:'', sleep:'' });
