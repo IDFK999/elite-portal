@@ -567,10 +567,10 @@
         card: '#ffffff',
         textMain: '#1a1a1a',
         textMuted: '#636e72',
-        primaryBtn: '#1a1a1a', 
+        primaryBtn: '#1a1a1a',
         secondaryBtn: '#636e72',
-        successMuted: '#27ae60',  // Green for Overload
-        dangerMuted: '#c0392b',   // Red for Decrease
+        successMuted: '#27ae60',
+        dangerMuted: '#c0392b',
         neutral: '#b2bec3',      
         border: '#e0e0e0',
         timerBlue: '#A3D8FF',
@@ -857,131 +857,149 @@
 }
 
         function DailyLog({ user, t }) {
-            const [f, setF] = useState({ 
-                date: new Date().toISOString().split('T')[0], 
-                weight: '', steps: '', p: '', c: '', f: '', water: '', sleep: '' 
-            });
-            const [targets, setTargets] = useState(() => {
-                const saved = localStorage.getItem('macro_targets');
-                return saved ? JSON.parse(saved) : { p: 180, c: 200, f: 60 };
-            });
-            const [editTargets, setEditTargets] = useState(false);
+    const [f, setF] = useState({ 
+        date: new Date().toISOString().split('T')[0], 
+        weight: '', steps: '', p: '', c: '', f: '', water: '', sleep: '' 
+    });
+    const [targets, setTargets] = useState(() => {
+        const saved = localStorage.getItem('macro_targets');
+        return saved ? JSON.parse(saved) : { p: 180, c: 200, f: 60 };
+    });
+    const [editTargets, setEditTargets] = useState(false);
+    const [syncing, setSyncing] = useState(false);
 
-            useEffect(() => {
-                const fetchData = async () => {
-                    const localKey = `offline_log_${user.id}_${f.date}`;
-                    const localData = localStorage.getItem(localKey);
-                    
-                    if (localData) {
-                        setF(JSON.parse(localData));
-                    }
+    useEffect(() => {
+        const fetchData = async () => {
+            const localKey = `offline_log_${user.id}_${f.date}`;
+            const localData = localStorage.getItem(localKey);
+            
+            if (localData) setF(JSON.parse(localData));
 
-                    try {
-                        const { data, error } = await _supabase.from('daily_logs')
-                            .select('*')
-                            .eq('user_id', user.id)
-                            .eq('log_date', f.date)
-                            .maybeSingle();
-                        
-                        if (data) {
-                            const remoteData = { 
-                                date: f.date,
-                                weight: data.weight || '', 
-                                steps: data.steps || '', 
-                                p: data.protein || '', 
-                                c: data.carbs || '', 
-                                f: data.fats || '', 
-                                water: data.water_liters || '', 
-                                sleep: data.sleep_hours || '' 
-                            };
-                            setF(remoteData);
-                            localStorage.setItem(localKey, JSON.stringify(remoteData));
-                        } else if (!localData) {
-                            setF({ date: f.date, weight: '', steps: '', p: '', c: '', f: '', water: '', sleep: '' });
-                        }
-                    } catch (err) {
-                        console.log("Offline: Using local cache");
-                    }
-                };
-                fetchData();
-            }, [f.date, user.id]);
-
-            const saveLog = async () => {
-                if (!f.weight || !f.steps) return alert(t("Weight (kg) *") + " & " + t("Steps *") + " are required.");
+            try {
+                const { data, error } = await _supabase.from('daily_logs')
+                    .select('*')
+                    .eq('user_id', user.id)
+                    .eq('log_date', f.date)
+                    .maybeSingle();
                 
-                // 1. Immediate Local Save
-                const localKey = `offline_log_${user.id}_${f.date}`;
-                localStorage.setItem(localKey, JSON.stringify(f));
-
-                // 2. Background Sync with improved error handling
-                try {
-                    const { error } = await _supabase.from('daily_logs').upsert({
-                        user_id: user.id, 
-                        log_date: f.date, 
-                        weight: parseFloat(f.weight),
-                        protein: parseInt(f.p) || 0, 
-                        carbs: parseInt(f.c) || 0, 
-                        fats: parseInt(f.f) || 0,
-                        steps: parseInt(f.steps), 
-                        water_liters: parseFloat(f.water) || 0, 
-                        sleep_hours: parseFloat(f.sleep) || 0,
-                        updated_at: new Date().toISOString() // Force a timestamp update
-                    }, { onConflict: 'user_id,log_date' });
-                    
-                    if (error) throw error;
-                    
-                    // Only alert success if there was no error
-                    alert(t("Saved Successfully"));
-                } catch (err) {
-                    console.error("Sync Error:", err);
-                    // This alert now only triggers if the Supabase call actually fails
-                    alert(t("Saved.") + " " + (err.message || ""));
+                if (data && !error) {
+                    const remoteData = { 
+                        date: f.date,
+                        weight: data.weight || '', 
+                        steps: data.steps || '', 
+                        p: data.protein || '', 
+                        c: data.carbs || '', 
+                        f: data.fats || '', 
+                        water: data.water_liters || '', 
+                        sleep: data.sleep_hours || '' 
+                    };
+                    setF(remoteData);
+                    localStorage.setItem(localKey, JSON.stringify(remoteData));
+                } else if (!localData) {
+                    setF({ date: f.date, weight: '', steps: '', p: '', c: '', f: '', water: '', sleep: '' });
                 }
-            };
+            } catch (err) {
+                console.log("Offline mode active");
+            }
+        };
+        fetchData();
+    }, [f.date, user.id]);
 
-            return (
-                <div>
-                    {!editTargets ? (
-                        <div className="target-pill" onClick={() => setEditTargets(true)}>
-                            <div className="macro-container d-flex justify-content-around text-center">
-                                <div className="macro-box"><span className="macro-mini-label">{t("Protein")}</span><br/><span className="macro-mini-value">{targets.p}g</span></div>
-                                <div className="macro-box"><span className="macro-mini-label">{t("Carbs")}</span><br/><span className="macro-mini-value">{targets.c}g</span></div>
-                                <div className="macro-box"><span className="macro-mini-label">{t("Fats")}</span><br/><span className="macro-mini-value">{targets.f}g</span></div>
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="card mb-3" style={{background: '#F5F5F7'}}>
-                            <div className="row g-2">
-                                <div className="col-4"><label className="macro-mini-label">{t("P")} (g)</label><input className="form-control" type="number" inputMode="numeric" value={targets.p} onChange={e=>setTargets({...targets, p: cleanNum(e.target.value)})} /></div>
-                                <div className="col-4"><label className="macro-mini-label">{t("C")} (g)</label><input className="form-control" type="number" inputMode="numeric" value={targets.c} onChange={e=>setTargets({...targets, c: cleanNum(e.target.value)})} /></div>
-                                <div className="col-4"><label className="macro-mini-label">{t("F")} (g)</label><input className="form-control" type="number" inputMode="numeric" value={targets.f} onChange={e=>setTargets({...targets, f: cleanNum(e.target.value)})} /></div>
-                            </div>
-                            <button className="btn btn-dark btn-sm w-100 mt-2" onClick={() => { localStorage.setItem('macro_targets', JSON.stringify(targets)); setEditTargets(false); }}>{t("Save Targets")}</button>
-                        </div>
-                    )}
-                    <div className="card">
-                        <input type="date" className="form-control mb-3 fw-bold" value={f.date} onChange={e=>setF({...f, date:e.target.value})} />
-                        <div className="section-title">{t("Core Metrics")}</div>
-                        <div className="row g-2">
-                            <div className="col-6"><label className="toggle-label">{t("Weight (kg) *")}</label><input type="number" step="any" inputMode="decimal" className="form-control" value={f.weight} onChange={e=>setF({...f, weight: cleanNum(e.target.value)})} /></div>
-                            <div className="col-6"><label className="toggle-label">{t("Steps *")}</label><input type="number" inputMode="numeric" className="form-control" value={f.steps} onChange={e=>setF({...f, steps: cleanNum(e.target.value)})} /></div>
-                        </div>
-                        <div className="section-title mt-2">{t("Nutrient Intake")}</div>
-                        <div className="row g-2">
-                            <div className="col-4"><label className="toggle-label">{t("P")}</label><input type="number" inputMode="numeric" className="form-control" value={f.p} onChange={e=>setF({...f, p: cleanNum(e.target.value)})} /></div>
-                            <div className="col-4"><label className="toggle-label">{t("C")}</label><input type="number" inputMode="numeric" className="form-control" value={f.c} onChange={e=>setF({...f, c: cleanNum(e.target.value)})} /></div>
-                            <div className="col-4"><label className="toggle-label">{t("F")}</label><input type="number" inputMode="numeric" className="form-control" value={f.f} onChange={e=>setF({...f, f: cleanNum(e.target.value)})} /></div>
-                        </div>
-                        <div className="section-title mt-2">{t("Recovery")}</div>
-                        <div className="row g-2">
-                            <div className="col-6"><label className="toggle-label">{t("Water (L)")}</label><input type="number" step="any" inputMode="decimal" className="form-control" value={f.water} onChange={e=>setF({...f, water: cleanNum(e.target.value)})} /></div>
-                            <div className="col-6"><label className="toggle-label">{t("Sleep (H)")}</label><input type="number" step="any" inputMode="decimal" className="form-control" value={f.sleep} onChange={e=>setF({...f, sleep: cleanNum(e.target.value)})} /></div>
-                        </div>
-                        <button className="btn btn-primary mt-3" onClick={saveLog}>{t("Save Daily Record")}</button>
+    const saveLog = async () => {
+        if (!f.weight || !f.steps) return alert(t("Weight and Steps are required"));
+        
+        setSyncing(true);
+        const localKey = `offline_log_${user.id}_${f.date}`;
+        
+        // 1. Always save locally first (Instant feedback)
+        localStorage.setItem(localKey, JSON.stringify(f));
+
+        // 2. Attempt Supabase Sync
+        try {
+            const { error } = await _supabase.from('daily_logs').upsert({
+                user_id: user.id, 
+                log_date: f.date, 
+                weight: parseFloat(f.weight),
+                protein: parseInt(f.p) || 0, 
+                carbs: parseInt(f.c) || 0, 
+                fats: parseInt(f.f) || 0,
+                steps: parseInt(f.steps), 
+                water_liters: parseFloat(f.water) || 0, 
+                sleep_hours: parseFloat(f.sleep) || 0
+            }, { onConflict: 'user_id,log_date' });
+            
+            if (error) {
+                console.warn("Supabase Sync skipped, stored locally:", error.message);
+                // We don't alert error here because it's saved locally anyway
+            }
+            
+            alert(t("Saved Successfully"));
+        } catch (err) {
+            // Silently fail to offline mode
+            alert(t("Saved to device (Offline)"));
+        } finally {
+            setSyncing(false);
+        }
+    };
+
+    return (
+        <div>
+            {!editTargets ? (
+                <div className="target-pill" onClick={() => setEditTargets(true)}>
+                    <div className="macro-container d-flex justify-content-around text-center">
+                        <div className="macro-box"><span className="macro-mini-label">{t("Protein")}</span><br/><span className="macro-mini-value">{targets.p}g</span></div>
+                        <div className="macro-box"><span className="macro-mini-label">{t("Carbs")}</span><br/><span className="macro-mini-value">{targets.c}g</span></div>
+                        <div className="macro-box"><span className="macro-mini-label">{t("Fats")}</span><br/><span className="macro-mini-value">{targets.f}g</span></div>
                     </div>
                 </div>
-            );
-        }
+            ) : (
+                <div className="card mb-3" style={{background: '#F5F5F7'}}>
+                    <div className="row g-2">
+                        <div className="col-4"><label className="macro-mini-label">{t("P")} (g)</label><input className="form-control" type="number" inputMode="numeric" value={targets.p} onChange={e=>setTargets({...targets, p: e.target.value})} /></div>
+                        <div className="col-4"><label className="macro-mini-label">{t("C")} (g)</label><input className="form-control" type="number" inputMode="numeric" value={targets.c} onChange={e=>setTargets({...targets, c: e.target.value})} /></div>
+                        <div className="col-4"><label className="macro-mini-label">{t("F")} (g)</label><input className="form-control" type="number" inputMode="numeric" value={targets.f} onChange={e=>setTargets({...targets, f: e.target.value})} /></div>
+                    </div>
+                    <button className="btn btn-dark btn-sm w-100 mt-2" onClick={() => { localStorage.setItem('macro_targets', JSON.stringify(targets)); setEditTargets(false); }}>{t("Save Targets")}</button>
+                </div>
+            )}
+            <div className="card">
+                <input type="date" className="form-control mb-3 fw-bold" value={f.date} onChange={e=>setF({...f, date:e.target.value})} />
+                
+                <div className="row g-2">
+                    <div className="col-6">
+                        <label className="toggle-label">{t("Weight (kg) *")}</label>
+                        <input type="number" step="any" inputMode="decimal" className="form-control" value={f.weight} onChange={e=>setF({...f, weight: e.target.value})} />
+                    </div>
+                    <div className="col-6">
+                        <label className="toggle-label">{t("Steps *")}</label>
+                        <input type="number" inputMode="numeric" className="form-control" value={f.steps} onChange={e=>setF({...f, steps: e.target.value})} />
+                    </div>
+                </div>
+
+                <div className="section-title mt-3">{t("Nutrient Intake")}</div>
+                <div className="row g-2">
+                    <div className="col-4"><label className="toggle-label">{t("P")}</label><input type="number" className="form-control" value={f.p} onChange={e=>setF({...f, p: e.target.value})} /></div>
+                    <div className="col-4"><label className="toggle-label">{t("C")}</label><input type="number" className="form-control" value={f.c} onChange={e=>setF({...f, c: e.target.value})} /></div>
+                    <div className="col-4"><label className="toggle-label">{t("F")}</label><input type="number" className="form-control" value={f.f} onChange={e=>setF({...f, f: e.target.value})} /></div>
+                </div>
+
+                <div className="section-title mt-3">{t("Recovery")}</div>
+                <div className="row g-2">
+                    <div className="col-6"><label className="toggle-label">{t("Water (L)")}</label><input type="number" step="any" className="form-control" value={f.water} onChange={e=>setF({...f, water: e.target.value})} /></div>
+                    <div className="col-6"><label className="toggle-label">{t("Sleep (H)")}</label><input type="number" step="any" className="form-control" value={f.sleep} onChange={e=>setF({...f, sleep: e.target.value})} /></div>
+                </div>
+
+                <button 
+                    className="btn btn-primary mt-4 py-3 fw-bold" 
+                    onClick={saveLog}
+                    disabled={syncing}
+                >
+                    {syncing ? t("Saving...") : t("Save Daily Record")}
+                </button>
+            </div>
+        </div>
+    );
+}
 
         function Metrics({ user, t }) {
             const [f, setF] = useState({ chest:'', waist:'', glute:'', larm:'', rarm:'', lthigh:'', rthigh:'' });
