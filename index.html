@@ -459,16 +459,16 @@
         const fetchWorkouts = async () => {
             const { data } = await _supabase.from('user_settings').select('workout_data').eq('user_id', user.id).maybeSingle();
             if (data?.workout_data) {
-                // DATA MIGRATION: Converts old format to session objects to prevent blank screens
+                // MIGRATION LOGIC: Ensures old data formats don't crash the app
                 const migratedData = data.workout_data.map(day => ({
                     ...day,
-                    exercises: day.exercises.map(ex => {
+                    exercises: (day.exercises || []).map(ex => {
                         let validHistory = Array.isArray(ex.history) ? ex.history : [];
-                        // Check if history is old format (array of sets) and wrap it
+                        // Wrap old-style history (simple set array) into new session format
                         if (validHistory.length > 0 && validHistory[0].reps !== undefined) {
                             validHistory = [{ date: "Previous", sets: validHistory }];
                         }
-                        return { ...ex, history: validHistory };
+                        return { ...ex, history: validHistory, target: ex.target || "" };
                     })
                 }));
                 setDays(migratedData);
@@ -506,13 +506,14 @@
                     lastPerformed: todayStr, 
                     exercises: d.exercises.map(ex => {
                         if (ex.id === exId) {
-                            const history = isNewSession && ex.sets.length > 0
-                                ? [{ date: d.lastPerformed || todayStr, sets: [...ex.sets] }, ...(ex.history || [])]
-                                : (ex.history || []);
+                            const currentHistory = Array.isArray(ex.history) ? ex.history : [];
+                            const updatedHistory = (isNewSession && ex.sets.length > 0)
+                                ? [{ date: d.lastPerformed || todayStr, sets: [...ex.sets] }, ...currentHistory]
+                                : currentHistory;
                             
                             return { 
                                 ...ex, 
-                                history: history.slice(0, 5),
+                                history: updatedHistory.slice(0, 5),
                                 sets: isNewSession 
                                     ? [{ id: Date.now(), reps: 0, weight: 0, rpe: 8, addedAt: timeStr }] 
                                     : [...ex.sets, { id: Date.now(), reps: 0, weight: 0, rpe: 8, addedAt: timeStr }] 
@@ -529,55 +530,64 @@
     if (loading) return <div className="text-center p-5 text-muted small fw-bold">Syncing...</div>;
 
     return (
-        <div className="pb-5">
+        <div className="pb-5 px-2">
             <button className="btn btn-dark w-100 mb-4 fw-800 py-3" onClick={() => {
                 const name = prompt(t("Day Name:"));
                 if (name) saveAndSync([...days, { id: Date.now(), name, lastPerformed: null, exercises: [] }]);
             }}>{t("+ NEW WORKOUT DAY")}</button>
             
             {days.map(day => (
-                <div key={day.id} className="card border-0 mb-4 shadow-sm" style={{borderLeft: '4px solid var(--accent-blue)', borderRadius: '12px', padding: '15px'}}>
+                <div key={day.id} className="card border-0 mb-4 shadow-sm p-3" style={{borderLeft: '4px solid var(--accent-blue)', borderRadius: '15px'}}>
                     <div className="d-flex justify-content-between align-items-center mb-1">
                         <h6 className="fw-800 m-0">{day.name}</h6>
-                        <span className="badge rounded-pill bg-light text-primary border" style={{fontSize: '10px'}}>{getDaysAgo(day.lastPerformed)}</span>
+                        <div className="d-flex gap-2">
+                            <span className="badge rounded-pill bg-light text-primary border" style={{fontSize: '10px'}}>{getDaysAgo(day.lastPerformed)}</span>
+                            <button className="btn btn-sm text-danger p-0" onClick={() => { if(confirm(t("Permanently delete this entire workout day?"))) saveAndSync(days.filter(d => d.id !== day.id)); }}>✕</button>
+                        </div>
                     </div>
 
                     <div className="d-grid gap-2 mt-3">
                         {day.exercises.map(ex => {
                             const history = Array.isArray(ex.history) ? ex.history : [];
-                            const lastSession = history[0] || { sets: [] };
-                            
-                            const currentTotal = ex.sets.reduce((sum, s) => sum + (Number(s.reps) || 0), 0);
-                            const lastTotal = lastSession.sets.reduce((sum, s) => sum + (Number(s.reps) || 0), 0);
-                            const rDelta = currentTotal - lastTotal;
+                            const lastTotal = (history[0]?.sets || []).reduce((s, x) => s + (Number(x.reps) || 0), 0);
+                            const currentTotal = ex.sets.reduce((s, x) => s + (Number(s.reps) || 0), 0);
+                            const diff = currentTotal - lastTotal;
 
                             return (
-                                <div key={ex.id} className="bg-light rounded-3 p-2">
+                                <div key={ex.id} className="bg-light rounded-3 p-2 border-start border-3">
                                     <div className="d-flex justify-content-between align-items-center" onClick={() => setExpandedEx({...expandedEx, [ex.id]: !expandedEx[ex.id]})}>
-                                        <div className="fw-800 text-uppercase" style={{fontSize: '11px'}}>{expandedEx[ex.id] ? '▼' : '▶'} {ex.name}</div>
-                                        <div className="d-flex gap-1">
-                                            <span className={`badge ${rDelta >= 0 ? 'bg-success' : 'bg-danger'}`} style={{fontSize: '8px'}}>
-                                                {currentTotal} Reps ({rDelta >= 0 ? '+' : ''}{rDelta})
-                                            </span>
-                                            {history.slice(0, 3).map((h, i) => (
-                                                <span key={i} className="badge bg-white text-muted border" style={{fontSize: '7px'}}>W{i+1}: {h.sets.reduce((s, x) => s + (Number(x.reps) || 0), 0)}</span>
-                                            ))}
+                                        <div style={{flex: 1}}>
+                                            <div className="d-flex justify-content-between align-items-center me-2">
+                                                <div className="fw-800 text-uppercase" style={{fontSize: '11px'}}>{expandedEx[ex.id] ? '▼' : '▶'} {ex.name}</div>
+                                                <div className="fw-800 text-primary" style={{fontSize: '10px'}} onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    const n = prompt(t("Enter Notes:"), ex.target || "");
+                                                    if (n !== null) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(ei => ei.id === ex.id ? {...ei, target: n} : ei)} : d));
+                                                }}>{ex.target || 'NOTES+'}</div>
+                                            </div>
+                                            <div className="d-flex gap-1 mt-1 overflow-auto">
+                                                <span className={`badge ${diff >= 0 ? 'bg-success' : 'bg-danger'}`} style={{fontSize: '8px'}}>{currentTotal}R ({diff >= 0 ? '+' : ''}{diff})</span>
+                                                {history.slice(0, 3).map((h, i) => (
+                                                    <span key={i} className="badge bg-white text-muted border" style={{fontSize: '7px'}}>W{i+1}: {h.sets.reduce((s, x) => s + (Number(x.reps) || 0), 0)}</span>
+                                                ))}
+                                            </div>
                                         </div>
+                                        <button className="btn btn-sm text-danger" onClick={(e) => { e.stopPropagation(); if(confirm(t("Delete Exercise?"))) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.filter(ei => ei.id !== ex.id)} : d)); }}>✕</button>
                                     </div>
 
                                     {expandedEx[ex.id] && (
                                         <div className="mt-2 pt-2 border-top">
                                             {ex.sets.map((s, i) => (
-                                                <div key={s.id} className="d-flex align-items-center gap-2 bg-white p-2 rounded shadow-sm mb-2">
+                                                <div key={s.id} className="d-flex align-items-center gap-2 bg-white p-2 rounded shadow-sm mb-2 border">
                                                     <div className="text-center" style={{minWidth: '30px'}}>
                                                         <div className="fw-800 text-muted" style={{fontSize: '9px'}}>S{i+1}</div>
                                                         <div className="text-muted" style={{fontSize: '7px'}}>{s.addedAt || '--:--'}</div>
                                                     </div>
-                                                    <input type="number" className="form-control form-control-sm text-center fw-bold border-0 bg-light" placeholder="Reps" value={s.reps || ''} onChange={e => {
+                                                    <input type="number" className="form-control form-control-sm text-center fw-bold border-0 bg-light" placeholder="R" value={s.reps || ''} onChange={e => {
                                                         const val = parseInt(e.target.value) || 0;
                                                         saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(ei => ei.id === ex.id ? {...ei, sets: ei.sets.map(si => si.id === s.id ? {...si, reps: val} : si)} : ei)} : d));
                                                     }} />
-                                                    <input type="number" className="form-control form-control-sm text-center fw-bold border-0 bg-light" placeholder="Kg" value={s.weight || ''} onChange={e => {
+                                                    <input type="number" className="form-control form-control-sm text-center fw-bold border-0 bg-light" placeholder="K" value={s.weight || ''} onChange={e => {
                                                         const val = parseFloat(e.target.value) || 0;
                                                         saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(ei => ei.id === ex.id ? {...ei, sets: ei.sets.map(si => si.id === s.id ? {...si, weight: val} : si)} : ei)} : d));
                                                     }} />
@@ -587,16 +597,17 @@
                                                     }}>
                                                         {[10, 9.5, 9, 8.5, 8, 7.5, 7].map(v => <option key={v} value={v}>@{v}</option>)}
                                                     </select>
+                                                    <button className="btn btn-sm text-danger p-0 px-1" onClick={() => saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(ei => ei.id === ex.id ? {...ei, sets: ei.sets.filter(si => si.id !== s.id)} : ei)} : d))}>✕</button>
                                                 </div>
                                             ))}
-                                            <button className="btn btn-outline-primary btn-sm w-100 fw-bold mb-3" onClick={() => addSet(day.id, ex.id)}>+ ADD SET</button>
+                                            <button className="btn btn-outline-primary btn-sm w-100 fw-bold mb-3" style={{fontSize: '10px', borderStyle: 'dashed'}} onClick={() => addSet(day.id, ex.id)}>{t("+ ADD SET")}</button>
 
                                             {history.map((session, sIdx) => (
                                                 <div key={sIdx} className="p-2 mb-2 bg-white rounded border-start border-3 border-secondary" style={{opacity: 0.85}}>
                                                     <div className="fw-bold text-muted small mb-1">{session.date}</div>
                                                     {session.sets.map((ps, pi) => (
                                                         <div key={pi} className="d-flex justify-content-between small border-bottom border-light py-1">
-                                                            <span>Set {pi+1} {ps.addedAt && <small>({ps.addedAt})</small>}</span>
+                                                            <span>Set {pi+1} <small className="text-muted">({ps.addedAt || '00:00'})</small></span>
                                                             <span className="fw-800">{ps.reps} × {ps.weight}kg @{ps.rpe || 8}</span>
                                                         </div>
                                                     ))}
@@ -610,7 +621,7 @@
                     </div>
                     <button className="btn btn-primary btn-sm w-100 mt-3 py-2 fw-bold" onClick={() => {
                         const name = prompt(t("Exercise Name:"));
-                        if (name) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: [...d.exercises, { id: Date.now(), name, sets: [], history: [] }]} : d));
+                        if (name) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: [...d.exercises, { id: Date.now(), name, sets: [], history: [], target: "" }]} : d));
                     }}>{t("ADD EXERCISE")}</button>
                 </div>
             ))}
