@@ -500,7 +500,6 @@
                     exercises: d.exercises.map(ex => {
                         if (ex.id === exId) {
                             let newHistory = Array.isArray(ex.history) ? [...ex.history] : [];
-                            // If this is the first set of a new day, move previous sets to history
                             if (isNewSession && ex.sets.length > 0) {
                                 newHistory = [{ date: d.lastPerformed, sets: ex.sets }, ...newHistory].slice(0, 3);
                             }
@@ -553,7 +552,6 @@
                         {day.exercises.map(ex => {
                             const historyList = Array.isArray(ex.history) ? ex.history : [];
                             const latestHistory = historyList[0] || { sets: [] };
-                            const hasHistory = latestHistory.sets.length > 0;
                             const currentTotalReps = ex.sets.reduce((sum, s) => sum + (Number(s.reps) || 0), 0);
                             const prevTotalReps = latestHistory.sets.reduce((sum, s) => sum + (Number(s.reps) || 0), 0);
                             const rDelta = currentTotalReps - prevTotalReps;
@@ -575,10 +573,10 @@
                                             <div className="d-flex gap-1 flex-wrap mt-1 align-items-center">
                                                 <span className="badge bg-primary text-white fw-800" style={{fontSize: '8px'}}>
                                                     NOW: {currentTotalReps}R
-                                                    {hasHistory && (rDelta >= 0 ? ` (+${rDelta})` : ` (${rDelta})`)}
+                                                    {latestHistory.sets.length > 0 && (rDelta >= 0 ? ` (+${rDelta})` : ` (${rDelta})`)}
                                                 </span>
                                                 {historyList.map((h, hIdx) => (
-                                                    <span key={`pill-${hIdx}`} className="badge bg-secondary text-white opacity-75" style={{fontSize: '8px'}}>
+                                                    <span key={`pill-${ex.id}-${hIdx}`} className="badge bg-secondary text-white opacity-75" style={{fontSize: '8px'}}>
                                                         {hIdx + 1}W: {h.sets.reduce((sum, s) => sum + (Number(s.reps) || 0), 0)}R
                                                     </span>
                                                 ))}
@@ -607,13 +605,13 @@
                                             <button className="btn btn-outline-primary btn-sm w-100 fw-bold mb-3" style={{fontSize: '10px', borderStyle: 'dashed'}} onClick={() => addSet(day.id, ex.id)}>+ ADD SET</button>
 
                                             {historyList.map((session, hIdx) => (
-                                                <div key={`hist-${hIdx}`} className="mt-3 p-2 rounded bg-white border-start border-3 border-secondary opacity-75">
+                                                <div key={`hist-${ex.id}-${hIdx}`} className="mt-3 p-2 rounded bg-white border-start border-3 border-secondary opacity-75">
                                                     <div className="d-flex justify-content-between mb-1" style={{fontSize: '9px'}}>
                                                         <span className="fw-bold text-muted">{session.date} ({hIdx + 1} SESSION AGO)</span>
                                                         <span className="fw-bold">{session.sets.reduce((sum, s) => sum + (Number(s.reps) || 0), 0)} TOTAL REPS</span>
                                                     </div>
                                                     {session.sets.map((s, sIdx) => (
-                                                        <div key={`hist-set-${hIdx}-${sIdx}`} className="d-flex justify-content-between border-bottom border-light py-1" style={{fontSize: '10px'}}>
+                                                        <div key={`hist-set-${ex.id}-${hIdx}-${sIdx}`} className="d-flex justify-content-between border-bottom border-light py-1" style={{fontSize: '10px'}}>
                                                             <span>SET {sIdx+1}</span>
                                                             <span className="fw-800">{s.reps} reps × {s.weight}kg</span>
                                                         </div>
