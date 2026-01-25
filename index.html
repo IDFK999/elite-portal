@@ -545,8 +545,6 @@
         const todayStr = now.toISOString().split('T')[0];
         const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
         
-        startTimer(TOTAL_TIME);
-
         saveAndSync(days.map(d => {
             if (d.id === dayId) {
                 const isNewSession = d.lastPerformed !== todayStr;
@@ -724,12 +722,13 @@
                                                         }}>
                                                             {[10, 9.5, 9, 8.5, 8, 7.5, 7].map(v => <option key={v} value={v}>@{v}</option>)}
                                                         </select>
+                                                        {/* TICK BUTTON TO LOG AND START TIMER */}
+                                                        <button className="btn btn-sm p-1 fw-bold" style={{color: COLORS.successMuted}} onClick={() => startTimer(TOTAL_TIME)}>✓</button>
                                                         <button className="btn btn-sm p-1" style={{color: COLORS.border}} onClick={() => saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(ei => ei.id === ex.id ? {...ei, sets: ei.sets.filter(si => si.id !== s.id)} : ei)} : d))}>✕</button>
                                                     </div>
                                                 ))}
                                                 <button className="btn btn-sm w-100 fw-bold mb-3 py-2 border-0 shadow-sm" style={{ color: '#fff', backgroundColor: COLORS.secondaryBtn, borderRadius: '6px' }} onClick={() => addSet(day.id, ex.id)}>{t("+ ADD SET")}</button>
                                                 
-                                                {/* PREVIOUS SESSIONS VIEW */}
                                                 {history.length > 0 && (
                                                     <div className="mt-2 p-2 rounded" style={{ backgroundColor: COLORS.bg, fontSize: '9px' }}>
                                                         <div className="fw-800 text-uppercase mb-1 opacity-50">{t("Recent Sessions")}</div>
