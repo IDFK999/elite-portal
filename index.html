@@ -488,8 +488,8 @@
         textMuted: '#636e72',
         primaryBtn: '#1a1a1a', 
         secondaryBtn: '#636e72',
-        successMuted: '#27ae60',  
-        dangerMuted: '#c0392b',   
+        successMuted: '#27ae60',  // Green for Overload
+        dangerMuted: '#c0392b',   // Red for Decrease
         neutral: '#b2bec3',      
         border: '#e0e0e0',
         timerBlue: '#A3D8FF',
@@ -520,29 +520,24 @@
     // --- SMART FETCH (Protects Offline Progress) ---
     useEffect(() => {
         const fetchWorkouts = async () => {
-            // 1. Check LocalStorage first for instant load
             const localCache = localStorage.getItem(`offline_workouts_${user.id}`);
             let localTimestamp = 0;
             
             if (localCache) {
                 const parsed = JSON.parse(localCache);
-                const actualData = parsed.data || parsed; 
                 localTimestamp = parsed.last_updated || 0;
-                setDays(actualData);
+                setDays(parsed.data || parsed);
                 setLoading(false);
             }
 
             try {
-                // 2. Fetch from Supabase
-                const { data, error } = await _supabase.from('user_settings')
+                const { data } = await _supabase.from('user_settings')
                     .select('workout_data, updated_at')
                     .eq('user_id', user.id)
                     .maybeSingle();
 
                 if (data?.workout_data) {
                     const serverTime = new Date(data.updated_at).getTime();
-                    
-                    // 3. ONLY overwrite if server is actually newer than our local work
                     if (serverTime > localTimestamp || !localCache) {
                         const migratedData = data.workout_data.map(day => ({
                             ...day,
@@ -562,36 +557,29 @@
                     }
                 }
             } catch (err) {
-                console.log("Working offline: Using local data.");
+                console.log("Working offline.");
             }
             setLoading(false);
         };
         fetchWorkouts();
     }, [user.id, t]);
 
-    // --- SMART SAVE (Local First -> Background Push) ---
     const saveAndSync = async (newData) => {
         const now = Date.now();
-        
-        // Step 1: Update Screen & Phone Memory Instantly
         setDays(newData);
         localStorage.setItem(`offline_workouts_${user.id}`, JSON.stringify({
             last_updated: now,
             data: newData
         }));
 
-        // Step 2: Background push (Does not block the user)
         try {
-            await _supabase.from('user_settings').upsert(
-                { 
-                    user_id: user.id, 
-                    workout_data: newData,
-                    updated_at: new Date().toISOString() 
-                }, 
-                { onConflict: 'user_id' }
-            );
+            await _supabase.from('user_settings').upsert({ 
+                user_id: user.id, 
+                workout_data: newData,
+                updated_at: new Date().toISOString() 
+            }, { onConflict: 'user_id' });
         } catch (err) {
-            console.warn("Offline: Save cached on phone.");
+            console.warn("Offline: Save cached.");
         }
     };
 
@@ -645,7 +633,7 @@
 
     return (
         <div className="pb-5 px-2" style={{ backgroundColor: COLORS.bg, minHeight: '100vh' }}>
-            {/* Timer Overlay */}
+            {/* Timer UI */}
             <div style={{
                 position: 'sticky', top: 'var(--header-height)', zIndex: 1100,
                 height: timerActive ? '180px' : '0px', opacity: timerActive ? 1 : 0,
@@ -694,10 +682,21 @@
                         <div className="d-grid gap-2">
                             {day.exercises.map(ex => {
                                 const history = Array.isArray(ex.history) ? ex.history : [];
+                                
+                                // PROGRESSIVE OVERLOAD CALCULATION
                                 const currentReps = ex.sets.reduce((sum, s) => sum + (Number(s.reps) || 0), 0);
                                 const lastReps = history[0] ? history[0].sets.reduce((sum, s) => sum + (Number(s.reps) || 0), 0) : null;
+                                const repsDiff = lastReps !== null ? currentReps - lastReps : 0;
+
                                 const currentVol = ex.sets.reduce((sum, s) => sum + ((Number(s.reps) || 0) * (Number(s.weight) || 0)), 0);
                                 const lastVol = history[0] ? history[0].sets.reduce((sum, s) => sum + ((Number(s.reps) || 0) * (Number(s.weight) || 0)), 0) : null;
+                                const volDiff = lastVol !== null ? currentVol - lastVol : 0;
+
+                                // COLOR HELPER
+                                const getBadgeColor = (diff, lastValue) => {
+                                    if (lastValue === null || diff === 0) return COLORS.neutral;
+                                    return diff > 0 ? COLORS.successMuted : COLORS.dangerMuted;
+                                };
 
                                 return (
                                     <div key={ex.id} className="rounded-2 p-2 border" style={{ backgroundColor: '#fff', borderColor: COLORS.border }}>
@@ -711,9 +710,14 @@
                                                         if (n !== null) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(ei => ei.id === ex.id ? {...ei, target: n} : ei)} : d));
                                                     }}>{ex.target || t("NOTES+")}</div>
                                                 </div>
+                                                {/* COLORED BADGES FOR PROGRESSIVE OVERLOAD */}
                                                 <div className="d-flex gap-1 mt-1 flex-wrap">
-                                                    <span className="badge fw-bold" style={{fontSize: '8px', color: '#fff', backgroundColor: COLORS.neutral}}>{currentReps}R</span>
-                                                    <span className="badge fw-bold" style={{fontSize: '8px', color: '#fff', backgroundColor: COLORS.neutral}}>{currentVol.toLocaleString()}KG</span>
+                                                    <span className="badge fw-bold" style={{fontSize: '8px', color: '#fff', backgroundColor: getBadgeColor(repsDiff, lastReps)}}>
+                                                        {currentReps}R ({repsDiff >= 0 ? '+' : ''}{repsDiff})
+                                                    </span>
+                                                    <span className="badge fw-bold" style={{fontSize: '8px', color: '#fff', backgroundColor: getBadgeColor(volDiff, lastVol)}}>
+                                                        {currentVol.toLocaleString()}KG ({volDiff >= 0 ? '+' : ''}{volDiff.toLocaleString()})
+                                                    </span>
                                                 </div>
                                             </div>
                                             <button className="btn btn-sm p-0 px-1" style={{color: COLORS.border}} onClick={(e) => { e.stopPropagation(); if(confirm(t("Delete Exercise?"))) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.filter(ei => ei.id !== ex.id)} : d)); }}>✕</button>
