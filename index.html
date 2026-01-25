@@ -363,8 +363,9 @@
             const [view, setView] = useState('workout');
             const [session, setSession] = useState(null);
             const [isBooting, setIsBooting] = useState(true);
+            
+            // Fix: Initialize directly from localStorage to prevent resets
             const [lang, setLang] = useState(() => localStorage.getItem('app_lang') || 'en');
-            const [workoutDays, setWorkoutDays] = useState([]); // Shared state for stats analysis
 
             const t = (key) => (translations[lang] && translations[lang][key]) || key;
 
@@ -373,12 +374,13 @@
                     setSession(session);
                     setIsBooting(false);
                 });
-                const { data: { subscription } } = _supabase.auth.onChange((_event, session) => {
+                const { data: { subscription } } = _supabase.auth.onAuthStateChange((_event, session) => {
                     setSession(session);
                 });
                 return () => subscription.unsubscribe();
             }, []);
 
+            // Fix: Keep direction and language choice in sync
             useEffect(() => {
                 document.body.dir = lang === 'ar' ? 'rtl' : 'ltr';
                 localStorage.setItem('app_lang', lang);
@@ -392,7 +394,7 @@
                 if (e) { e.preventDefault(); e.stopPropagation(); }
                 try {
                     await _supabase.auth.signOut();
-                    localStorage.removeItem('supabase.auth.token');
+                    localStorage.removeItem('supabase.auth.token'); // Clear only necessary session data
                     window.location.reload();
                 } catch (err) { window.location.reload(); }
             };
@@ -414,10 +416,10 @@
                             <Login t={t} lang={lang} />
                         ) : (
                             <>
-                                {view === 'workout' && <WorkoutManager user={session.user} t={t} onUpdate={setWorkoutDays} />}
+                                {view === 'workout' && <WorkoutManager user={session.user} t={t} />}
                                 {view === 'log' && <DailyLog user={session.user} t={t} />}
                                 {view === 'update' && <Metrics user={session.user} t={t} />}
-                                {view === 'stats' && <Stats user={session.user} t={t} workoutDays={workoutDays} goal_labels={{cut: t("Cut"), maintain: t("Maintain"), bulk: t("Bulk")}} />}
+                                {view === 'stats' && <Stats user={session.user} t={t} goal_labels={{cut: t("Cut"), maintain: t("Maintain"), bulk: t("Bulk")}} />}
                                 
                                 <nav className="nav-bottom">
                                     <div className={`nav-item ${view === 'workout' ? 'active' : ''}`} onClick={()=>setView('workout')}>
@@ -448,7 +450,7 @@
             );
         }
 
-        function WorkoutManager({ user, t, onUpdate }) {
+        function WorkoutManager({ user, t }) {
             const [days, setDays] = useState([]);
             const [expandedEx, setExpandedEx] = useState({});
             const [loading, setLoading] = useState(true);
@@ -456,10 +458,7 @@
             useEffect(() => {
                 const fetchWorkouts = async () => {
                     const { data } = await _supabase.from('user_settings').select('workout_data').eq('user_id', user.id).maybeSingle();
-                    if (data?.workout_data) {
-                        setDays(data.workout_data);
-                        onUpdate(data.workout_data);
-                    }
+                    if (data?.workout_data) setDays(data.workout_data);
                     setLoading(false);
                 };
                 fetchWorkouts();
@@ -467,7 +466,6 @@
 
             const saveAndSync = async (newData) => {
                 setDays(newData);
-                onUpdate(newData);
                 await _supabase.from('user_settings').upsert({ user_id: user.id, workout_data: newData }, { onConflict: 'user_id' });
             };
 
@@ -495,7 +493,7 @@
             const addSet = (dayId, exId) => {
                 const now = new Date();
                 const todayStr = now.toISOString().split('T')[0];
-                const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); // Added for set timestamp
                 
                 saveAndSync(days.map(d => {
                     if (d.id === dayId) {
@@ -505,6 +503,7 @@
                             exercises: d.exercises.map(ex => {
                                 if (ex.id === exId) {
                                     const history = isNewSession ? ex.sets : (ex.history || []);
+                                    // FIXED: New sets start at 0 and include a local timestamp
                                     return { 
                                         ...ex, 
                                         history, 
@@ -512,7 +511,7 @@
                                             id: Date.now(), 
                                             reps: 0, 
                                             weight: 0,
-                                            addedAt: timeStr 
+                                            addedAt: timeStr // NEW: Individual set timestamp
                                         }] 
                                     };
                                 }
@@ -641,8 +640,7 @@
                             </div>
                             <button className="btn btn-primary btn-sm w-100 mt-3 fw-bold py-2" onClick={() => {
                                 const name = prompt(t("Exercise Name:"));
-                                const mg = prompt("Muscle Group (Chest, Back, Legs, Arms, Shoulders):") || "Other";
-                                if (name) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: [...d.exercises, { id: Date.now(), name, muscleGroup: mg, sets: [], history: [], target: "" }]} : d));
+                                if (name) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: [...d.exercises, { id: Date.now(), name, sets: [], history: [], target: "" }]} : d));
                             }}>{t("ADD EXERCISE")}</button>
                         </div>
                     ))}
@@ -775,7 +773,7 @@
             );
         }
 
-        function Stats({ user, t, goal_labels, workoutDays }) {
+        function Stats({ user, t, goal_labels }) {
             const [logs, setLogs] = useState([]);
             const [metrics, setMetrics] = useState([]);
             const [dateFrom, setDateFrom] = useState(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
@@ -811,23 +809,6 @@
                 }
             }, [logs, t]);
 
-            const analyzePerformance = (days) => {
-                let overloadCount = 0;
-                let totalExCount = 0;
-                let mgSets = {};
-                days.forEach(d => {
-                    d.exercises.forEach(ex => {
-                        totalExCount++;
-                        const currentVol = ex.sets.reduce((s,v) => s + (v.reps*v.weight), 0);
-                        const pastVol = (ex.history || []).reduce((s,v) => s + (v.reps*v.weight), 0);
-                        if (currentVol > pastVol && pastVol > 0) overloadCount++;
-                        const mg = ex.muscleGroup || "Other";
-                        mgSets[mg] = (mgSets[mg] || 0) + ex.sets.length;
-                    });
-                });
-                return { isProgressing: overloadCount / totalExCount > 0.4, mgSets };
-            };
-
             const stats = (() => {
                 if (logs.length === 0) return { loss: 0, kcal: 0, steps: 0, color: '#1D1D1F', sign: '' };
                 const sorted = [...logs].sort((a,b) => new Date(a.log_date) - new Date(b.log_date));
@@ -845,37 +826,57 @@
 
             const recommendation = (() => {
                 const currentCalories = stats.kcal;
-                const CALORIE_FLOOR = 1500;
-                const STEP_GOAL = 7000;
-                const performance = analyzePerformance(workoutDays || []);
+                const CALORIE_FLOOR = 1500; // Minimum safety threshold for food intake
+                const STEP_GOAL = 7000;      // Your established baseline activity
                 
-                if (logs.length === 0) return <div>{t("No weight logs yet.")}</div>;
+                if (logs.length === 0) {
+                    return <div>{t("No weight logs yet.")}</div>;
+                }
             
+                // --- 1. Sort logs by date ascending ---
                 const sortedLogs = [...logs].sort((a, b) => new Date(a.log_date) - new Date(b.log_date));
+            
+                // --- 2. Fill gaps with linear interpolation (Handles missing data) ---
                 const interpolatedLogs = [];
                 for (let i = 0; i < sortedLogs.length - 1; i++) {
                     const current = sortedLogs[i];
                     const next = sortedLogs[i + 1];
                     interpolatedLogs.push(current);
-                    const dayDiff = Math.round((new Date(next.log_date) - new Date(current.log_date)) / (1000 * 60 * 60 * 24));
+            
+                    const currentDate = new Date(current.log_date);
+                    const nextDate = new Date(next.log_date);
+                    const dayDiff = Math.round((nextDate - currentDate) / (1000 * 60 * 60 * 24));
+            
                     if (dayDiff > 1) {
                         const weightStep = (next.weight - current.weight) / dayDiff;
+                        const stepValue = current.steps || 0; // Carry over steps or use 0
+                        
                         for (let j = 1; j < dayDiff; j++) {
                             interpolatedLogs.push({
-                                log_date: new Date(new Date(current.log_date).getTime() + j * 86400000).toISOString().split("T")[0],
+                                log_date: new Date(currentDate.getTime() + j * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
                                 weight: current.weight + weightStep * j,
-                                steps: current.steps || 0 
+                                steps: stepValue 
                             });
                         }
                     }
                 }
                 interpolatedLogs.push(sortedLogs[sortedLogs.length - 1]);
             
+                // --- 3. Group into weeks ---
                 const weeks = groupIntoWeeks(interpolatedLogs);
-                if (weeks.length < 3) return <div>{t("Need 3 full weeks to detect trend.")}</div>;
+            
+                // --- 4. Scientific Check: Rolling 3-Week Window ---
+                if (weeks.length < 3) {
+                    return <div>{t("Need 3 full weeks to detect trend.")}</div>;
+                }
+                
+                // We take the LAST 3 weeks to ensure the advice is current
                 const recentWeeks = weeks.slice(-3); 
+            
+                // --- 5. Weighted Moving Average (WMA) ---
+                // Mathematically prioritizes recent data while smoothing out water weight noise
                 const weightedAvg = (arr, key) => {
-                    const weights = [1, 1, 2];
+                    const weights = [1, 1, 2]; // Give double importance to the most recent week
                     let sum = 0, totalWeight = 0;
                     arr.forEach((week, idx) => {
                         const avgVal = avg(week, key);
@@ -887,62 +888,71 @@
             
                 const trendWeight = weightedAvg(recentWeeks, "weight");
                 const avgStepsCurrentWeek = avg(recentWeeks[2], "steps") || 0;
+            
                 const w1 = avg(recentWeeks[0], "weight");
                 const w2 = avg(recentWeeks[1], "weight");
                 const w3 = avg(recentWeeks[2], "weight");
-                const avgWeeklyDelta = ((w2 - w1) + (w3 - w2)) / 2;
+            
+                // Rate of Change (Velocity)
+                const d1 = w2 - w1;
+                const d2 = w3 - w2;
+                const avgWeeklyDelta = (d1 + d2) / 2;
+                
+                // Reverse-engineer maintenance calories based on energy flux
                 const inferredMaint = inferMaintenance(currentCalories, avgWeeklyDelta, 14);
             
                 let coachTitle = "Progress on track — no adjustment needed.";
                 let coachDetails = null;
-
-                // FULL ADAPTIVE COACHING LOGIC
-                if (goal === "cut") {
-                    if (avgWeeklyDelta > -0.25) { 
-                        coachTitle = "Plateau Detected";
-                        if (avgStepsCurrentWeek < STEP_GOAL) coachDetails = `Steps below ${STEP_GOAL}. Increase movement before cutting food.`;
-                        else if (currentCalories <= CALORIE_FLOOR) coachDetails = "At floor. Add 4.5k steps.";
-                        else coachDetails = `Option: -150kcal or +4,500 steps.`;
-                    } else if (avgWeeklyDelta < -1.0) {
-                        if (!performance.isProgressing && weeks.length > 5) {
-                            coachTitle = "Muscle Loss Warning";
-                            coachDetails = "Weight dropping fast + strength down. Increase intake by +200 kcal.";
-                        } else {
-                            coachTitle = "Initial Water Drop";
-                            coachDetails = "Rapid loss likely water. Monitor Week 4.";
-                        }
+            
+                // --- 6. Adaptive Coaching Logic ---
+                if (Math.abs(avgWeeklyDelta) < 0.2) {
+                    coachTitle = "Maintenance Detected";
+                    coachDetails = `Current trajectory is stable. Estimated maintenance: ${Math.round(inferredMaint)} kcal.`;
+                } 
+                else if (goal === "cut" && avgWeeklyDelta > -0.25) {
+                    coachTitle = "Plateau Detected (Loss < 0.25kg/week)";
+                    
+                    if (avgStepsCurrentWeek < STEP_GOAL) {
+                        // Activity Check: Override food cut if steps are low
+                        coachDetails = `Your activity is below the ${STEP_GOAL} step standard. Increase movement before cutting calories to keep your metabolism high.`;
+                    } else if (currentCalories <= CALORIE_FLOOR) {
+                        // Safety Check: Don't starve the user
+                        coachDetails = `You are at the calorie safety floor (${CALORIE_FLOOR} kcal). Do NOT reduce food. Increase activity by +2,500 steps/day to resume progress safely.`;
+                    } else {
+                        // High-Flux Option: Give the user a choice
+                        coachDetails = (
+                            <div>
+                                <p>Resuming progress requires a larger deficit. Choose one:</p>
+                                <ul className="text-start">
+                                    <li><b>Option 1:</b> Reduce food by 150 kcal (Target: {Math.round(currentCalories - 150)} kcal)</li>
+                                    <li><b>Option 2:</b> Increase activity by +2,500 steps/day.</li>
+                                </ul>
+                            </div>
+                        );
                     }
-                } else if (goal === "bulk") {
-                    const overSets = Object.keys(performance.mgSets).filter(mg => performance.mgSets[mg] > 10);
-                    if (overSets.length > 0) {
-                        coachTitle = "Junk Volume Alert";
-                        coachDetails = `Doing >10 sets for ${overSets.join(', ')} in 1 session. Focus on quality.`;
-                    } else if (avgWeeklyDelta < 0.15) {
-                        coachTitle = "Bulk Stalled";
-                        coachDetails = "Increase intake +150 kcal.";
-                    } else if (avgWeeklyDelta > 0.5) {
-                        coachTitle = "Fat Risk";
-                        coachDetails = "Gaining too fast. Decrease -150 kcal.";
-                    }
-                } else if (Math.abs(avgWeeklyDelta) < 0.2) {
-                    coachTitle = "Maintenance Stable";
-                    coachDetails = `Estimated maintenance: ${Math.round(inferredMaint)} kcal.`;
+                } 
+                else if (goal === "bulk" && avgWeeklyDelta < 0.15) {
+                    coachTitle = "Progress Slow (Gain < 0.15kg/week)";
+                    coachDetails = `To support lean muscle growth, increase calories by 150 kcal (Target: ${Math.round(currentCalories + 150)} kcal).`;
                 }
             
                 return (
                     <div className="card p-3 shadow-sm border-0 bg-white">
                         <h6 className="text-primary mb-1">{coachTitle}</h6>
                         <div className="text-muted mb-3" style={{ fontSize: '14px' }}>{coachDetails}</div>
+                        
                         <div className="pt-2 border-top">
                             <div className="d-flex justify-content-between" style={{fontSize: '11px', opacity: 0.8}}>
-                                <span><b>Trend:</b> {trendWeight.toFixed(2)}kg</span>
-                                <span><b>Steps:</b> {Math.round(avgStepsCurrentWeek)}</span>
-                                <span><b>Performance:</b> {performance.isProgressing ? '✅ UP' : '❌ DOWN'}</span>
+                                <span><b>Weight Trend:</b> {trendWeight.toFixed(2)} kg</span>
+                                <span><b>Avg Steps:</b> {Math.round(avgStepsCurrentWeek)}</span>
+                                <span><b>Calories:</b> {currentCalories} kcal</span>
                             </div>
                         </div>
                     </div>
                 );
             })();
+
+
 
             const filteredMetrics = metrics.filter(m => m.week_number >= weekFrom && m.week_number <= weekTo);
 
@@ -977,6 +987,7 @@
                         <div className="col-4"><div className="avg-card"><div className="avg-label">{t("Calories")}</div><div className="avg-value">{stats.kcal}</div></div></div>
                         <div className="col-4"><div className="avg-card"><div className="avg-label">{t("Steps")}</div><div className="avg-value">{stats.steps}</div></div></div>
                     </div>
+                    {/* ... Rest of the Daily History and Measurement History remains unchanged ... */}
                     <div className="section-title">{t("Daily History")}</div>
                     <div className="card p-0 overflow-hidden mb-3">
                         <div className="table-responsive">
