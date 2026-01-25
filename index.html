@@ -384,8 +384,35 @@
             // Translation Helper
             const t = (key) => (translations[lang] && translations[lang][key]) || key;
 
-            // Auth State Management
+            // Auth State Management + PWA Cold-Start Logic
             useEffect(() => {
+                // --- ADDED: PWA Lifecycle & Persistence ---
+                
+                // Request Persistent Storage to prevent OS from purging localStorage
+                if (navigator.storage && navigator.storage.persist) {
+                    navigator.storage.persist().then(persistent => {
+                        if (persistent) console.log("Storage persistence guaranteed");
+                    });
+                }
+
+                // Service Worker Registration with update handling
+                if ('serviceWorker' in navigator) {
+                    window.addEventListener('load', () => {
+                        navigator.serviceWorker.register('sw.js').then(reg => {
+                            reg.update(); // Check for updates on load
+                            reg.onupdatefound = () => {
+                                const newWorker = reg.installing;
+                                newWorker.onstatechange = () => {
+                                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                        console.log("New version available. Please refresh.");
+                                    }
+                                };
+                            };
+                        });
+                    });
+                }
+
+                // --- EXISTING AUTH LOGIC ---
                 _supabase.auth.getSession().then(({ data: { session } }) => {
                     setSession(session);
                     setIsBooting(false);
@@ -487,7 +514,6 @@
                 <div className={`${lang === 'ar' ? 'rtl' : ''}`}>
                     <header className="app-header justify-content-between">
                         <div className="d-flex align-items-center gap-2">
-                            {/* Visual Status Dot */}
                             <div style={{
                                 width: '10px',
                                 height: '10px',
@@ -502,7 +528,6 @@
                         </div>
                         
                         <div className="d-flex align-items-center gap-2">
-                            {/* Translated Status Text */}
                             <span style={{
                                 fontSize: '10px', 
                                 color: isOnline ? '#28a745' : '#dc3545', 
@@ -552,7 +577,7 @@
                     </main>
                 </div>
             );
-        } 
+        }
 
         function WorkoutManager({ user, t }) {
     const [days, setDays] = useState([]);
