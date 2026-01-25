@@ -678,7 +678,7 @@
 
     const saveAndSync = async (newData) => {
         const now = Date.now();
-        setDays(newData); // Update local state immediately
+        setDays(newData); 
         localStorage.setItem(`offline_workouts_${user.id}`, JSON.stringify({
             last_updated: now,
             data: newData
@@ -777,7 +777,10 @@
             <div>
                 <button className="btn w-100 mb-4 fw-800 py-3 text-white border-0 shadow-sm" style={{ backgroundColor: COLORS.primaryBtn, borderRadius: '8px' }} onClick={() => {
                     const name = prompt(t("Day Name:"));
-                    if (name) saveAndSync([...days, { id: Date.now(), name, lastPerformed: null, exercises: [] }]);
+                    if (name) {
+                        const updated = [...days, { id: Date.now(), name, lastPerformed: null, exercises: [] }];
+                        saveAndSync(updated);
+                    }
                 }}>{t("+ NEW WORKOUT DAY")}</button>
                 
                 {days.map(day => (
@@ -814,7 +817,10 @@
                                                     <div className="fw-bold" style={{fontSize: '10px', color: COLORS.secondaryBtn, cursor: 'pointer'}} onClick={(e) => {
                                                         e.stopPropagation();
                                                         const n = prompt(t("Notes:"), ex.target || "");
-                                                        if (n !== null) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(ei => ei.id === ex.id ? {...ei, target: n} : ei)} : d));
+                                                        if (n !== null) {
+                                                            const updated = days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(ei => ei.id === ex.id ? {...ei, target: n} : ei)} : d);
+                                                            saveAndSync(updated);
+                                                        }
                                                     }}>{ex.target || t("NOTES+")}</div>
                                                 </div>
                                                 <div className="d-flex gap-1 mt-1 flex-wrap">
@@ -838,16 +844,19 @@
                                                         </div>
                                                         <input type="number" inputMode="numeric" readOnly={s.logged} className="form-control form-control-sm text-center fw-bold border-0 bg-transparent" placeholder="R" value={s.reps || ''} onChange={e => {
                                                             const val = parseInt(e.target.value) || 0;
-                                                            saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(ei => ei.id === ex.id ? {...ei, sets: ei.sets.map(si => si.id === s.id ? {...si, reps: val} : si)} : ei)} : d));
+                                                            const updated = days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(ei => ei.id === ex.id ? {...ei, sets: ei.sets.map(si => si.id === s.id ? {...si, reps: val} : si)} : ei)} : d);
+                                                            saveAndSync(updated);
                                                         }} />
                                                         <input type="number" inputMode="decimal" readOnly={s.logged} className="form-control form-control-sm text-center fw-bold border-0 bg-transparent" placeholder="KG" value={s.weight || ''} onChange={e => {
                                                             const val = parseFloat(e.target.value) || 0;
-                                                            saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(ei => ei.id === ex.id ? {...ei, sets: ei.sets.map(si => si.id === s.id ? {...si, weight: val} : si)} : ei)} : d));
+                                                            const updated = days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(ei => ei.id === ex.id ? {...ei, sets: ei.sets.map(si => si.id === s.id ? {...si, weight: val} : si)} : ei)} : d);
+                                                            saveAndSync(updated);
                                                         }} />
                                                         {!s.logged && (
                                                             <button className="btn btn-sm p-1 fw-bold" style={{color: COLORS.successMuted}} onClick={() => {
                                                                 startTimer(TOTAL_TIME);
-                                                                saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(ei => ei.id === ex.id ? {...ei, sets: ei.sets.map(si => si.id === s.id ? {...si, logged: true} : si)} : ei)} : d));
+                                                                const updated = days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(ei => ei.id === ex.id ? {...ei, sets: ei.sets.map(si => si.id === s.id ? {...si, logged: true} : si)} : ei)} : d);
+                                                                saveAndSync(updated);
                                                             }}>✓</button>
                                                         )}
                                                         <button className="btn btn-sm p-1" style={{color: COLORS.border}} onClick={() => { if(confirm(t("Delete set?"))) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(ei => ei.id === ex.id ? {...ei, sets: ei.sets.filter(si => si.id !== s.id)} : ei)} : d)); }}>✕</button>
@@ -872,7 +881,10 @@
                         </div>
                         <button className="btn w-100 mt-3 py-2 fw-bold text-white border-0 shadow-sm" style={{ backgroundColor: COLORS.primaryBtn, borderRadius: '8px', fontSize: '12px' }} onClick={() => {
                             const name = prompt(t("Exercise Name:"));
-                            if (name) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: [...d.exercises, { id: Date.now(), name, sets: [], history: [], target: "" }]} : d));
+                            if (name) {
+                                const updated = days.map(d => d.id === day.id ? {...d, exercises: [...d.exercises, { id: Date.now(), name, sets: [], history: [], target: "" }]} : d);
+                                saveAndSync(updated);
+                            }
                         }}>{t("ADD EXERCISE")}</button>
                     </div>
                 ))}
