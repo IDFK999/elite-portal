@@ -1,17 +1,27 @@
 <!DOCTYPE html>
-<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover">
+    
     <title>Elite Performance Portal</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0066FF">
+
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Elite Portal">
+    <link rel="apple-touch-icon" href="https://via.placeholder.com/192/007AFF/FFFFFF?text=EP">
+
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <style>
-        :root {
+    
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" defer></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" defer></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+<style>
+    :root {
+        --accent-blue: #0066FF;
             --accent-blue: #0066FF;
             --soft-grey: #F5F5F7;
             --border-grey: #E5E5EA;
@@ -246,8 +256,6 @@
             ar: {
                 "ELITE PERFORMANCE": "الأداء المتميز",
                 "Syncing...": "جاري المزامنة...",
-                "ONLINE": "متصل",
-                "OFFLINE": "غير متصل",
                 "Workout": "التمارين",
                 "Log": "السجل",
                 "Update": "تحديث",
@@ -372,21 +380,16 @@
             };
         };
 
-        
-
         function App() {
             const [view, setView] = useState('workout');
             const [session, setSession] = useState(null);
             const [isBooting, setIsBooting] = useState(true);
-            const [lang, setLang] = useState(() => localStorage.getItem('app_lang') || 'en');
             
-            // Connection State
-            const [isOnline, setIsOnline] = useState(navigator.onLine);
+            // Fix: Initialize directly from localStorage to prevent resets
+            const [lang, setLang] = useState(() => localStorage.getItem('app_lang') || 'en');
 
-            // Translation Helper
             const t = (key) => (translations[lang] && translations[lang][key]) || key;
 
-            // Auth State Management
             useEffect(() => {
                 _supabase.auth.getSession().then(({ data: { session } }) => {
                     setSession(session);
@@ -398,89 +401,23 @@
                 return () => subscription.unsubscribe();
             }, []);
 
-            // Language/Direction Management
+            // Fix: Keep direction and language choice in sync
             useEffect(() => {
                 document.body.dir = lang === 'ar' ? 'rtl' : 'ltr';
                 localStorage.setItem('app_lang', lang);
             }, [lang]);
 
-            // AUTOMATIC SYNC MANAGER + CONNECTION LISTENERS
-            useEffect(() => {
-                const handleOnline = () => {
-                    setIsOnline(true);
-                    syncOfflineData();
-                };
-                const handleOffline = () => setIsOnline(false);
+            const toggleLang = () => {
+                setLang(prev => prev === 'en' ? 'ar' : 'en');
+            };
 
-                const syncOfflineData = async () => {
-                    if (!session?.user?.id) return;
-                    console.log("Internet restored. Checking for offline data to sync...");
-                    
-                    for (let i = 0; i < localStorage.length; i++) {
-                        const key = localStorage.key(i);
-                        if (!key) continue;
-
-                        // 1. Sync Daily Logs
-                        if (key.startsWith(`offline_log_${session.user.id}`)) {
-                            try {
-                                const data = JSON.parse(localStorage.getItem(key));
-                                const { error } = await _supabase.from('daily_logs').upsert({
-                                    user_id: session.user.id, 
-                                    log_date: data.date, 
-                                    weight: parseFloat(data.weight),
-                                    protein: parseInt(data.p) || 0, 
-                                    carbs: parseInt(data.c) || 0, 
-                                    fats: parseInt(data.f) || 0,
-                                    steps: parseInt(data.steps), 
-                                    water_liters: parseFloat(data.water) || 0, 
-                                    sleep_hours: parseFloat(data.sleep) || 0
-                                }, { onConflict: 'user_id,log_date' });
-                                
-                                if (!error) console.log(`Synced Log: ${data.date}`);
-                            } catch (e) { console.error("Sync error", key); }
-                        }
-
-                        // 2. Sync Weekly Metrics
-                        if (key.startsWith(`offline_metrics_${session.user.id}`)) {
-                            try {
-                                const data = JSON.parse(localStorage.getItem(key));
-                                const weekNum = parseInt(key.split('_w')[1]);
-                                const { error } = await _supabase.from('weekly_metrics').upsert({
-                                    user_id: session.user.id, 
-                                    week_number: weekNum,
-                                    chest: parseFloat(data.chest), 
-                                    waist: parseFloat(data.waist), 
-                                    glute: parseFloat(data.glute) || 0,
-                                    left_arm: parseFloat(data.larm) || 0, 
-                                    right_arm: parseFloat(data.rarm) || 0,
-                                    left_thigh: parseFloat(data.lthigh) || 0, 
-                                    right_thigh: parseFloat(data.rthigh) || 0
-                                }, { onConflict: 'user_id,week_number' });
-
-                                if (!error) console.log(`Synced Metrics Week: ${weekNum}`);
-                            } catch (e) { console.error("Sync error", key); }
-                        }
-                    }
-                };
-
-                window.addEventListener('online', handleOnline);
-                window.addEventListener('offline', handleOffline);
-                
-                // Trigger sync on startup if online
-                if (navigator.onLine && session) syncOfflineData();
-
-                return () => {
-                    window.removeEventListener('online', handleOnline);
-                    window.removeEventListener('offline', handleOffline);
-                };
-            }, [session]);
-
-            const toggleLang = () => setLang(prev => prev === 'en' ? 'ar' : 'en');
-
-            const handleSignOut = async () => {
-                await _supabase.auth.signOut();
-                localStorage.removeItem('supabase.auth.token');
-                window.location.reload();
+            const handleSignOut = async (e) => {
+                if (e) { e.preventDefault(); e.stopPropagation(); }
+                try {
+                    await _supabase.auth.signOut();
+                    localStorage.removeItem('supabase.auth.token'); // Clear only necessary session data
+                    window.location.reload();
+                } catch (err) { window.location.reload(); }
             };
 
             if (isBooting) return <div className="p-5 text-center text-muted">{t("Syncing...")}</div>;
@@ -488,31 +425,9 @@
             return (
                 <div className={`${lang === 'ar' ? 'rtl' : ''}`}>
                     <header className="app-header justify-content-between">
+                        <h6 className="fw-800 m-0" style={{letterSpacing: '-0.5px', fontSize: '15px'}}>{t("ELITE PERFORMANCE")}</h6>
                         <div className="d-flex align-items-center gap-2">
-                            {/* Visual Status Dot */}
-                            <div style={{
-                                width: '10px',
-                                height: '10px',
-                                borderRadius: '50%',
-                                backgroundColor: isOnline ? '#28a745' : '#dc3545',
-                                boxShadow: isOnline ? '0 0 8px #28a745' : '0 0 8px #dc3545',
-                                transition: 'background 0.3s ease'
-                            }}></div>
-                            <h6 className="fw-800 m-0" style={{letterSpacing: '-0.5px', fontSize: '15px'}}>
-                                {t("ELITE PERFORMANCE")}
-                            </h6>
-                        </div>
-                        
-                        <div className="d-flex align-items-center gap-2">
-                            {/* Translated Status Text */}
-                            <span style={{
-                                fontSize: '10px', 
-                                color: isOnline ? '#28a745' : '#dc3545', 
-                                fontWeight: 'bold',
-                                letterSpacing: '0.5px'
-                            }}>
-                                {isOnline ? t("ONLINE") : t("OFFLINE")}
-                            </span>
+                            <div className="badge rounded-pill text-dark border bg-white" style={{fontSize: '9px', padding: '5px 8px'}}>v11.5.3</div>
                             <button className="lang-toggle" onClick={toggleLang}>{lang === 'en' ? '🇸🇦' : '🇬🇧'}</button>
                         </div>
                     </header>
@@ -556,31 +471,416 @@
             );
         }
 
+        function WorkoutManager({ user, t }) {
+    const [days, setDays] = useState([]);
+    const [expandedEx, setExpandedEx] = useState({});
+    const [loading, setLoading] = useState(true);
+    const [timeLeft, setTimeLeft] = useState(0);
+    const [timerActive, setTimerActive] = useState(false);
+    const TOTAL_TIME = 90;
+
+    const COLORS = {
+        bg: '#f4f4f4',
+        card: '#ffffff',
+        textMain: '#1a1a1a',
+        textMuted: '#636e72',
+        primaryBtn: '#1a1a1a', 
+        secondaryBtn: '#636e72',
+        successMuted: '#27ae60',  
+        dangerMuted: '#c0392b',   
+        neutral: '#b2bec3',      
+        border: '#e0e0e0',
+        timerBlue: '#A3D8FF',
+        timerRing: '#E3F2FD'
+    };
+
+    useEffect(() => {
+        let interval = null;
+        if (timerActive && timeLeft > 0) {
+            interval = setInterval(() => {
+                setTimeLeft((prev) => prev - 1);
+            }, 1000);
+        } else if (timeLeft === 0 && timerActive) {
+            clearInterval(interval);
+        }
+        return () => clearInterval(interval);
+    }, [timerActive, timeLeft]);
+
+    const startTimer = (seconds = 90) => {
+        setTimeLeft(seconds);
+        setTimerActive(true);
+    };
+
+    const percentage = (timeLeft / TOTAL_TIME) * 100;
+    const progressColor = timeLeft === 0 ? COLORS.neutral : COLORS.timerBlue;
+
+    // --- UPDATED FETCH LOGIC (Local First) ---
+    useEffect(() => {
+        const fetchWorkouts = async () => {
+            // 1. Load from LocalStorage immediately for offline support
+            const localCache = localStorage.getItem(`offline_workouts_${user.id}`);
+            if (localCache) {
+                setDays(JSON.parse(localCache));
+                setLoading(false); // Stop loading spinner if we have local data
+            }
+
+            // 2. Fetch from Supabase in the background
+            try {
+                const { data } = await _supabase.from('user_settings').select('workout_data').eq('user_id', user.id).maybeSingle();
+                if (data?.workout_data) {
+                    const migratedData = data.workout_data.map(day => ({
+                        ...day,
+                        exercises: (day.exercises || []).map(ex => {
+                            let validHistory = Array.isArray(ex.history) ? ex.history : [];
+                            if (validHistory.length > 0 && validHistory[0].reps !== undefined) {
+                                validHistory = [{ date: t("Previous"), sets: validHistory }];
+                            }
+                            return { ...ex, history: validHistory, target: ex.target || "" };
+                        })
+                    }));
+                    setDays(migratedData);
+                    // Update local cache with server data
+                    localStorage.setItem(`offline_workouts_${user.id}`, JSON.stringify(migratedData));
+                }
+            } catch (err) {
+                console.log("Offline: Using cached data");
+            }
+            setLoading(false);
+        };
+        fetchWorkouts();
+    }, [user.id, t]);
+
+    // --- UPDATED SAVE LOGIC (Save Local then Push) ---
+    const saveAndSync = async (newData) => {
+        // 1. Update UI and LocalStorage instantly
+        setDays(newData);
+        localStorage.setItem(`offline_workouts_${user.id}`, JSON.stringify(newData));
+
+        // 2. Background push to Supabase
+        try {
+            const { error } = await _supabase.from('user_settings').upsert(
+                { user_id: user.id, workout_data: newData }, 
+                { onConflict: 'user_id' }
+            );
+            if (error) throw error;
+        } catch (err) {
+            console.warn("Sync failed. Data saved to local queue.");
+        }
+    };
+
+    const getDaysAgo = (dateStr) => {
+        if (!dateStr) return t("NEVER");
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const logDate = new Date(dateStr);
+        logDate.setHours(0, 0, 0, 0);
+        const diffDays = Math.floor((today - logDate) / (1000 * 60 * 60 * 24));
+        if (diffDays === 0) return t("Today");
+        if (diffDays === 1) return t("Yesterday");
+        return `${diffDays}${t("d ago")}`;
+    };
+
+    const addSet = (dayId, exId) => {
+        const now = new Date();
+        const todayStr = now.toISOString().split('T')[0];
+        const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+        
+        saveAndSync(days.map(d => {
+            if (d.id === dayId) {
+                const isNewSession = d.lastPerformed !== todayStr;
+                return {
+                    ...d, 
+                    lastPerformed: todayStr, 
+                    exercises: d.exercises.map(ex => {
+                        if (ex.id === exId) {
+                            const currentHistory = Array.isArray(ex.history) ? ex.history : [];
+                            const updatedHistory = (isNewSession && ex.sets.length > 0)
+                                ? [{ date: d.lastPerformed || todayStr, sets: [...ex.sets] }, ...currentHistory]
+                                : currentHistory;
+                            return { 
+                                ...ex, 
+                                history: updatedHistory.slice(0, 6),
+                                sets: isNewSession 
+                                    ? [{ id: Date.now(), reps: 0, weight: 0, rpe: 8, addedAt: timeStr, logged: false }] 
+                                    : [...ex.sets, { id: Date.now(), reps: 0, weight: 0, rpe: 8, addedAt: timeStr, logged: false }] 
+                            };
+                        }
+                        return ex;
+                    } )
+                };
+            }
+            return d;
+        }));
+    };
+
+    if (loading) return <div className="text-center p-5 text-muted small fw-bold">{t("Syncing...")}</div>;
+
+    return (
+        <div className="pb-5 px-2" style={{ backgroundColor: COLORS.bg, minHeight: '100vh' }}>
+            <div style={{
+                position: 'sticky',
+                top: 'var(--header-height)',
+                zIndex: 1100,
+                height: timerActive ? '180px' : '0px',
+                opacity: timerActive ? 1 : 0,
+                overflow: 'hidden',
+                transition: 'all 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 -12px 20px -12px'
+            }}>
+                <div style={{
+                    width: '100px',
+                      height: '100px',
+                      borderRadius: '50%',
+                      background: `conic-gradient(${progressColor} ${percentage}%, ${COLORS.timerBlack || '#eee'} 0)`,
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      position: 'relative',
+                      boxShadow: '0 4px 15px rgba(0,0,0,0.15)',
+                }}>
+                    <div style={{
+                        width: '88px',
+                        height: '88px',
+                        borderRadius: '50%',
+                        backgroundColor: '#FFFFFF',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        color: COLORS.textMain,
+                        zIndex: 2
+                    }}>
+                        <div className="fw-800" style={{fontSize: '20px', color: COLORS.secondaryBtn}}>
+                            {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
+                        </div>
+                    </div>
+                </div>
+                
+                <div className="d-flex gap-3 mt-3">
+                    <button 
+                        className="btn btn-sm rounded-pill px-3 fw-bold border-0 shadow-sm" 
+                        style={{backgroundColor: COLORS.timerBlue, color: '#004A80', fontSize: '11px'}}
+                        onClick={() => setTimeLeft(prev => prev + 30)}
+                    >
+                        +30s
+                    </button>
+                    <button 
+                        className="btn btn-sm rounded-pill px-3 fw-bold border-0 shadow-sm" 
+                        style={{backgroundColor: COLORS.dangerMuted, color: 'white', fontSize: '11px'}}
+                        onClick={() => setTimerActive(false)}
+                    >
+                        {timeLeft === 0 ? t("CLOSE") : t("CANCEL")}
+                    </button>
+                </div>
+            </div>
+
+            <div style={{ transition: 'margin 0.4s' }}>
+                <button className="btn w-100 mb-4 fw-800 py-3 text-white border-0 shadow-sm" 
+                        style={{ backgroundColor: COLORS.primaryBtn, borderRadius: '8px' }}
+                        onClick={() => {
+                            const name = prompt(t("Day Name (e.g. Push Day):"));
+                            if (name) saveAndSync([...days, { id: Date.now(), name, lastPerformed: null, exercises: [] }]);
+                        }}>{t("+ NEW WORKOUT DAY")}</button>
+                
+                {days.map(day => (
+                    <div key={day.id} className="card border-0 mb-4 shadow-sm p-3" style={{ borderRadius: '12px', backgroundColor: COLORS.card }}>
+                        <div className="d-flex justify-content-between align-items-center mb-3">
+                            <div>
+                                <h6 className="fw-800 m-0" style={{ color: COLORS.textMain }}>{day.name}</h6>
+                                <span className="text-uppercase fw-bold" style={{fontSize: '9px', color: COLORS.secondaryBtn}}>
+                                    {getDaysAgo(day.lastPerformed)}
+                                </span>
+                            </div>
+                            <button className="btn btn-sm p-0" style={{ color: COLORS.border }} onClick={() => { if(confirm(t("Delete Day?"))) saveAndSync(days.filter(d => d.id !== day.id)); }}>✕</button>
+                        </div>
+
+                        <div className="d-grid gap-2">
+                            {day.exercises.map(ex => {
+                                const history = Array.isArray(ex.history) ? ex.history : [];
+                                const currentReps = ex.sets.reduce((sum, s) => sum + (Number(s.reps) || 0), 0);
+                                const lastReps = history[0] ? history[0].sets.reduce((sum, s) => sum + (Number(s.reps) || 0), 0) : null;
+                                const repsDiff = lastReps !== null ? currentReps - lastReps : 0;
+                                const currentVol = ex.sets.reduce((sum, s) => sum + ((Number(s.reps) || 0) * (Number(s.weight) || 0)), 0);
+                                const lastVol = history[0] ? history[0].sets.reduce((sum, s) => sum + ((Number(s.reps) || 0) * (Number(s.weight) || 0)), 0) : null;
+                                const volDiff = lastVol !== null ? currentVol - lastVol : 0;
+
+                                const getBadgeColor = (diff, lastValue) => {
+                                    if (lastValue === null || diff === 0) return COLORS.neutral;
+                                    return diff > 0 ? COLORS.successMuted : COLORS.dangerMuted;
+                                };
+
+                                return (
+                                    <div key={ex.id} className="rounded-2 p-2 border" style={{ backgroundColor: '#fff', borderColor: COLORS.border }}>
+                                        <div className="d-flex justify-content-between align-items-start" onClick={() => setExpandedEx({...expandedEx, [ex.id]: !expandedEx[ex.id]})}>
+                                            <div style={{flex: 1}}>
+                                                <div className="d-flex justify-content-between align-items-center me-2">
+                                                    <div className="fw-800 text-uppercase" style={{fontSize: '11px', color: COLORS.textMain}}>{expandedEx[ex.id] ? '▼' : '▶'} {ex.name}</div>
+                                                    <div className="fw-bold" style={{fontSize: '10px', color: COLORS.secondaryBtn, cursor: 'pointer'}} onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        const n = prompt(t("Enter Notes:"), ex.target || "");
+                                                        if (n !== null) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(ei => ei.id === ex.id ? {...ei, target: n} : ei)} : d));
+                                                    }}>{ex.target || t("NOTES+")}</div>
+                                                </div>
+                                                <div className="d-flex gap-1 mt-1 flex-wrap">
+                                                    <span className="badge fw-bold" style={{fontSize: '8px', color: '#fff', backgroundColor: getBadgeColor(repsDiff, lastReps)}}>
+                                                        {currentReps}R ({repsDiff >= 0 ? '+' : ''}{repsDiff})
+                                                    </span>
+                                                    <span className="badge fw-bold" style={{fontSize: '8px', color: '#fff', backgroundColor: getBadgeColor(volDiff, lastVol)}}>
+                                                        {currentVol.toLocaleString()}KG ({volDiff >= 0 ? '+' : ''}{volDiff.toLocaleString()})
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <button className="btn btn-sm p-0 px-1" style={{color: COLORS.border}} onClick={(e) => { e.stopPropagation(); if(confirm(t("Delete Exercise?"))) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.filter(ei => ei.id !== ex.id)} : d)); }}>✕</button>
+                                        </div>
+
+                                        {expandedEx[ex.id] && (
+                                            <div className="mt-2 pt-2 border-top" style={{ borderColor: COLORS.border }}>
+                                                {ex.sets.map((s, i) => (
+                                                    <div key={s.id} className="d-flex align-items-center gap-1 p-1 rounded mb-2 border" style={{backgroundColor: s.logged ? '#f1f8f5' : '#fafafa', opacity: s.logged ? 0.8 : 1}}>
+                                                        <div className="text-center" style={{minWidth: '28px'}}>
+                                                            <div className="fw-800" style={{fontSize: '9px', color: COLORS.textMuted}}>{t("S")}{i+1}</div>
+                                                            <div style={{fontSize: '7px', color: '#ccc'}}>{s.addedAt}</div>
+                                                        </div>
+                                                        <input type="number" inputMode="numeric" readOnly={s.logged} className="form-control form-control-sm text-center fw-bold border-0 bg-transparent" placeholder={t("R")} value={s.reps || ''} onChange={e => {
+                                                            const val = parseInt(e.target.value) || 0;
+                                                            saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(ei => ei.id === ex.id ? {...ei, sets: ei.sets.map(si => si.id === s.id ? {...si, reps: val} : si)} : ei)} : d));
+                                                        }} />
+                                                        <input type="number" inputMode="decimal" readOnly={s.logged} className="form-control form-control-sm text-center fw-bold border-0 bg-transparent" placeholder={t("KG")} value={s.weight || ''} onChange={e => {
+                                                            const val = parseFloat(e.target.value) || 0;
+                                                            saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(ei => ei.id === ex.id ? {...ei, sets: ei.sets.map(si => si.id === s.id ? {...si, weight: val} : si)} : ei)} : d));
+                                                        }} />
+                                                        <select disabled={s.logged} className="form-select form-select-sm border-0 fw-bold bg-transparent" style={{width: '60px', fontSize: '10px'}} value={s.rpe || 8} onChange={e => {
+                                                            const val = parseFloat(e.target.value);
+                                                            saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(ei => ei.id === ex.id ? {...ei, sets: ei.sets.map(si => si.id === s.id ? {...si, rpe: val} : si)} : ei)} : d));
+                                                        }}>
+                                                            {[10, 9.5, 9, 8.5, 8, 7.5, 7].map(v => <option key={v} value={v}>@{v}</option>)}
+                                                        </select>
+                                                        
+                                                        {!s.logged && (
+                                                            <button className="btn btn-sm p-1 fw-bold" style={{color: COLORS.successMuted}} onClick={() => {
+                                                                startTimer(TOTAL_TIME);
+                                                                saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(ei => ei.id === ex.id ? {...ei, sets: ei.sets.map(si => si.id === s.id ? {...si, logged: true} : si)} : ei)} : d));
+                                                            }}>✓</button>
+                                                        )}
+
+                                                        <button className="btn btn-sm p-1" style={{color: COLORS.border}} onClick={() => {
+                                                            if(confirm(t("Are you sure you want to delete this set?"))) {
+                                                                saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(ei => ei.id === ex.id ? {...ei, sets: ei.sets.filter(si => si.id !== s.id)} : ei)} : d));
+                                                            }
+                                                        }}>✕</button>
+                                                    </div>
+                                                ))}
+                                                <button className="btn btn-sm w-100 fw-bold mb-3 py-2 border-0 shadow-sm" style={{ color: '#fff', backgroundColor: COLORS.secondaryBtn, borderRadius: '6px' }} onClick={() => addSet(day.id, ex.id)}>{t("+ ADD SET")}</button>
+                                                
+                                                {history.length > 0 && (
+                                                    <div className="mt-2 p-2 rounded" style={{ backgroundColor: COLORS.bg, fontSize: '9px' }}>
+                                                        <div className="fw-800 text-uppercase mb-1 opacity-50">{t("Recent Sessions")}</div>
+                                                        {history.map((h, idx) => (
+                                                            <div key={idx} className="d-flex justify-content-between border-bottom py-1" style={{ borderColor: COLORS.border }}>
+                                                                <span className="fw-bold">{h.date === 'Previous' ? t("Previous") : h.date}</span>
+                                                                <span>{h.sets.map(s => `${s.reps}x${s.weight}kg`).join(', ')}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        <button className="btn w-100 mt-3 py-2 fw-bold text-white border-0 shadow-sm" 
+                                style={{ backgroundColor: COLORS.primaryBtn, borderRadius: '8px', fontSize: '12px' }}
+                                onClick={() => {
+                                    const name = prompt(t("Exercise Name:"));
+                                    if (name) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: [...d.exercises, { id: Date.now(), name, sets: [], history: [], target: "" }]} : d));
+                                }}>{t("ADD EXERCISE")}</button>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
         function DailyLog({ user, t }) {
-            const [f, setF] = useState({ date: new Date().toISOString().split('T')[0], weight:'', steps:'', p:'', c:'', f:'', water:'', sleep:'' });
+            const [f, setF] = useState({ 
+                date: new Date().toISOString().split('T')[0], 
+                weight: '', steps: '', p: '', c: '', f: '', water: '', sleep: '' 
+            });
             const [targets, setTargets] = useState(() => {
                 const saved = localStorage.getItem('macro_targets');
                 return saved ? JSON.parse(saved) : { p: 180, c: 200, f: 60 };
             });
             const [editTargets, setEditTargets] = useState(false);
 
+            // Fetch logic: Local first, then Supabase
             useEffect(() => {
                 const fetchData = async () => {
-                    const { data } = await _supabase.from('daily_logs').select('*').eq('user_id', user.id).eq('log_date', f.date).maybeSingle();
-                    if (data) setF({ ...f, weight: data.weight||'', steps: data.steps||'', p: data.protein||'', c: data.carbs||'', f: data.fats||'', water: data.water_liters||'', sleep: data.sleep_hours||'' });
-                    else setF({ ...f, weight:'', steps:'', p:'', c:'', f:'', water:'', sleep:'' });
+                    const localKey = `offline_log_${user.id}_${f.date}`;
+                    const localData = localStorage.getItem(localKey);
+                    
+                    // 1. If we have local data, show it immediately
+                    if (localData) {
+                        setF(JSON.parse(localData));
+                    }
+
+                    // 2. Try to get fresh data from the server
+                    try {
+                        const { data, error } = await _supabase.from('daily_logs')
+                            .select('*')
+                            .eq('user_id', user.id)
+                            .eq('log_date', f.date)
+                            .maybeSingle();
+                        
+                        if (data) {
+                            const remoteData = { 
+                                date: f.date,
+                                weight: data.weight || '', 
+                                steps: data.steps || '', 
+                                p: data.protein || '', 
+                                c: data.carbs || '', 
+                                f: data.fats || '', 
+                                water: data.water_liters || '', 
+                                sleep: data.sleep_hours || '' 
+                            };
+                            setF(remoteData);
+                            // Update cache with the "truth" from the server
+                            localStorage.setItem(localKey, JSON.stringify(remoteData));
+                        } else if (!localData) {
+                            // If no local and no remote, reset fields for the new date
+                            setF({ date: f.date, weight: '', steps: '', p: '', c: '', f: '', water: '', sleep: '' });
+                        }
+                    } catch (err) {
+                        console.log("Offline: Using local cache");
+                    }
                 };
                 fetchData();
-            }, [f.date]);
+            }, [f.date, user.id]);
 
             const saveLog = async () => {
-                if (!f.weight || !f.steps) return alert("Weight and Steps are required.");
-                const { error } = await _supabase.from('daily_logs').upsert({
-                    user_id: user.id, log_date: f.date, weight: parseFloat(f.weight),
-                    protein: parseInt(f.p)||0, carbs: parseInt(f.c)||0, fats: parseInt(f.f)||0,
-                    steps: parseInt(f.steps), water_liters: parseFloat(f.water)||0, sleep_hours: parseFloat(f.sleep)||0
-                }, { onConflict: 'user_id,log_date' });
-                if (error) alert(error.message); else alert("Saved Successfully");
+                if (!f.weight || !f.steps) return alert(t("Weight (kg) *") + " & " + t("Steps *") + " are required.");
+                
+                // 1. Immediate Local Save
+                const localKey = `offline_log_${user.id}_${f.date}`;
+                localStorage.setItem(localKey, JSON.stringify(f));
+
+                // 2. Background Sync
+                try {
+                    const { error } = await _supabase.from('daily_logs').upsert({
+                        user_id: user.id, log_date: f.date, weight: parseFloat(f.weight),
+                        protein: parseInt(f.p) || 0, carbs: parseInt(f.c) || 0, fats: parseInt(f.f) || 0,
+                        steps: parseInt(f.steps), water_liters: parseFloat(f.water) || 0, sleep_hours: parseFloat(f.sleep) || 0
+                    }, { onConflict: 'user_id,log_date' });
+                    
+                    if (error) throw error;
+                    alert(t("Saved Successfully"));
+                } catch (err) {
+                    alert(t("Saved locally (Offline)."));
+                }
             };
 
             return (
@@ -630,6 +930,7 @@
         function Metrics({ user, t }) {
             const [f, setF] = useState({ chest:'', waist:'', glute:'', larm:'', rarm:'', lthigh:'', rthigh:'' });
             const [startDate, setStartDate] = useState(localStorage.getItem('coach_start_date') || '2026-01-21');
+            
             const getWeekInfo = () => {
                 const start = new Date(startDate);
                 const today = new Date();
@@ -644,15 +945,52 @@
             };
             const weekInfo = getWeekInfo();
 
+            useEffect(() => {
+                const fetchMetrics = async () => {
+                    const localKey = `offline_metrics_${user.id}_w${weekInfo.num}`;
+                    const localData = localStorage.getItem(localKey);
+                    if (localData) setF(JSON.parse(localData));
+
+                    try {
+                        const { data } = await _supabase.from('weekly_metrics')
+                            .select('*')
+                            .eq('user_id', user.id)
+                            .eq('week_number', weekInfo.num)
+                            .maybeSingle();
+                        
+                        if (data) {
+                            const remoteData = { 
+                                chest: data.chest, waist: data.waist, glute: data.glute, 
+                                larm: data.left_arm, rarm: data.right_arm, 
+                                lthigh: data.left_thigh, rthigh: data.right_thigh 
+                            };
+                            setF(remoteData);
+                            localStorage.setItem(localKey, JSON.stringify(remoteData));
+                        }
+                    } catch (e) { console.log("Offline mode active"); }
+                };
+                fetchMetrics();
+            }, [weekInfo.num, user.id]);
+
             const submitCheckin = async () => {
                 if (!f.waist || !f.chest) return alert("Waist and Chest are mandatory.");
-                const { error } = await _supabase.from('weekly_metrics').upsert({
-                    user_id: user.id, week_number: weekInfo.num,
-                    chest: parseFloat(f.chest), waist: parseFloat(f.waist), glute: parseFloat(f.glute)||0,
-                    left_arm: parseFloat(f.larm)||0, right_arm: parseFloat(f.rarm)||0,
-                    left_thigh: parseFloat(f.lthigh)||0, right_thigh: parseFloat(f.rthigh)||0
-                }, { onConflict: 'user_id,week_number' });
-                if (error) alert(error.message); else alert(`${t("WEEK")} ${weekInfo.num} Updated`);
+                
+                const localKey = `offline_metrics_${user.id}_w${weekInfo.num}`;
+                localStorage.setItem(localKey, JSON.stringify(f));
+
+                try {
+                    const { error } = await _supabase.from('weekly_metrics').upsert({
+                        user_id: user.id, week_number: weekInfo.num,
+                        chest: parseFloat(f.chest), waist: parseFloat(f.waist), glute: parseFloat(f.glute)||0,
+                        left_arm: parseFloat(f.larm)||0, right_arm: parseFloat(f.rarm)||0,
+                        left_thigh: parseFloat(f.lthigh)||0, right_thigh: parseFloat(f.rthigh)||0
+                    }, { onConflict: 'user_id,week_number' });
+                    
+                    if (error) throw error;
+                    alert(`${t("WEEK")} ${weekInfo.num} Updated`);
+                } catch (err) {
+                    alert(t("Saved locally (Offline)."));
+                }
             };
 
             return (
@@ -978,6 +1316,15 @@
         }
 
         ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    </script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(reg => console.log('Service Worker Registered'))
+                    .catch(err => console.log('Service Worker Registration Failed', err));
+            });
+        }
     </script>
 </body>
 </html>
