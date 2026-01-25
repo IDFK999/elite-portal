@@ -1004,6 +1004,8 @@
         function Metrics({ user, t }) {
             const [f, setF] = useState({ chest:'', waist:'', glute:'', larm:'', rarm:'', lthigh:'', rthigh:'' });
             const [startDate, setStartDate] = useState(localStorage.getItem('coach_start_date') || '2026-01-21');
+            const [syncing, setSyncing] = useState(false);
+
             const getWeekInfo = () => {
                 const start = new Date(startDate);
                 const today = new Date();
@@ -1016,41 +1018,118 @@
                 weekEnd.setDate(weekStart.getDate() + 7);
                 return { num: weekNum, range: `${weekStart.toLocaleDateString()} - ${weekEnd.toLocaleDateString()}` };
             };
+            
             const weekInfo = getWeekInfo();
 
+            // --- OFFLINE-READY FETCH ---
+            useEffect(() => {
+                const fetchWeekly = async () => {
+                    const localKey = `offline_metrics_${user.id}_w${weekInfo.num}`;
+                    const localData = localStorage.getItem(localKey);
+                    
+                    if (localData) {
+                        setF(JSON.parse(localData));
+                    }
+
+                    try {
+                        const { data, error } = await _supabase.from('weekly_metrics')
+                            .select('*')
+                            .eq('user_id', user.id)
+                            .eq('week_number', weekInfo.num)
+                            .maybeSingle();
+
+                        if (data && !error) {
+                            const remoteData = {
+                                chest: data.chest || '', 
+                                waist: data.waist || '', 
+                                glute: data.glute || '',
+                                larm: data.left_arm || '', 
+                                rarm: data.right_arm || '',
+                                lthigh: data.left_thigh || '', 
+                                rthigh: data.right_thigh || ''
+                            };
+                            setF(remoteData);
+                            localStorage.setItem(localKey, JSON.stringify(remoteData));
+                        } else if (!localData) {
+                            setF({ chest:'', waist:'', glute:'', larm:'', rarm:'', lthigh:'', rthigh:'' });
+                        }
+                    } catch (err) {
+                        console.log("Offline: Using local metrics cache");
+                    }
+                };
+                fetchWeekly();
+            }, [weekInfo.num, user.id]);
+
+            // --- RESILIENT SAVE ---
             const submitCheckin = async () => {
-                if (!f.waist || !f.chest) return alert("Waist and Chest are mandatory.");
-                const { error } = await _supabase.from('weekly_metrics').upsert({
-                    user_id: user.id, week_number: weekInfo.num,
-                    chest: parseFloat(f.chest), waist: parseFloat(f.waist), glute: parseFloat(f.glute)||0,
-                    left_arm: parseFloat(f.larm)||0, right_arm: parseFloat(f.rarm)||0,
-                    left_thigh: parseFloat(f.lthigh)||0, right_thigh: parseFloat(f.rthigh)||0
-                }, { onConflict: 'user_id,week_number' });
-                if (error) alert(error.message); else alert(`${t("WEEK")} ${weekInfo.num} Updated`);
+                if (!f.waist || !f.chest) return alert(t("Waist and Chest are mandatory."));
+                
+                setSyncing(true);
+                const localKey = `offline_metrics_${user.id}_w${weekInfo.num}`;
+                
+                // 1. Save locally immediately
+                localStorage.setItem(localKey, JSON.stringify(f));
+
+                // 2. Sync to Supabase
+                try {
+                    const { error } = await _supabase.from('weekly_metrics').upsert({
+                        user_id: user.id, 
+                        week_number: weekInfo.num,
+                        chest: parseFloat(f.chest), 
+                        waist: parseFloat(f.waist), 
+                        glute: parseFloat(f.glute) || 0,
+                        left_arm: parseFloat(f.larm) || 0, 
+                        right_arm: parseFloat(f.rarm) || 0,
+                        left_thigh: parseFloat(f.lthigh) || 0, 
+                        right_thigh: parseFloat(f.rthigh) || 0
+                    }, { onConflict: 'user_id,week_number' });
+
+                    if (error) {
+                        console.warn("Sync deferred (Offline):", error.message);
+                    }
+                    
+                    alert(`${t("WEEK")} ${weekInfo.num} ${t("Updated")}`);
+                } catch (err) {
+                    alert(t("Saved to device (Offline)"));
+                } finally {
+                    setSyncing(false);
+                }
             };
 
             return (
                 <div className="card">
                     <label className="toggle-label">{t("Program Start Date")}</label>
                     <input type="date" className="form-control mb-3" value={startDate} onChange={e=>{setStartDate(e.target.value); localStorage.setItem('coach_start_date', e.target.value);}} />
-                    <div className="date-range-badge">{t("WEEK")} {weekInfo.num}<br/><span style={{fontSize:'10px', opacity:0.6}}>{weekInfo.range}</span></div>
+                    
+                    <div className="date-range-badge text-center p-2 mb-3" style={{background: 'rgba(0,102,255,0.1)', borderRadius: '12px', color: '#0066FF'}}>
+                        <span className="fw-bold">{t("WEEK")} {weekInfo.num}</span><br/>
+                        <span style={{fontSize:'10px', opacity:0.8}}>{weekInfo.range}</span>
+                    </div>
+
                     <div className="section-title">{t("Measurements")}</div>
                     <div className="row g-2 mb-2">
-                        <div className="col-6"><label className="toggle-label">{t("Waist *")}</label><input type="number" step="any" inputMode="decimal" className="form-control" value={f.waist} onChange={e=>setF({...f, waist: cleanNum(e.target.value)})} /></div>
-                        <div className="col-6"><label className="toggle-label">{t("Chest *")}</label><input type="number" step="any" inputMode="decimal" className="form-control" value={f.chest} onChange={e=>setF({...f, chest: cleanNum(e.target.value)})} /></div>
+                        <div className="col-6"><label className="toggle-label">{t("Waist *")}</label><input type="number" step="any" inputMode="decimal" className="form-control" value={f.waist} onChange={e=>setF({...f, waist: e.target.value})} /></div>
+                        <div className="col-6"><label className="toggle-label">{t("Chest *")}</label><input type="number" step="any" inputMode="decimal" className="form-control" value={f.chest} onChange={e=>setF({...f, chest: e.target.value})} /></div>
                     </div>
                     <div className="row g-2 mb-2">
-                        <div className="col-6"><label className="toggle-label">{t("Left Arm")}</label><input type="number" step="any" inputMode="decimal" className="form-control" value={f.larm} onChange={e=>setF({...f, larm: cleanNum(e.target.value)})} /></div>
-                        <div className="col-6"><label className="toggle-label">{t("Right Arm")}</label><input type="number" step="any" inputMode="decimal" className="form-control" value={f.rarm} onChange={e=>setF({...f, rarm: cleanNum(e.target.value)})} /></div>
+                        <div className="col-6"><label className="toggle-label">{t("Left Arm")}</label><input type="number" step="any" inputMode="decimal" className="form-control" value={f.larm} onChange={e=>setF({...f, larm: e.target.value})} /></div>
+                        <div className="col-6"><label className="toggle-label">{t("Right Arm")}</label><input type="number" step="any" inputMode="decimal" className="form-control" value={f.rarm} onChange={e=>setF({...f, rarm: e.target.value})} /></div>
                     </div>
                     <div className="row g-2 mb-3">
-                        <div className="col-12"><label className="toggle-label">{t("Glutes")}</label><input type="number" step="any" inputMode="decimal" className="form-control" value={f.glute} onChange={e=>setF({...f, glute: cleanNum(e.target.value)})} /></div>
+                        <div className="col-12"><label className="toggle-label">{t("Glutes")}</label><input type="number" step="any" inputMode="decimal" className="form-control" value={f.glute} onChange={e=>setF({...f, glute: e.target.value})} /></div>
                     </div>
                     <div className="row g-2 mb-3">
-                        <div className="col-6"><label className="toggle-label">{t("Left Thigh")}</label><input type="number" step="any" inputMode="decimal" className="form-control" value={f.lthigh} onChange={e=>setF({...f, lthigh: cleanNum(e.target.value)})} /></div>
-                        <div className="col-6"><label className="toggle-label">{t("Right Thigh")}</label><input type="number" step="any" inputMode="decimal" className="form-control" value={f.rthigh} onChange={e=>setF({...f, rthigh: cleanNum(e.target.value)})} /></div>
+                        <div className="col-6"><label className="toggle-label">{t("Left Thigh")}</label><input type="number" step="any" inputMode="decimal" className="form-control" value={f.lthigh} onChange={e=>setF({...f, lthigh: e.target.value})} /></div>
+                        <div className="col-6"><label className="toggle-label">{t("Right Thigh")}</label><input type="number" step="any" inputMode="decimal" className="form-control" value={f.rthigh} onChange={e=>setF({...f, rthigh: e.target.value})} /></div>
                     </div>
-                    <button className="btn btn-primary mt-2" onClick={submitCheckin}>{t("Submit Weekly Stats")}</button>
+                    
+                    <button 
+                        className="btn btn-primary mt-2 py-3 fw-bold" 
+                        onClick={submitCheckin}
+                        disabled={syncing}
+                    >
+                        {syncing ? t("Updating...") : t("Submit Weekly Stats")}
+                    </button>
                 </div>
             );
         }
