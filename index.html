@@ -459,16 +459,17 @@
     const [timeLeft, setTimeLeft] = useState(0);
     const [timerActive, setTimerActive] = useState(false);
 
-    // REFINED PROFESSIONAL PALETTE
+    // PROFESSIONAL MONOCHROME + INDICATOR PALETTE
     const COLORS = {
         bg: '#f4f4f4',
         card: '#ffffff',
         textMain: '#1a1a1a',
         textMuted: '#636e72',
-        primaryBtn: '#1a1a1a', // Black
-        secondaryBtn: '#636e72', // Grey
-        successMuted: '#27ae60', // Professional Emerald
-        dangerMuted: '#c0392b',  // Professional Crimson
+        primaryBtn: '#1a1a1a', 
+        secondaryBtn: '#636e72',
+        successMuted: '#27ae60', // Muted Emerald for Increase
+        dangerMuted: '#c0392b',  // Deep Crimson for Decrease
+        neutral: '#b2bec3',      // Grey for no change/no data
         border: '#e0e0e0'
     };
 
@@ -569,7 +570,7 @@
                 <div className="fixed-top text-white p-2 shadow-sm d-flex justify-content-between align-items-center" 
                      style={{zIndex: 1050, backgroundColor: COLORS.primaryBtn}}>
                     <div className="fw-800 ps-2" style={{fontSize: '13px', letterSpacing: '1px'}}>
-                        RESTING: {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
+                        REST: {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
                     </div>
                     <div className="d-flex gap-2 pe-2">
                         <button className="btn btn-sm btn-outline-light py-0 px-2" style={{fontSize: '11px'}} onClick={() => setTimeLeft(prev => prev + 30)}>+30s</button>
@@ -602,11 +603,18 @@
                             {day.exercises.map(ex => {
                                 const history = Array.isArray(ex.history) ? ex.history : [];
                                 const currentReps = ex.sets.reduce((sum, s) => sum + (Number(s.reps) || 0), 0);
-                                const lastReps = (history[0]?.sets || []).reduce((sum, s) => sum + (Number(s.reps) || 0), 0);
-                                const repsDiff = currentReps - lastReps;
+                                const lastReps = history[0] ? history[0].sets.reduce((sum, s) => sum + (Number(s.reps) || 0), 0) : null;
+                                const repsDiff = lastReps !== null ? currentReps - lastReps : 0;
+
                                 const currentVol = ex.sets.reduce((sum, s) => sum + ((Number(s.reps) || 0) * (Number(s.weight) || 0)), 0);
-                                const lastVol = (history[0]?.sets || []).reduce((sum, s) => sum + ((Number(s.reps) || 0) * (Number(s.weight) || 0)), 0);
-                                const volDiff = currentVol - lastVol;
+                                const lastVol = history[0] ? history[0].sets.reduce((sum, s) => sum + ((Number(s.reps) || 0) * (Number(s.weight) || 0)), 0) : null;
+                                const volDiff = lastVol !== null ? currentVol - lastVol : 0;
+
+                                // Badge Color Logic
+                                const getBadgeColor = (diff, lastValue) => {
+                                    if (lastValue === null || diff === 0) return COLORS.neutral;
+                                    return diff > 0 ? COLORS.successMuted : COLORS.dangerMuted;
+                                };
 
                                 return (
                                     <div key={ex.id} className="rounded-2 p-2 border" style={{ backgroundColor: '#fff', borderColor: COLORS.border }}>
@@ -621,11 +629,10 @@
                                                     }}>{ex.target || 'NOTES+'}</div>
                                                 </div>
                                                 <div className="d-flex gap-1 mt-1 flex-wrap">
-                                                    {/* MUTED PROGRESSION BADGES */}
-                                                    <span className="badge fw-bold" style={{fontSize: '8px', color: '#fff', backgroundColor: repsDiff >= 0 ? COLORS.successMuted : COLORS.dangerMuted, opacity: 0.9}}>
-                                                        {currentReps} REPS ({repsDiff >= 0 ? '+' : ''}{repsDiff})
+                                                    <span className="badge fw-bold" style={{fontSize: '8px', color: '#fff', backgroundColor: getBadgeColor(repsDiff, lastReps)}}>
+                                                        {currentReps}R ({repsDiff >= 0 ? '+' : ''}{repsDiff})
                                                     </span>
-                                                    <span className="badge fw-bold" style={{fontSize: '8px', color: '#fff', backgroundColor: volDiff >= 0 ? COLORS.successMuted : COLORS.dangerMuted, opacity: 0.9}}>
+                                                    <span className="badge fw-bold" style={{fontSize: '8px', color: '#fff', backgroundColor: getBadgeColor(volDiff, lastVol)}}>
                                                         {currentVol.toLocaleString()}KG ({volDiff >= 0 ? '+' : ''}{volDiff.toLocaleString()})
                                                     </span>
                                                     {history.slice(0, 3).map((h, i) => (
@@ -661,7 +668,7 @@
                                                         <button className="btn btn-sm p-1" style={{color: COLORS.border}} onClick={() => saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(ei => ei.id === ex.id ? {...ei, sets: ei.sets.filter(si => si.id !== s.id)} : ei)} : d))}>✕</button>
                                                     </div>
                                                 ))}
-                                                <button className="btn btn-sm w-100 fw-bold mb-3 py-2 border-0" 
+                                                <button className="btn btn-sm w-100 fw-bold mb-3 py-2 border-0 shadow-sm" 
                                                         style={{ color: '#fff', backgroundColor: COLORS.secondaryBtn, borderRadius: '6px' }} 
                                                         onClick={() => addSet(day.id, ex.id)}>+ ADD SET</button>
 
