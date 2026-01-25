@@ -393,8 +393,6 @@
 
             // Auth State Management + PWA Cold-Start Logic
             useEffect(() => {
-                // --- ADDED: PWA Lifecycle & Persistence ---
-                
                 // Request Persistent Storage to prevent OS from purging localStorage
                 if (navigator.storage && navigator.storage.persist) {
                     navigator.storage.persist().then(persistent => {
@@ -406,7 +404,7 @@
                 if ('serviceWorker' in navigator) {
                     window.addEventListener('load', () => {
                         navigator.serviceWorker.register('sw.js').then(reg => {
-                            reg.update(); // Check for updates on load
+                            reg.update(); 
                             reg.onupdatefound = () => {
                                 const newWorker = reg.installing;
                                 newWorker.onstatechange = () => {
@@ -419,7 +417,6 @@
                     });
                 }
 
-                // --- EXISTING AUTH LOGIC ---
                 _supabase.auth.getSession().then(({ data: { session } }) => {
                     setSession(session);
                     setIsBooting(false);
@@ -492,13 +489,27 @@
                                 if (!error) console.log(`Synced Metrics Week: ${weekNum}`);
                             } catch (e) { console.error("Sync error", key); }
                         }
+
+                        // 3. Sync Workout Data (user_settings)
+                        if (key === `offline_workouts_${session.user.id}`) {
+                            try {
+                                const cached = JSON.parse(localStorage.getItem(key));
+                                const workoutData = cached.data || cached;
+                                const { error } = await _supabase.from('user_settings').upsert({
+                                    user_id: session.user.id,
+                                    workout_data: workoutData,
+                                    updated_at: new Date().toISOString()
+                                }, { onConflict: 'user_id' });
+
+                                if (!error) console.log("Synced Workout Data");
+                            } catch (e) { console.error("Workout sync error"); }
+                        }
                     }
                 };
 
                 window.addEventListener('online', handleOnline);
                 window.addEventListener('offline', handleOffline);
                 
-                // Trigger sync on startup if online
                 if (navigator.onLine && session) syncOfflineData();
 
                 return () => {
