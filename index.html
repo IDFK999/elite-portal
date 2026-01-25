@@ -333,6 +333,11 @@
                 "Thighs L/R": "الفخذين (ي/ي)",
                 "Steps": "الخطوات",
                 "Delete Day?": "هل تريد حذف هذا اليوم التدريبي بالكامل نهائياً؟",
+                "REST": "راحة",
+                "SKIP": "تخطي",
+                "NOTES+": "ملاحظات+",
+                "Set": "جولة",
+                "Previous": "السابق",
                 "Delete Exercise?": "حذف التمرين؟"
             }
         };
@@ -455,11 +460,9 @@
     const [expandedEx, setExpandedEx] = useState({});
     const [loading, setLoading] = useState(true);
     
-    // Timer States
     const [timeLeft, setTimeLeft] = useState(0);
     const [timerActive, setTimerActive] = useState(false);
 
-    // PROFESSIONAL MONOCHROME + INDICATOR PALETTE
     const COLORS = {
         bg: '#f4f4f4',
         card: '#ffffff',
@@ -467,9 +470,9 @@
         textMuted: '#636e72',
         primaryBtn: '#1a1a1a', 
         secondaryBtn: '#636e72',
-        successMuted: '#27ae60', // Muted Emerald for Increase
-        dangerMuted: '#c0392b',  // Deep Crimson for Decrease
-        neutral: '#b2bec3',      // Grey for no change/no data
+        successMuted: '#27ae60', 
+        dangerMuted: '#c0392b',  
+        neutral: '#b2bec3',      
         border: '#e0e0e0'
     };
 
@@ -500,7 +503,7 @@
                     exercises: (day.exercises || []).map(ex => {
                         let validHistory = Array.isArray(ex.history) ? ex.history : [];
                         if (validHistory.length > 0 && validHistory[0].reps !== undefined) {
-                            validHistory = [{ date: "Previous", sets: validHistory }];
+                            validHistory = [{ date: t("Previous"), sets: validHistory }];
                         }
                         return { ...ex, history: validHistory, target: ex.target || "" };
                     })
@@ -518,15 +521,15 @@
     };
 
     const getDaysAgo = (dateStr) => {
-        if (!dateStr) return "NEVER";
+        if (!dateStr) return t("NEVER");
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const logDate = new Date(dateStr);
         logDate.setHours(0, 0, 0, 0);
         const diffDays = Math.floor((today - logDate) / (1000 * 60 * 60 * 24));
-        if (diffDays === 0) return "TODAY";
-        if (diffDays === 1) return "YESTERDAY";
-        return `${diffDays}d AGO`;
+        if (diffDays === 0) return t("Today");
+        if (diffDays === 1) return t("Yesterday");
+        return `${diffDays}${t("d ago")}`;
     };
 
     const addSet = (dayId, exId) => {
@@ -562,7 +565,7 @@
         }));
     };
 
-    if (loading) return <div className="text-center p-5 text-muted small fw-bold">Syncing...</div>;
+    if (loading) return <div className="text-center p-5 text-muted small fw-bold">{t("Syncing...")}</div>;
 
     return (
         <div className="pb-5 px-2" style={{ backgroundColor: COLORS.bg, minHeight: '100vh' }}>
@@ -570,11 +573,11 @@
                 <div className="fixed-top text-white p-2 shadow-sm d-flex justify-content-between align-items-center" 
                      style={{zIndex: 1050, backgroundColor: COLORS.primaryBtn}}>
                     <div className="fw-800 ps-2" style={{fontSize: '13px', letterSpacing: '1px'}}>
-                        REST: {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
+                        {t("REST")}: {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
                     </div>
                     <div className="d-flex gap-2 pe-2">
                         <button className="btn btn-sm btn-outline-light py-0 px-2" style={{fontSize: '11px'}} onClick={() => setTimeLeft(prev => prev + 30)}>+30s</button>
-                        <button className="btn btn-sm py-0 fw-bold border-0" style={{fontSize: '11px', backgroundColor: COLORS.secondaryBtn, color: 'white'}} onClick={() => setTimerActive(false)}>SKIP</button>
+                        <button className="btn btn-sm py-0 fw-bold border-0" style={{fontSize: '11px', backgroundColor: COLORS.secondaryBtn, color: 'white'}} onClick={() => setTimerActive(false)}>{t("SKIP")}</button>
                     </div>
                 </div>
             )}
@@ -583,9 +586,9 @@
                 <button className="btn w-100 mb-4 fw-800 py-3 text-white border-0 shadow-sm" 
                         style={{ backgroundColor: COLORS.primaryBtn, borderRadius: '8px' }}
                         onClick={() => {
-                            const name = prompt("Day Name:");
+                            const name = prompt(t("Day Name (e.g. Push Day):"));
                             if (name) saveAndSync([...days, { id: Date.now(), name, lastPerformed: null, exercises: [] }]);
-                        }}>+ NEW WORKOUT DAY</button>
+                        }}>{t("+ NEW WORKOUT DAY")}</button>
                 
                 {days.map(day => (
                     <div key={day.id} className="card border-0 mb-4 shadow-sm p-3" style={{ borderRadius: '12px', backgroundColor: COLORS.card }}>
@@ -596,7 +599,7 @@
                                     {getDaysAgo(day.lastPerformed)}
                                 </span>
                             </div>
-                            <button className="btn btn-sm p-0" style={{ color: COLORS.border }} onClick={() => { if(confirm("Delete Day?")) saveAndSync(days.filter(d => d.id !== day.id)); }}>✕</button>
+                            <button className="btn btn-sm p-0" style={{ color: COLORS.border }} onClick={() => { if(confirm(t("Delete Day?"))) saveAndSync(days.filter(d => d.id !== day.id)); }}>✕</button>
                         </div>
 
                         <div className="d-grid gap-2">
@@ -610,7 +613,6 @@
                                 const lastVol = history[0] ? history[0].sets.reduce((sum, s) => sum + ((Number(s.reps) || 0) * (Number(s.weight) || 0)), 0) : null;
                                 const volDiff = lastVol !== null ? currentVol - lastVol : 0;
 
-                                // Badge Color Logic
                                 const getBadgeColor = (diff, lastValue) => {
                                     if (lastValue === null || diff === 0) return COLORS.neutral;
                                     return diff > 0 ? COLORS.successMuted : COLORS.dangerMuted;
@@ -624,9 +626,9 @@
                                                     <div className="fw-800 text-uppercase" style={{fontSize: '11px', color: COLORS.textMain}}>{expandedEx[ex.id] ? '▼' : '▶'} {ex.name}</div>
                                                     <div className="fw-bold" style={{fontSize: '10px', color: COLORS.secondaryBtn, cursor: 'pointer'}} onClick={(e) => {
                                                         e.stopPropagation();
-                                                        const n = prompt("Notes:", ex.target || "");
+                                                        const n = prompt(t("Enter Notes:"), ex.target || "");
                                                         if (n !== null) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(ei => ei.id === ex.id ? {...ei, target: n} : ei)} : d));
-                                                    }}>{ex.target || 'NOTES+'}</div>
+                                                    }}>{ex.target || t("NOTES+")}</div>
                                                 </div>
                                                 <div className="d-flex gap-1 mt-1 flex-wrap">
                                                     <span className="badge fw-bold" style={{fontSize: '8px', color: '#fff', backgroundColor: getBadgeColor(repsDiff, lastReps)}}>
@@ -635,12 +637,9 @@
                                                     <span className="badge fw-bold" style={{fontSize: '8px', color: '#fff', backgroundColor: getBadgeColor(volDiff, lastVol)}}>
                                                         {currentVol.toLocaleString()}KG ({volDiff >= 0 ? '+' : ''}{volDiff.toLocaleString()})
                                                     </span>
-                                                    {history.slice(0, 3).map((h, i) => (
-                                                        <span key={i} className="badge border fw-normal" style={{fontSize: '7.5px', color: COLORS.textMuted, backgroundColor: '#fcfcfc'}}>W{i+1}: {h.sets.reduce((s, x) => s + (Number(x.reps)*Number(x.weight)), 0).toLocaleString()}</span>
-                                                    ))}
                                                 </div>
                                             </div>
-                                            <button className="btn btn-sm p-0 px-1" style={{color: COLORS.border}} onClick={(e) => { e.stopPropagation(); if(confirm("Delete Exercise?")) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.filter(ei => ei.id !== ex.id)} : d)); }}>✕</button>
+                                            <button className="btn btn-sm p-0 px-1" style={{color: COLORS.border}} onClick={(e) => { e.stopPropagation(); if(confirm(t("Delete Exercise?"))) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.filter(ei => ei.id !== ex.id)} : d)); }}>✕</button>
                                         </div>
 
                                         {expandedEx[ex.id] && (
@@ -648,17 +647,31 @@
                                                 {ex.sets.map((s, i) => (
                                                     <div key={s.id} className="d-flex align-items-center gap-1 p-1 rounded mb-2 border" style={{backgroundColor: '#fafafa'}}>
                                                         <div className="text-center" style={{minWidth: '28px'}}>
-                                                            <div className="fw-800" style={{fontSize: '9px', color: COLORS.textMuted}}>S{i+1}</div>
+                                                            <div className="fw-800" style={{fontSize: '9px', color: COLORS.textMuted}}>{t("S")}{i+1}</div>
                                                             <div style={{fontSize: '7px', color: '#ccc'}}>{s.addedAt}</div>
                                                         </div>
-                                                        <input type="number" className="form-control form-control-sm text-center fw-bold border-0" placeholder="R" value={s.reps || ''} onChange={e => {
-                                                            const val = parseInt(e.target.value) || 0;
-                                                            saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(ei => ei.id === ex.id ? {...ei, sets: ei.sets.map(si => si.id === s.id ? {...si, reps: val} : si)} : ei)} : d));
-                                                        }} />
-                                                        <input type="number" className="form-control form-control-sm text-center fw-bold border-0" placeholder="KG" value={s.weight || ''} onChange={e => {
-                                                            const val = parseFloat(e.target.value) || 0;
-                                                            saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(ei => ei.id === ex.id ? {...ei, sets: ei.sets.map(si => si.id === s.id ? {...si, weight: val} : si)} : ei)} : d));
-                                                        }} />
+                                                        <input 
+                                                            type="number" 
+                                                            inputMode="numeric" 
+                                                            className="form-control form-control-sm text-center fw-bold border-0" 
+                                                            placeholder="R" 
+                                                            value={s.reps || ''} 
+                                                            onChange={e => {
+                                                                const val = parseInt(e.target.value) || 0;
+                                                                saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(ei => ei.id === ex.id ? {...ei, sets: ei.sets.map(si => si.id === s.id ? {...si, reps: val} : si)} : ei)} : d));
+                                                            }} 
+                                                        />
+                                                        <input 
+                                                            type="number" 
+                                                            inputMode="decimal" 
+                                                            className="form-control form-control-sm text-center fw-bold border-0" 
+                                                            placeholder="KG" 
+                                                            value={s.weight || ''} 
+                                                            onChange={e => {
+                                                                const val = parseFloat(e.target.value) || 0;
+                                                                saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(ei => ei.id === ex.id ? {...ei, sets: ei.sets.map(si => si.id === s.id ? {...si, weight: val} : si)} : ei)} : d));
+                                                            }} 
+                                                        />
                                                         <select className="form-select form-select-sm border-0 fw-bold" style={{width: '60px', fontSize: '10px'}} value={s.rpe || 8} onChange={e => {
                                                             const val = parseFloat(e.target.value);
                                                             saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(ei => ei.id === ex.id ? {...ei, sets: ei.sets.map(si => si.id === s.id ? {...si, rpe: val} : si)} : ei)} : d));
@@ -670,7 +683,7 @@
                                                 ))}
                                                 <button className="btn btn-sm w-100 fw-bold mb-3 py-2 border-0 shadow-sm" 
                                                         style={{ color: '#fff', backgroundColor: COLORS.secondaryBtn, borderRadius: '6px' }} 
-                                                        onClick={() => addSet(day.id, ex.id)}>+ ADD SET</button>
+                                                        onClick={() => addSet(day.id, ex.id)}>{t("+ ADD SET")}</button>
 
                                                 {history.map((session, sIdx) => (
                                                     <div key={sIdx} className="p-2 mb-2 rounded border-start border-3" style={{backgroundColor: '#f8f9fa', borderColor: COLORS.border}}>
@@ -680,7 +693,7 @@
                                                         </div>
                                                         {session.sets.map((ps, pi) => (
                                                             <div key={pi} className="d-flex justify-content-between small py-1" style={{fontSize: '10px', borderTop: `1px solid ${COLORS.border}`}}>
-                                                                <span style={{color: COLORS.textMuted}}>Set {pi+1}</span>
+                                                                <span style={{color: COLORS.textMuted}}>{t("Set")} {pi+1}</span>
                                                                 <span className="fw-bold" style={{color: COLORS.textMain}}>{ps.reps} × {ps.weight}kg @{ps.rpe}</span>
                                                             </div>
                                                         ))}
@@ -695,15 +708,15 @@
                         <button className="btn w-100 mt-3 py-2 fw-bold text-white border-0 shadow-sm" 
                                 style={{ backgroundColor: COLORS.primaryBtn, borderRadius: '8px', fontSize: '12px' }}
                                 onClick={() => {
-                                    const name = prompt("Exercise Name:");
+                                    const name = prompt(t("Exercise Name:"));
                                     if (name) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: [...d.exercises, { id: Date.now(), name, sets: [], history: [], target: "" }]} : d));
-                                }}>ADD EXERCISE</button>
+                                }}>{t("ADD EXERCISE")}</button>
                     </div>
                 ))}
             </div>
         </div>
     );
-} 
+}
 
         function DailyLog({ user, t }) {
             const [f, setF] = useState({ date: new Date().toISOString().split('T')[0], weight:'', steps:'', p:'', c:'', f:'', water:'', sleep:'' });
