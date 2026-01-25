@@ -459,18 +459,18 @@
     const [timeLeft, setTimeLeft] = useState(0);
     const [timerActive, setTimerActive] = useState(false);
 
-    // PROFESSIONAL MONOCHROME + INDICATOR PALETTE
+    // HIGH CONTRAST PROFESSIONAL PALETTE
     const COLORS = {
-        bg: '#f4f4f4',
-        card: '#ffffff',
-        textMain: '#1a1a1a',
-        textMuted: '#636e72',
-        primaryBtn: '#1a1a1a', 
-        secondaryBtn: '#636e72',
-        successMuted: '#27ae60', // Muted Emerald for Increase
-        dangerMuted: '#c0392b',  // Deep Crimson for Decrease
-        neutral: '#b2bec3',      // Grey for no change/no data
-        border: '#e0e0e0'
+        bg: '#e2e8f0',           // Darker Grey/Blue background
+        card: '#ffffff',         // Stark white cards
+        textMain: '#000000',     // Pure black text
+        textMuted: '#4a5568',     // Dark slate text
+        primaryBtn: '#000000',   // Pure Black Buttons
+        secondaryBtn: '#2d3748', // Very Dark Grey Buttons
+        successMuted: '#1b5e20', // Dark Forest Green (High Contrast)
+        dangerMuted: '#b71c1c',  // Dark Deep Red (High Contrast)
+        neutral: '#718096',      // Steel Grey
+        border: '#a0aec0'        // Defined border color
     };
 
     useEffect(() => {
@@ -562,41 +562,41 @@
         }));
     };
 
-    if (loading) return <div className="text-center p-5 text-muted small fw-bold">Syncing...</div>;
+    if (loading) return <div className="text-center p-5 text-dark fw-bold">Syncing...</div>;
 
     return (
         <div className="pb-5 px-2" style={{ backgroundColor: COLORS.bg, minHeight: '100vh' }}>
             {timerActive && (
-                <div className="fixed-top text-white p-2 shadow-sm d-flex justify-content-between align-items-center" 
+                <div className="fixed-top text-white p-2 shadow-lg d-flex justify-content-between align-items-center" 
                      style={{zIndex: 1050, backgroundColor: COLORS.primaryBtn}}>
-                    <div className="fw-800 ps-2" style={{fontSize: '13px', letterSpacing: '1px'}}>
+                    <div className="fw-900 ps-2" style={{fontSize: '14px', letterSpacing: '1px'}}>
                         REST: {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
                     </div>
                     <div className="d-flex gap-2 pe-2">
-                        <button className="btn btn-sm btn-outline-light py-0 px-2" style={{fontSize: '11px'}} onClick={() => setTimeLeft(prev => prev + 30)}>+30s</button>
-                        <button className="btn btn-sm py-0 fw-bold border-0" style={{fontSize: '11px', backgroundColor: COLORS.secondaryBtn, color: 'white'}} onClick={() => setTimerActive(false)}>SKIP</button>
+                        <button className="btn btn-sm btn-outline-light py-0 px-2 fw-bold" onClick={() => setTimeLeft(prev => prev + 30)}>+30s</button>
+                        <button className="btn btn-sm py-0 fw-bold border-0 bg-danger text-white" onClick={() => setTimerActive(false)}>SKIP</button>
                     </div>
                 </div>
             )}
 
-            <div style={{marginTop: timerActive ? '60px' : '0px', transition: 'margin 0.3s'}}>
-                <button className="btn w-100 mb-4 fw-800 py-3 text-white border-0 shadow-sm" 
-                        style={{ backgroundColor: COLORS.primaryBtn, borderRadius: '8px' }}
+            <div style={{marginTop: timerActive ? '65px' : '0px', transition: 'margin 0.3s'}}>
+                <button className="btn w-100 mb-4 fw-900 py-3 text-white border-0 shadow" 
+                        style={{ backgroundColor: COLORS.primaryBtn, borderRadius: '10px' }}
                         onClick={() => {
                             const name = prompt("Day Name:");
                             if (name) saveAndSync([...days, { id: Date.now(), name, lastPerformed: null, exercises: [] }]);
                         }}>+ NEW WORKOUT DAY</button>
                 
                 {days.map(day => (
-                    <div key={day.id} className="card border-0 mb-4 shadow-sm p-3" style={{ borderRadius: '12px', backgroundColor: COLORS.card }}>
+                    <div key={day.id} className="card border-0 mb-4 shadow p-3" style={{ borderRadius: '12px', backgroundColor: COLORS.card }}>
                         <div className="d-flex justify-content-between align-items-center mb-3">
                             <div>
-                                <h6 className="fw-800 m-0" style={{ color: COLORS.textMain }}>{day.name}</h6>
-                                <span className="text-uppercase fw-bold" style={{fontSize: '9px', color: COLORS.secondaryBtn}}>
+                                <h5 className="fw-900 m-0" style={{ color: COLORS.textMain }}>{day.name}</h5>
+                                <span className="text-uppercase fw-800" style={{fontSize: '10px', color: COLORS.textMuted}}>
                                     {getDaysAgo(day.lastPerformed)}
                                 </span>
                             </div>
-                            <button className="btn btn-sm p-0" style={{ color: COLORS.border }} onClick={() => { if(confirm("Delete Day?")) saveAndSync(days.filter(d => d.id !== day.id)); }}>✕</button>
+                            <button className="btn btn-sm p-0 fw-bold" style={{ color: COLORS.secondaryBtn, fontSize: '18px' }} onClick={() => { if(confirm("Delete Day?")) saveAndSync(days.filter(d => d.id !== day.id)); }}>✕</button>
                         </div>
 
                         <div className="d-grid gap-2">
@@ -610,78 +610,77 @@
                                 const lastVol = history[0] ? history[0].sets.reduce((sum, s) => sum + ((Number(s.reps) || 0) * (Number(s.weight) || 0)), 0) : null;
                                 const volDiff = lastVol !== null ? currentVol - lastVol : 0;
 
-                                // Badge Color Logic
                                 const getBadgeColor = (diff, lastValue) => {
                                     if (lastValue === null || diff === 0) return COLORS.neutral;
                                     return diff > 0 ? COLORS.successMuted : COLORS.dangerMuted;
                                 };
 
                                 return (
-                                    <div key={ex.id} className="rounded-2 p-2 border" style={{ backgroundColor: '#fff', borderColor: COLORS.border }}>
+                                    <div key={ex.id} className="rounded-2 p-2 border-2 border" style={{ backgroundColor: '#fff', borderColor: COLORS.border }}>
                                         <div className="d-flex justify-content-between align-items-start" onClick={() => setExpandedEx({...expandedEx, [ex.id]: !expandedEx[ex.id]})}>
                                             <div style={{flex: 1}}>
                                                 <div className="d-flex justify-content-between align-items-center me-2">
-                                                    <div className="fw-800 text-uppercase" style={{fontSize: '11px', color: COLORS.textMain}}>{expandedEx[ex.id] ? '▼' : '▶'} {ex.name}</div>
-                                                    <div className="fw-bold" style={{fontSize: '10px', color: COLORS.secondaryBtn, cursor: 'pointer'}} onClick={(e) => {
+                                                    <div className="fw-900 text-uppercase" style={{fontSize: '12px', color: COLORS.textMain}}>{expandedEx[ex.id] ? '▼' : '▶'} {ex.name}</div>
+                                                    <div className="fw-900" style={{fontSize: '11px', color: COLORS.secondaryBtn, cursor: 'pointer', textDecoration: 'underline'}} onClick={(e) => {
                                                         e.stopPropagation();
                                                         const n = prompt("Notes:", ex.target || "");
                                                         if (n !== null) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(ei => ei.id === ex.id ? {...ei, target: n} : ei)} : d));
                                                     }}>{ex.target || 'NOTES+'}</div>
                                                 </div>
-                                                <div className="d-flex gap-1 mt-1 flex-wrap">
-                                                    <span className="badge fw-bold" style={{fontSize: '8px', color: '#fff', backgroundColor: getBadgeColor(repsDiff, lastReps)}}>
+                                                <div className="d-flex gap-1 mt-2 flex-wrap">
+                                                    <span className="badge fw-900 shadow-sm" style={{fontSize: '10px', color: '#fff', backgroundColor: getBadgeColor(repsDiff, lastReps)}}>
                                                         {currentReps}R ({repsDiff >= 0 ? '+' : ''}{repsDiff})
                                                     </span>
-                                                    <span className="badge fw-bold" style={{fontSize: '8px', color: '#fff', backgroundColor: getBadgeColor(volDiff, lastVol)}}>
+                                                    <span className="badge fw-900 shadow-sm" style={{fontSize: '10px', color: '#fff', backgroundColor: getBadgeColor(volDiff, lastVol)}}>
                                                         {currentVol.toLocaleString()}KG ({volDiff >= 0 ? '+' : ''}{volDiff.toLocaleString()})
                                                     </span>
                                                     {history.slice(0, 3).map((h, i) => (
-                                                        <span key={i} className="badge border fw-normal" style={{fontSize: '7.5px', color: COLORS.textMuted, backgroundColor: '#fcfcfc'}}>W{i+1}: {h.sets.reduce((s, x) => s + (Number(x.reps)*Number(x.weight)), 0).toLocaleString()}</span>
+                                                        <span key={i} className="badge border-2 border fw-bold" style={{fontSize: '9px', color: COLORS.textMuted, backgroundColor: '#f1f5f9'}}>W{i+1}: {h.sets.reduce((s, x) => s + (Number(x.reps)*Number(x.weight)), 0).toLocaleString()}</span>
                                                     ))}
                                                 </div>
                                             </div>
-                                            <button className="btn btn-sm p-0 px-1" style={{color: COLORS.border}} onClick={(e) => { e.stopPropagation(); if(confirm("Delete Exercise?")) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.filter(ei => ei.id !== ex.id)} : d)); }}>✕</button>
+                                            <button className="btn btn-sm p-0 px-2 fw-bold" style={{color: COLORS.dangerMuted}} onClick={(e) => { e.stopPropagation(); if(confirm("Delete Exercise?")) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.filter(ei => ei.id !== ex.id)} : d)); }}>✕</button>
                                         </div>
 
                                         {expandedEx[ex.id] && (
-                                            <div className="mt-2 pt-2 border-top" style={{ borderColor: COLORS.border }}>
+                                            <div className="mt-3 pt-2 border-top border-2" style={{ borderColor: COLORS.border }}>
                                                 {ex.sets.map((s, i) => (
-                                                    <div key={s.id} className="d-flex align-items-center gap-1 p-1 rounded mb-2 border" style={{backgroundColor: '#fafafa'}}>
-                                                        <div className="text-center" style={{minWidth: '28px'}}>
-                                                            <div className="fw-800" style={{fontSize: '9px', color: COLORS.textMuted}}>S{i+1}</div>
-                                                            <div style={{fontSize: '7px', color: '#ccc'}}>{s.addedAt}</div>
+                                                    <div key={s.id} className="d-flex align-items-center gap-1 p-2 rounded mb-2 border-2 border" style={{backgroundColor: '#edf2f7'}}>
+                                                        <div className="text-center" style={{minWidth: '35px'}}>
+                                                            <div className="fw-900" style={{fontSize: '11px', color: COLORS.textMain}}>S{i+1}</div>
+                                                            <div style={{fontSize: '8px', color: COLORS.textMuted, fontWeight: 'bold'}}>{s.addedAt}</div>
                                                         </div>
-                                                        <input type="number" className="form-control form-control-sm text-center fw-bold border-0" placeholder="R" value={s.reps || ''} onChange={e => {
+                                                        <input type="number" className="form-control form-control-sm text-center fw-900 border-0 shadow-sm" placeholder="REPS" value={s.reps || ''} onChange={e => {
                                                             const val = parseInt(e.target.value) || 0;
                                                             saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(ei => ei.id === ex.id ? {...ei, sets: ei.sets.map(si => si.id === s.id ? {...si, reps: val} : si)} : ei)} : d));
                                                         }} />
-                                                        <input type="number" className="form-control form-control-sm text-center fw-bold border-0" placeholder="KG" value={s.weight || ''} onChange={e => {
+                                                        <input type="number" className="form-control form-control-sm text-center fw-900 border-0 shadow-sm" placeholder="KG" value={s.weight || ''} onChange={e => {
                                                             const val = parseFloat(e.target.value) || 0;
                                                             saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(ei => ei.id === ex.id ? {...ei, sets: ei.sets.map(si => si.id === s.id ? {...si, weight: val} : si)} : ei)} : d));
                                                         }} />
-                                                        <select className="form-select form-select-sm border-0 fw-bold" style={{width: '60px', fontSize: '10px'}} value={s.rpe || 8} onChange={e => {
+                                                        <select className="form-select form-select-sm border-0 fw-900 shadow-sm" style={{width: '70px', fontSize: '11px'}} value={s.rpe || 8} onChange={e => {
                                                             const val = parseFloat(e.target.value);
                                                             saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(ei => ei.id === ex.id ? {...ei, sets: ei.sets.map(si => si.id === s.id ? {...si, rpe: val} : si)} : ei)} : d));
                                                         }}>
                                                             {[10, 9.5, 9, 8.5, 8, 7.5, 7].map(v => <option key={v} value={v}>@{v}</option>)}
                                                         </select>
-                                                        <button className="btn btn-sm p-1" style={{color: COLORS.border}} onClick={() => saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(ei => ei.id === ex.id ? {...ei, sets: ei.sets.filter(si => si.id !== s.id)} : ei)} : d))}>✕</button>
+                                                        <button className="btn btn-sm p-1 fw-bold text-danger" onClick={() => saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(ei => ei.id === ex.id ? {...ei, sets: ei.sets.filter(si => si.id !== s.id)} : ei)} : d))}>✕</button>
                                                     </div>
                                                 ))}
-                                                <button className="btn btn-sm w-100 fw-bold mb-3 py-2 border-0 shadow-sm" 
-                                                        style={{ color: '#fff', backgroundColor: COLORS.secondaryBtn, borderRadius: '6px' }} 
+                                                <button className="btn btn-sm w-100 fw-900 mb-3 py-2 border-0 shadow" 
+                                                        style={{ color: '#fff', backgroundColor: COLORS.secondaryBtn, borderRadius: '8px' }} 
                                                         onClick={() => addSet(day.id, ex.id)}>+ ADD SET</button>
 
                                                 {history.map((session, sIdx) => (
-                                                    <div key={sIdx} className="p-2 mb-2 rounded border-start border-3" style={{backgroundColor: '#f8f9fa', borderColor: COLORS.border}}>
-                                                        <div className="d-flex justify-content-between fw-bold mb-1" style={{fontSize: '9px', color: COLORS.textMuted}}>
+                                                    <div key={sIdx} className="p-2 mb-2 rounded border-start border-4 shadow-sm" style={{backgroundColor: '#f8fafc', borderColor: COLORS.border}}>
+                                                        <div className="d-flex justify-content-between fw-900 mb-2" style={{fontSize: '11px', color: COLORS.textMain}}>
                                                             <span>{session.date}</span>
-                                                            <span style={{color: COLORS.textMain}}>{session.sets.reduce((sum, s) => sum + (s.reps * s.weight), 0).toLocaleString()}kg</span>
+                                                            <span className="badge bg-dark text-white">{session.sets.reduce((sum, s) => sum + (s.reps * s.weight), 0).toLocaleString()}kg</span>
                                                         </div>
                                                         {session.sets.map((ps, pi) => (
-                                                            <div key={pi} className="d-flex justify-content-between small py-1" style={{fontSize: '10px', borderTop: `1px solid ${COLORS.border}`}}>
-                                                                <span style={{color: COLORS.textMuted}}>Set {pi+1}</span>
-                                                                <span className="fw-bold" style={{color: COLORS.textMain}}>{ps.reps} × {ps.weight}kg @{ps.rpe}</span>
+                                                            <div key={pi} className="d-flex justify-content-between small py-1 border-bottom" style={{fontSize: '11px'}}>
+                                                                <span className="fw-bold" style={{color: COLORS.textMuted}}>Set {pi+1}</span>
+                                                                <span className="fw-900" style={{color: COLORS.textMain}}>{ps.reps} × {ps.weight}kg @{ps.rpe}</span>
                                                             </div>
                                                         ))}
                                                     </div>
@@ -692,8 +691,8 @@
                                 );
                             })}
                         </div>
-                        <button className="btn w-100 mt-3 py-2 fw-bold text-white border-0 shadow-sm" 
-                                style={{ backgroundColor: COLORS.primaryBtn, borderRadius: '8px', fontSize: '12px' }}
+                        <button className="btn w-100 mt-4 py-3 fw-900 text-white border-0 shadow" 
+                                style={{ backgroundColor: COLORS.primaryBtn, borderRadius: '10px', fontSize: '14px' }}
                                 onClick={() => {
                                     const name = prompt("Exercise Name:");
                                     if (name) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: [...d.exercises, { id: Date.now(), name, sets: [], history: [], target: "" }]} : d));
