@@ -1066,15 +1066,15 @@
 
                 <div className="section-title mt-3">{t("Nutrient Intake")}</div>
                 <div className="row g-2">
-                    <div className="col-4"><label className="toggle-label">{t("P")}</label><input type="number" className="form-control" value={f.p} onChange={e=>setF({...f, p: e.target.value})} /></div>
-                    <div className="col-4"><label className="toggle-label">{t("C")}</label><input type="number" className="form-control" value={f.c} onChange={e=>setF({...f, c: e.target.value})} /></div>
-                    <div className="col-4"><label className="toggle-label">{t("F")}</label><input type="number" className="form-control" value={f.f} onChange={e=>setF({...f, f: e.target.value})} /></div>
+                    <div className="col-4"><label className="toggle-label">{t("P")}</label><input type="number" inputMode="numeric" className="form-control" value={f.p} onChange={e=>setF({...f, p: e.target.value})} /></div>
+                    <div className="col-4"><label className="toggle-label">{t("C")}</label><input type="number" inputMode="numeric" className="form-control" value={f.c} onChange={e=>setF({...f, c: e.target.value})} /></div>
+                    <div className="col-4"><label className="toggle-label">{t("F")}</label><input type="number" inputMode="numeric" className="form-control" value={f.f} onChange={e=>setF({...f, f: e.target.value})} /></div>
                 </div>
 
                 <div className="section-title mt-3">{t("Recovery")}</div>
                 <div className="row g-2">
-                    <div className="col-6"><label className="toggle-label">{t("Water (L)")}</label><input type="number" step="any" className="form-control" value={f.water} onChange={e=>setF({...f, water: e.target.value})} /></div>
-                    <div className="col-6"><label className="toggle-label">{t("Sleep (H)")}</label><input type="number" step="any" className="form-control" value={f.sleep} onChange={e=>setF({...f, sleep: e.target.value})} /></div>
+                    <div className="col-6"><label className="toggle-label">{t("Water (L)")}</label><input type="number" step="any" inputMode="decimal" className="form-control" value={f.water} onChange={e=>setF({...f, water: e.target.value})} /></div>
+                    <div className="col-6"><label className="toggle-label">{t("Sleep (H)")}</label><input type="number" step="any" inputMode="decimal" className="form-control" value={f.sleep} onChange={e=>setF({...f, sleep: e.target.value})} /></div>
                 </div>
 
                 <button 
