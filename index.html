@@ -384,12 +384,11 @@
             const [view, setView] = useState('workout');
             const [session, setSession] = useState(null);
             const [isBooting, setIsBooting] = useState(true);
-            
-            // Fix: Initialize directly from localStorage to prevent resets
             const [lang, setLang] = useState(() => localStorage.getItem('app_lang') || 'en');
 
             const t = (key) => (translations[lang] && translations[lang][key]) || key;
 
+            // Auth State Management
             useEffect(() => {
                 _supabase.auth.getSession().then(({ data: { session } }) => {
                     setSession(session);
@@ -401,11 +400,84 @@
                 return () => subscription.unsubscribe();
             }, []);
 
-            // Fix: Keep direction and language choice in sync
+            // Language/Direction Management
             useEffect(() => {
                 document.body.dir = lang === 'ar' ? 'rtl' : 'ltr';
                 localStorage.setItem('app_lang', lang);
             }, [lang]);
+
+            // --- AUTOMATIC SYNC MANAGER ---
+            useEffect(() => {
+                const syncOfflineData = async () => {
+                    if (!session?.user?.id) return;
+                    console.log("Sync Manager: Connection restored. Checking local queue...");
+                    
+                    for (let i = 0; i < localStorage.length; i++) {
+                        const key = localStorage.key(i);
+                        if (!key) continue;
+
+                        // 1. Sync Daily Logs
+                        if (key.startsWith(`offline_log_${session.user.id}`)) {
+                            try {
+                                const data = JSON.parse(localStorage.getItem(key));
+                                const { error } = await _supabase.from('daily_logs').upsert({
+                                    user_id: session.user.id, 
+                                    log_date: data.date, 
+                                    weight: parseFloat(data.weight),
+                                    protein: parseInt(data.p) || 0, 
+                                    carbs: parseInt(data.c) || 0, 
+                                    fats: parseInt(data.f) || 0,
+                                    steps: parseInt(data.steps), 
+                                    water_liters: parseFloat(data.water) || 0, 
+                                    sleep_hours: parseFloat(data.sleep) || 0
+                                }, { onConflict: 'user_id,log_date' });
+                                
+                                if (!error) console.log(`Auto-synced log for: ${data.date}`);
+                            } catch (e) { console.error("Sync error for log key", key); }
+                        }
+
+                        // 2. Sync Weekly Metrics
+                        if (key.startsWith(`offline_metrics_${session.user.id}`)) {
+                            try {
+                                const data = JSON.parse(localStorage.getItem(key));
+                                const weekNum = parseInt(key.split('_w')[1]);
+                                const { error } = await _supabase.from('weekly_metrics').upsert({
+                                    user_id: session.user.id, 
+                                    week_number: weekNum,
+                                    chest: parseFloat(data.chest), 
+                                    waist: parseFloat(data.waist), 
+                                    glute: parseFloat(data.glute) || 0,
+                                    left_arm: parseFloat(data.larm) || 0, 
+                                    right_arm: parseFloat(data.rarm) || 0,
+                                    left_thigh: parseFloat(data.lthigh) || 0, 
+                                    right_thigh: parseFloat(data.rthigh) || 0
+                                }, { onConflict: 'user_id,week_number' });
+
+                                if (!error) console.log(`Auto-synced metrics for week: ${weekNum}`);
+                            } catch (e) { console.error("Sync error for metric key", key); }
+                        }
+
+                        // 3. Sync Workouts (App-wide settings)
+                        if (key === `offline_workouts_${session.user.id}`) {
+                            try {
+                                const data = JSON.parse(localStorage.getItem(key));
+                                const { error } = await _supabase.from('user_settings').upsert(
+                                    { user_id: session.user.id, workout_data: data }, 
+                                    { onConflict: 'user_id' }
+                                );
+                                if (!error) console.log("Auto-synced all workout data.");
+                            } catch (e) { console.error("Sync error for workouts"); }
+                        }
+                    }
+                };
+
+                // Listen for browser coming back online
+                window.addEventListener('online', syncOfflineData);
+                // Also trigger on session start if already online
+                if (navigator.onLine && session) syncOfflineData();
+
+                return () => window.removeEventListener('online', syncOfflineData);
+            }, [session]);
 
             const toggleLang = () => {
                 setLang(prev => prev === 'en' ? 'ar' : 'en');
@@ -415,7 +487,7 @@
                 if (e) { e.preventDefault(); e.stopPropagation(); }
                 try {
                     await _supabase.auth.signOut();
-                    localStorage.removeItem('supabase.auth.token'); // Clear only necessary session data
+                    localStorage.removeItem('supabase.auth.token');
                     window.location.reload();
                 } catch (err) { window.location.reload(); }
             };
