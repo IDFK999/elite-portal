@@ -341,8 +341,9 @@
                 "R": "عدات",
                 "KG": "الوزن",
                 "Recent Sessions" : "الجلسات الأخيرة",
-                "Previous" : "السابق",
-                "Delete Exercise?": "حذف التمرين؟"
+                "Delete Exercise?": "حذف التمرين؟",
+                "CANCEL": "إلغاء",
+                "CLOSE": "إغلاق"
             }
         };
 
@@ -579,7 +580,7 @@
     return (
         <div className="pb-5 px-2" style={{ backgroundColor: COLORS.bg, minHeight: '100vh' }}>
             
-            {/* STICKY CIRCULAR REST TIMER - BACKGROUND REMOVED */}
+            {/* STICKY CIRCULAR REST TIMER */}
             <div style={{
                 position: 'sticky',
                 top: 'var(--header-height)',
@@ -734,7 +735,7 @@
                                                         <div className="fw-800 text-uppercase mb-1 opacity-50">{t("Recent Sessions")}</div>
                                                         {history.map((h, idx) => (
                                                             <div key={idx} className="d-flex justify-content-between border-bottom py-1" style={{ borderColor: COLORS.border }}>
-                                                                <span className="fw-bold">{h.date}</span>
+                                                                <span className="fw-bold">{h.date === 'Previous' ? t("Previous") : h.date}</span>
                                                                 <span>{h.sets.map(s => `${s.reps}x${s.weight}kg`).join(', ')}</span>
                                                             </div>
                                                         ))}
@@ -1098,7 +1099,6 @@
                         <div className="col-4"><div className="avg-card"><div className="avg-label">{t("Calories")}</div><div className="avg-value">{stats.kcal}</div></div></div>
                         <div className="col-4"><div className="avg-card"><div className="avg-label">{t("Steps")}</div><div className="avg-value">{stats.steps}</div></div></div>
                     </div>
-                    {/* ... Rest of the Daily History and Measurement History remains unchanged ... */}
                     <div className="section-title">{t("Daily History")}</div>
                     <div className="card p-0 overflow-hidden mb-3">
                         <div className="table-responsive">
