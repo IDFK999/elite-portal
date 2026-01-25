@@ -598,15 +598,14 @@
                             width: '100px',
                             height: '100px',
                             borderRadius: '50%',
-                            // progressColor becomes Navy Blue during countdown
-                            // COLORS.timerBlack provides the black background for the rest of the circle
-                            background: `conic-gradient(${progressColor} ${percentage}%, ${COLORS.timerBlack} ${percentage}%)`,
+                            // This creates the Navy progress bar against the Black background
+                            background: `conic-gradient(${progressColor} ${percentage}%, ${COLORS.timerBlack} 0)`,
                             transition: 'background 1s linear', 
                             display: 'flex',
                             justifyContent: 'center',
                             alignItems: 'center',
                             position: 'relative',
-                            boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
+                            boxShadow: '0 4px 15px rgba(0,0,0,0.15)'
                         }}>
                             <div style={{
                                 width: '88px',
