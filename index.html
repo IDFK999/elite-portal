@@ -1308,169 +1308,178 @@
             })();
 
             const recommendation = (() => {
-                const currentCalories = stats.kcal;
-                const CALORIE_FLOOR = 1500;
-                const STEP_GOAL = 7000;
-                if (logs.length === 0) return <div>{t("No weight logs yet.")}</div>;
-                const sortedLogs = [...logs].sort((a, b) => new Date(a.log_date) - new Date(b.log_date));
-                const interpolatedLogs = [];
-                for (let i = 0; i < sortedLogs.length - 1; i++) {
-                    const current = sortedLogs[i];
-                    const next = sortedLogs[i + 1];
-                    interpolatedLogs.push(current);
-                    const currentDate = new Date(current.log_date);
-                    const nextDate = new Date(next.log_date);
-                    const dayDiff = Math.round((nextDate - currentDate) / (1000 * 60 * 60 * 24));
-                    if (dayDiff > 1) {
-                        const weightStep = (next.weight - current.weight) / dayDiff;
-                        const stepValue = current.steps || 0;
-                        for (let j = 1; j < dayDiff; j++) {
-                            interpolatedLogs.push({
-                                log_date: new Date(currentDate.getTime() + j * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-                                weight: current.weight + weightStep * j,
-                                steps: stepValue 
-                            });
-                        }
-                    }
-                }
-                interpolatedLogs.push(sortedLogs[sortedLogs.length - 1]);
-                const weeks = groupIntoWeeks(interpolatedLogs);
-                if (weeks.length < 3) return <div>{t("Need 3 full weeks to detect trend.")}</div>;
-                const recentWeeks = weeks.slice(-3); 
-                const weightedAvg = (arr, key) => {
-                    const weights = [1, 1, 2];
-                    let sum = 0, totalWeight = 0;
-                    arr.forEach((week, idx) => {
-                        const avgVal = avg(week, key);
-                        sum += avgVal * weights[idx];
-                        totalWeight += weights[idx];
-                    });
-                    return sum / totalWeight;
-                };
-                const trendWeight = weightedAvg(recentWeeks, "weight");
-                const avgStepsCurrentWeek = avg(recentWeeks[2], "steps") || 0;
-                const w1 = avg(recentWeeks[0], "weight");
-                const w2 = avg(recentWeeks[1], "weight");
-                const w3 = avg(recentWeeks[2], "weight");
-                const avgWeeklyDelta = ((w2 - w1) + (w3 - w2)) / 2;
-                const inferredMaint = inferMaintenance(currentCalories, avgWeeklyDelta, 14);
-                let coachTitle = "Progress on track — no adjustment needed.";
-                let coachDetails = null;
-                if (Math.abs(avgWeeklyDelta) < 0.2) {
-                    coachTitle = "Maintenance Detected";
-                    coachDetails = `Current trajectory is stable. Estimated maintenance: ${Math.round(inferredMaint)} kcal.`;
-                } else if (goal === "cut" && avgWeeklyDelta > -0.25) {
-                    coachTitle = "Plateau Detected (Loss < 0.25kg/week)";
-                    if (avgStepsCurrentWeek < STEP_GOAL) {
-                        coachDetails = `Your activity is below the ${STEP_GOAL} step standard. Increase movement before cutting calories.`;
-                    } else if (currentCalories <= CALORIE_FLOOR) {
-                        coachDetails = `You are at the calorie safety floor (${CALORIE_FLOOR} kcal). Increase activity by +2,500 steps/day.`;
-                    } else {
-                        coachDetails = (
-                            <div>
-                                <p>Resuming progress requires a larger deficit. Choose one:</p>
-                                <ul className="text-start">
-                                    <li><b>Option 1:</b> Reduce food by 150 kcal (Target: {Math.round(currentCalories - 150)} kcal)</li>
-                                    <li><b>Option 2:</b> Increase activity by +2,500 steps/day.</li>
-                                </ul>
-                            </div>
-                        );
-                    }
-                } else if (goal === "bulk" && avgWeeklyDelta < 0.15) {
-                    coachTitle = "Progress Slow (Gain < 0.15kg/week)";
-                    coachDetails = `To support lean muscle growth, increase calories by 150 kcal (Target: ${Math.round(currentCalories + 150)} kcal).`;
-                }
-                return (
-                    <div className="card p-3 shadow-sm border-0 bg-white">
-                        <h6 className="text-primary mb-1">{coachTitle}</h6>
-                        <div className="text-muted mb-3" style={{ fontSize: '14px' }}>{coachDetails}</div>
-                        <div className="pt-2 border-top">
-                            <div className="d-flex justify-content-between" style={{fontSize: '11px', opacity: 0.8}}>
-                                <span><b>Weight Trend:</b> {trendWeight.toFixed(2)} kg</span>
-                                <span><b>Avg Steps:</b> {Math.round(avgStepsCurrentWeek)}</span>
-                                <span><b>Calories:</b> {currentCalories} kcal</span>
-                            </div>
-                        </div>
-                    </div>
-                );
-            })();
+    const currentCalories = stats.kcal;
+    const CALORIE_FLOOR = 1500;
+    const STEP_GOAL = 7000;
 
-            const filteredMetrics = metrics.filter(m => m.week_number >= weekFrom && m.week_number <= weekTo);
+    if (logs.length === 0) return <div>{t("No weight logs yet.")}</div>;
 
-            return (
+    const sortedLogs = [...logs].sort((a, b) => new Date(a.log_date) - new Date(b.log_date));
+    const interpolatedLogs = [];
+
+    for (let i = 0; i < sortedLogs.length - 1; i++) {
+        const current = sortedLogs[i];
+        const next = sortedLogs[i + 1];
+        interpolatedLogs.push(current);
+        const currentDate = new Date(current.log_date);
+        const nextDate = new Date(next.log_date);
+        const dayDiff = Math.round((nextDate - currentDate) / (1000 * 60 * 60 * 24));
+        if (dayDiff > 1) {
+            const weightStep = (next.weight - current.weight) / dayDiff;
+            const stepValue = current.steps || 0;
+            for (let j = 1; j < dayDiff; j++) {
+                interpolatedLogs.push({
+                    log_date: new Date(currentDate.getTime() + j * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+                    weight: current.weight + weightStep * j,
+                    steps: stepValue 
+                });
+            }
+        }
+    }
+    interpolatedLogs.push(sortedLogs[sortedLogs.length - 1]);
+
+    const weeks = groupIntoWeeks(interpolatedLogs);
+    if (weeks.length < 3) return <div>{t("Need 3 full weeks to detect trend.")}</div>;
+
+    const recentWeeks = weeks.slice(-3); 
+    const weightedAvg = (arr, key) => {
+        const weights = [1, 1, 2];
+        let sum = 0, totalWeight = 0;
+        arr.forEach((week, idx) => {
+            const avgVal = avg(week, key);
+            sum += avgVal * weights[idx];
+            totalWeight += weights[idx];
+        });
+        return sum / totalWeight;
+    };
+
+    const trendWeight = weightedAvg(recentWeeks, "weight");
+    const avgStepsCurrentWeek = avg(recentWeeks[2], "steps") || 0;
+    const w1 = avg(recentWeeks[0], "weight");
+    const w2 = avg(recentWeeks[1], "weight");
+    const w3 = avg(recentWeeks[2], "weight");
+    const avgWeeklyDelta = ((w2 - w1) + (w3 - w2)) / 2;
+    const inferredMaint = inferMaintenance(currentCalories, avgWeeklyDelta, 14);
+
+    let coachTitle = t("Progress on track — no adjustment needed.");
+    let coachDetails = null;
+
+    if (Math.abs(avgWeeklyDelta) < 0.2) {
+        coachTitle = t("Maintenance Detected");
+        coachDetails = `${t("Current trajectory is stable. Estimated maintenance:")} ${Math.round(inferredMaint)} ${t("kcal")}.`;
+    } else if (goal === "cut" && avgWeeklyDelta > -0.25) {
+        coachTitle = t("Plateau Detected (Loss < 0.25kg/week)");
+        if (avgStepsCurrentWeek < STEP_GOAL) {
+            coachDetails = `${t("Your activity is below the")} ${STEP_GOAL} ${t("step standard. Increase movement before cutting calories.")}`;
+        } else if (currentCalories <= CALORIE_FLOOR) {
+            coachDetails = `${t("You are at the calorie safety floor")} (${CALORIE_FLOOR} ${t("kcal")}). ${t("Increase activity by +2,500 steps/day.")}`;
+        } else {
+            coachDetails = (
                 <div>
-                    <div className="section-title">{t("Current Objective")}</div>
-                    <div className="d-flex gap-2 mb-3">
-                        {['cut', 'maintain', 'bulk'].map((option) => (
-                            <button key={option} className={`btn flex-grow-1 fw-bold ${goal === option ? 'btn-dark' : 'btn-light border'}`}
-                                style={{ fontSize: '12px', borderRadius: '10px', padding: '12px' }} onClick={() => setGoal(option)}>
-                                {goal_labels[option]}
-                            </button>
-                        ))}
-                    </div>
-                    <div className="section-title">{t("Coach Recommendation")}</div>
-                    <div className="coach-box">{recommendation}</div>
-                    <div className="card">
-                        <div className="section-title">{t("Weight Trend")}</div>
-                        <div className="row g-2 mb-3">
-                            <div className="col-6"><label className="toggle-label">{t("From")}</label><input type="date" className="form-control" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} /></div>
-                            <div className="col-6"><label className="toggle-label">{t("To")}</label><input type="date" className="form-control" value={dateTo} onChange={e=>setDateTo(e.target.value)} /></div>
-                        </div>
-                        <div className="chart-container"><canvas ref={canvasRef}></canvas></div>
-                    </div>
-                    <div className="section-title">{t("Period Averages")}</div>
-                    <div className="row g-2 mb-3">
-                        <div className="col-4"><div className="avg-card"><div className="avg-label">{t("Trend")}</div><div className="avg-value" style={{ color: stats.color }}>{stats.sign}{stats.loss}{t("KG")}</div></div></div>
-                        <div className="col-4"><div className="avg-card"><div className="avg-label">{t("Calories")}</div><div className="avg-value">{stats.kcal}</div></div></div>
-                        <div className="col-4"><div className="avg-card"><div className="avg-label">{t("Steps")}</div><div className="avg-value">{stats.steps}</div></div></div>
-                    </div>
-                    <div className="section-title">{t("Daily History")}</div>
-                    <div className="card p-0 overflow-hidden mb-3">
-                        <div className="table-responsive">
-                            <table className="table table-sm m-0" style={{fontSize: '10px'}}>
-                                <thead className="table-header-custom">
-                                    <tr>
-                                        <th>{t("Date")}</th><th>{t("KG")}</th><th>{t("Cal")}</th><th>{t("P/C/F")}</th><th>{t("Steps")}</th><th>{t("Water")}</th><th>{t("Sleep")}</th>
-                                    </tr>
-                                </thead>
-                                <tbody>{logs.map((l, i) => (
-                                    <tr key={i}>
-                                        <td className="fw-bold">{l.log_date.split('-').slice(1).join('/')}</td>
-                                        <td>{l.weight}</td>
-                                        <td className="text-primary fw-bold">{(l.protein*4 + l.carbs*4 + l.fats*9) || 0}</td>
-                                        <td>{l.protein}/{l.carbs}/{l.fats}</td>
-                                        <td>{l.steps?.toLocaleString()}</td>
-                                        <td>{l.water_liters}L</td>
-                                        <td>{l.sleep_hours}h</td>
-                                    </tr>
-                                ))}</tbody>
-                            </table>
-                        </div>
-                    </div>
-                    <div className="section-title">{t("Measurement History")}</div>
-                    <div className="card mb-5">
-                        <div className="row g-2 mb-3">
-                            <div className="col-6"><label className="toggle-label">{t("From")} {t("WEEK")}</label><select className="form-select" value={weekFrom} onChange={e=>setWeekFrom(parseInt(e.target.value))}>{[...Array(52)].map((_, i) => <option key={i+1} value={i+1}>{t("WEEK")} {i+1}</option>)}</select></div>
-                            <div className="col-6"><label className="toggle-label">{t("To")} {t("WEEK")}</label><select className="form-select" value={weekTo} onChange={e=>setWeekTo(parseInt(e.target.value))}>{[...Array(52)].map((_, i) => <option key={i+1} value={i+1}>{t("WEEK")} {i+1}</option>)}</select></div>
-                        </div>
-                        <div className="table-responsive">
-                            <table className="table table-sm m-0" style={{fontSize: '11px'}}>
-                                <thead className="table-header-custom">
-                                    <tr>
-                                        <th>{t("WEEK")}</th><th>{t("Waist")}</th><th>{t("Chest")}</th><th>{t("Glute")}</th><th>{t("Arms L/R")}</th><th>{t("Thighs L/R")}</th>
-                                    </tr>
-                                </thead>
-                                <tbody>{filteredMetrics.map((m, i) => (
-                                    <tr key={i}>
-                                        <td className="fw-bold">{m.week_number}</td>
-                                        <td>{m.waist}</td><td>{m.chest}</td><td>{m.glute}</td><td>{m.left_arm}/{m.right_arm}</td><td>{m.left_thigh}/{m.right_thigh}</td>
-                                    </tr>
-                                ))}</tbody>
-                            </table>
-                        </div>
-                    </div>
+                    <p>{t("Resuming progress requires a larger deficit. Choose one:")}</p>
+                    <ul className="text-start">
+                        <li><b>{t("Option 1:")}</b> {t("Reduce food by 150 kcal (Target:")} {Math.round(currentCalories - 150)} {t("kcal)")}</li>
+                        <li><b>{t("Option 2:")}</b> {t("Increase activity by +2,500 steps/day.")}</li>
+                    </ul>
                 </div>
             );
+        }
+    } else if (goal === "bulk" && avgWeeklyDelta < 0.15) {
+        coachTitle = t("Progress Slow (Gain < 0.15kg/week)");
+        coachDetails = `${t("To support lean muscle growth, increase calories by 150 kcal (Target:")} ${Math.round(currentCalories + 150)} ${t("kcal).")}`;
+    }
+
+    return (
+        <div className="card p-3 shadow-sm border-0 bg-white">
+            <h6 className="text-primary mb-1">{coachTitle}</h6>
+            <div className="text-muted mb-3" style={{ fontSize: '14px' }}>{coachDetails}</div>
+            <div className="pt-2 border-top">
+                <div className="d-flex justify-content-between" style={{fontSize: '11px', opacity: 0.8}}>
+                    <span><b>{t("Weight Trend:")}</b> {trendWeight.toFixed(2)} {t("kg")}</span>
+                    <span><b>{t("Avg Steps:")}</b> {Math.round(avgStepsCurrentWeek)}</span>
+                    <span><b>{t("Calories:")}</b> {currentCalories} {t("kcal")}</span>
+                </div>
+            </div>
+        </div>
+    );
+})();
+
+const filteredMetrics = metrics.filter(m => m.week_number >= weekFrom && m.week_number <= weekTo);
+
+return (
+    <div>
+        <div className="section-title">{t("Current Objective")}</div>
+        <div className="d-flex gap-2 mb-3">
+            {['cut', 'maintain', 'bulk'].map((option) => (
+                <button key={option} className={`btn flex-grow-1 fw-bold ${goal === option ? 'btn-dark' : 'btn-light border'}`}
+                    style={{ fontSize: '12px', borderRadius: '10px', padding: '12px' }} onClick={() => setGoal(option)}>
+                    {t(goal_labels[option])}
+                </button>
+            ))}
+        </div>
+        <div className="section-title">{t("Coach Recommendation")}</div>
+        <div className="coach-box">{recommendation}</div>
+        <div className="card">
+            <div className="section-title">{t("Weight Trend")}</div>
+            <div className="row g-2 mb-3">
+                <div className="col-6"><label className="toggle-label">{t("From")}</label><input type="date" className="form-control" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} /></div>
+                <div className="col-6"><label className="toggle-label">{t("To")}</label><input type="date" className="form-control" value={dateTo} onChange={e=>setDateTo(e.target.value)} /></div>
+            </div>
+            <div className="chart-container"><canvas ref={canvasRef}></canvas></div>
+        </div>
+        <div className="section-title">{t("Period Averages")}</div>
+        <div className="row g-2 mb-3">
+            <div className="col-4"><div className="avg-card"><div className="avg-label">{t("Trend")}</div><div className="avg-value" style={{ color: stats.color }}>{stats.sign}{stats.loss}{t("KG")}</div></div></div>
+            <div className="col-4"><div className="avg-card"><div className="avg-label">{t("Calories")}</div><div className="avg-value">{stats.kcal}</div></div></div>
+            <div className="col-4"><div className="avg-card"><div className="avg-label">{t("Steps")}</div><div className="avg-value">{stats.steps}</div></div></div>
+        </div>
+        <div className="section-title">{t("Daily History")}</div>
+        <div className="card p-0 overflow-hidden mb-3">
+            <div className="table-responsive">
+                <table className="table table-sm m-0" style={{fontSize: '10px'}}>
+                    <thead className="table-header-custom">
+                        <tr>
+                            <th>{t("Date")}</th><th>{t("KG")}</th><th>{t("Cal")}</th><th>{t("P/C/F")}</th><th>{t("Steps")}</th><th>{t("Water")}</th><th>{t("Sleep")}</th>
+                        </tr>
+                    </thead>
+                    <tbody>{logs.map((l, i) => (
+                        <tr key={i}>
+                            <td className="fw-bold">{l.log_date.split('-').slice(1).join('/')}</td>
+                            <td>{l.weight}</td>
+                            <td className="text-primary fw-bold">{(l.protein*4 + l.carbs*4 + l.fats*9) || 0}</td>
+                            <td>{l.protein}/{l.carbs}/{l.fats}</td>
+                            <td>{l.steps?.toLocaleString()}</td>
+                            <td>{l.water_liters}L</td>
+                            <td>{l.sleep_hours}h</td>
+                        </tr>
+                    ))}</tbody>
+                </table>
+            </div>
+        </div>
+        <div className="section-title">{t("Measurement History")}</div>
+        <div className="card mb-5">
+            <div className="row g-2 mb-3">
+                <div className="col-6"><label className="toggle-label">{t("From")} {t("WEEK")}</label><select className="form-select" value={weekFrom} onChange={e=>setWeekFrom(parseInt(e.target.value))}>{[...Array(52)].map((_, i) => <option key={i+1} value={i+1}>{t("WEEK")} {i+1}</option>)}</select></div>
+                <div className="col-6"><label className="toggle-label">{t("To")} {t("WEEK")}</label><select className="form-select" value={weekTo} onChange={e=>setWeekTo(parseInt(e.target.value))}>{[...Array(52)].map((_, i) => <option key={i+1} value={i+1}>{t("WEEK")} {i+1}</option>)}</select></div>
+            </div>
+            <div className="table-responsive">
+                <table className="table table-sm m-0" style={{fontSize: '11px'}}>
+                    <thead className="table-header-custom">
+                        <tr>
+                            <th>{t("WEEK")}</th><th>{t("Waist")}</th><th>{t("Chest")}</th><th>{t("Glute")}</th><th>{t("Arms L/R")}</th><th>{t("Thighs L/R")}</th>
+                        </tr>
+                    </thead>
+                    <tbody>{filteredMetrics.map((m, i) => (
+                        <tr key={i}>
+                            <td className="fw-bold">{m.week_number}</td>
+                            <td>{m.waist}</td><td>{m.chest}</td><td>{m.glute}</td><td>{m.left_arm}/{m.right_arm}</td><td>{m.left_thigh}/{m.right_thigh}</td>
+                        </tr>
+                    ))}</tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+);
         }
 
         function Login({ t, lang }) {
