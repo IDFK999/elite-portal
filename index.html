@@ -486,7 +486,7 @@
             }, 1000);
         } else if (timeLeft === 0) {
             setTimerActive(false);
-            clearInterval(interval);
+            if (interval) clearInterval(interval);
         }
         return () => clearInterval(interval);
     }, [timerActive, timeLeft]);
@@ -539,7 +539,6 @@
         const todayStr = now.toISOString().split('T')[0];
         const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
         
-        // Start rest timer automatically when adding a set
         startTimer(90);
 
         saveAndSync(days.map(d => {
@@ -574,10 +573,11 @@
 
     return (
         <div className="pb-5 px-2" style={{ backgroundColor: COLORS.bg, minHeight: '100vh' }}>
+            
             {/* REST TIMER OVERLAY */}
             {timerActive && (
                 <div className="fixed-top text-white p-2 shadow-sm d-flex justify-content-between align-items-center" 
-                     style={{zIndex: 1050, backgroundColor: COLORS.primaryBtn}}>
+                     style={{zIndex: 1600, backgroundColor: COLORS.primaryBtn}}> 
                     <div className="fw-800 ps-2" style={{fontSize: '13px', letterSpacing: '1px'}}>
                         {t("REST")}: {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
                     </div>
@@ -657,7 +657,6 @@
                                                             <div style={{fontSize: '7px', color: '#ccc'}}>{s.addedAt}</div>
                                                         </div>
                                                         
-                                                        {/* REPS INPUT - Number Pad */}
                                                         <input 
                                                             type="number" 
                                                             inputMode="numeric" 
@@ -670,7 +669,6 @@
                                                             }} 
                                                         />
                                                         
-                                                        {/* WEIGHT INPUT - Number Pad with Decimals */}
                                                         <input 
                                                             type="number" 
                                                             inputMode="decimal" 
@@ -727,7 +725,7 @@
             </div>
         </div>
     );
-} 
+}
 
         function DailyLog({ user, t }) {
             const [f, setF] = useState({ date: new Date().toISOString().split('T')[0], weight:'', steps:'', p:'', c:'', f:'', water:'', sleep:'' });
