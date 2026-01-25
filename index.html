@@ -340,6 +340,8 @@
                 "Previous": "السابق",
                 "R": "عدات",
                 "KG": "الوزن",
+                "Recent Sessions" : "الجلسات الأخيرة"
+                "Previous" : "السابق"
                 "Delete Exercise?": "حذف التمرين؟"
             }
         };
@@ -558,7 +560,7 @@
                                 : currentHistory;
                             return { 
                                 ...ex, 
-                                history: updatedHistory.slice(0, 6), // View 6 previous sessions
+                                history: updatedHistory.slice(0, 6),
                                 sets: isNewSession 
                                     ? [{ id: Date.now(), reps: 0, weight: 0, rpe: 8, addedAt: timeStr }] 
                                     : [...ex.sets, { id: Date.now(), reps: 0, weight: 0, rpe: 8, addedAt: timeStr }] 
@@ -577,7 +579,7 @@
     return (
         <div className="pb-5 px-2" style={{ backgroundColor: COLORS.bg, minHeight: '100vh' }}>
             
-            {/* STICKY CIRCULAR REST TIMER */}
+            {/* STICKY CIRCULAR REST TIMER - BACKGROUND REMOVED */}
             <div style={{
                 position: 'sticky',
                 top: 'var(--header-height)',
@@ -590,12 +592,7 @@
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                backdropFilter: 'blur(10px)',
-                WebkitBackdropFilter: 'blur(10px)',
-                margin: '0 -12px 20px -12px',
-                borderBottom: timerActive ? `1px solid ${COLORS.border}` : 'none',
-                boxShadow: timerActive ? '0 4px 12px rgba(0,0,0,0.05)' : 'none'
+                margin: '0 -12px 20px -12px'
             }}>
                 <div style={{
                     width: '100px',
@@ -628,14 +625,14 @@
                 
                 <div className="d-flex gap-3 mt-3">
                     <button 
-                        className="btn btn-sm rounded-pill px-3 fw-bold border-0" 
-                        style={{backgroundColor: COLORS.bg, color: COLORS.textMain, fontSize: '11px'}}
+                        className="btn btn-sm rounded-pill px-3 fw-bold border-0 shadow-sm" 
+                        style={{backgroundColor: '#fff', color: COLORS.textMain, fontSize: '11px'}}
                         onClick={() => setTimeLeft(prev => prev + 30)}
                     >
                         +30s
                     </button>
                     <button 
-                        className="btn btn-sm rounded-pill px-3 fw-bold border-0" 
+                        className="btn btn-sm rounded-pill px-3 fw-bold border-0 shadow-sm" 
                         style={{backgroundColor: COLORS.dangerMuted, color: 'white', fontSize: '11px'}}
                         onClick={() => setTimerActive(false)}
                     >
