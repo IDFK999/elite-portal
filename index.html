@@ -598,10 +598,11 @@
     const percentage = (timeLeft / TOTAL_TIME) * 100;
     const progressColor = timeLeft === 0 ? COLORS.neutral : COLORS.timerBlue;
 
-    // --- SMART FETCH (Protects Offline Progress) ---
+    // --- SMART FETCH (Fixed for Cross-Device Sync) ---
     useEffect(() => {
         const fetchWorkouts = async () => {
-            const localCache = localStorage.getItem(`offline_workouts_${user.id}`);
+            const cacheKey = `offline_workouts_${user.id}`;
+            const localCache = localStorage.getItem(cacheKey);
             let localTimestamp = 0;
             
             if (localCache) {
@@ -619,6 +620,7 @@
 
                 if (data?.workout_data) {
                     const serverTime = new Date(data.updated_at).getTime();
+                    // Force update if server is newer or local is empty
                     if (serverTime > localTimestamp || !localCache) {
                         const migratedData = data.workout_data.map(day => ({
                             ...day,
@@ -631,7 +633,7 @@
                             })
                         }));
                         setDays(migratedData);
-                        localStorage.setItem(`offline_workouts_${user.id}`, JSON.stringify({
+                        localStorage.setItem(cacheKey, JSON.stringify({
                             last_updated: serverTime,
                             data: migratedData
                         }));
@@ -764,7 +766,6 @@
                             {day.exercises.map(ex => {
                                 const history = Array.isArray(ex.history) ? ex.history : [];
                                 
-                                // PROGRESSIVE OVERLOAD CALCULATION
                                 const currentReps = ex.sets.reduce((sum, s) => sum + (Number(s.reps) || 0), 0);
                                 const lastReps = history[0] ? history[0].sets.reduce((sum, s) => sum + (Number(s.reps) || 0), 0) : null;
                                 const repsDiff = lastReps !== null ? currentReps - lastReps : 0;
@@ -773,7 +774,6 @@
                                 const lastVol = history[0] ? history[0].sets.reduce((sum, s) => sum + ((Number(s.reps) || 0) * (Number(s.weight) || 0)), 0) : null;
                                 const volDiff = lastVol !== null ? currentVol - lastVol : 0;
 
-                                // COLOR HELPER
                                 const getBadgeColor = (diff, lastValue) => {
                                     if (lastValue === null || diff === 0) return COLORS.neutral;
                                     return diff > 0 ? COLORS.successMuted : COLORS.dangerMuted;
@@ -791,7 +791,6 @@
                                                         if (n !== null) saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(ei => ei.id === ex.id ? {...ei, target: n} : ei)} : d));
                                                     }}>{ex.target || t("NOTES+")}</div>
                                                 </div>
-                                                {/* COLORED BADGES FOR PROGRESSIVE OVERLOAD */}
                                                 <div className="d-flex gap-1 mt-1 flex-wrap">
                                                     <span className="badge fw-bold" style={{fontSize: '8px', color: '#fff', backgroundColor: getBadgeColor(repsDiff, lastReps)}}>
                                                         {currentReps}R ({repsDiff >= 0 ? '+' : ''}{repsDiff})
