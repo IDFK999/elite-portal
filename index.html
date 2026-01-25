@@ -521,7 +521,6 @@
         const todayStr = now.toISOString().split('T')[0];
         const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
         
-        // Trigger Rest Timer automatically
         startTimer(90);
 
         saveAndSync(days.map(d => {
@@ -557,7 +556,6 @@
 
     return (
         <div className="pb-5 px-2">
-            {/* FLOATING REST TIMER */}
             {timerActive && (
                 <div className="fixed-top bg-dark text-white p-2 shadow-lg d-flex justify-content-between align-items-center" style={{zIndex: 1050, borderBottom: '3px solid #3498db'}}>
                     <div className="fw-800 ps-2" style={{fontSize: '14px'}}>
@@ -591,6 +589,13 @@
                         <div className="d-grid gap-2">
                             {day.exercises.map(ex => {
                                 const history = Array.isArray(ex.history) ? ex.history : [];
+                                
+                                // REPS CALCULATION
+                                const currentReps = ex.sets.reduce((sum, s) => sum + (Number(s.reps) || 0), 0);
+                                const lastReps = (history[0]?.sets || []).reduce((sum, s) => sum + (Number(s.reps) || 0), 0);
+                                const repsDiff = currentReps - lastReps;
+
+                                // VOLUME CALCULATION
                                 const currentVol = ex.sets.reduce((sum, s) => sum + ((Number(s.reps) || 0) * (Number(s.weight) || 0)), 0);
                                 const lastVol = (history[0]?.sets || []).reduce((sum, s) => sum + ((Number(s.reps) || 0) * (Number(s.weight) || 0)), 0);
                                 const volDiff = currentVol - lastVol;
@@ -608,11 +613,17 @@
                                                     }}>{ex.target || 'NOTES+'}</div>
                                                 </div>
                                                 <div className="d-flex gap-1 mt-1 flex-wrap">
-                                                    <span className={`badge ${volDiff >= 0 ? 'bg-success' : 'bg-danger'}`} style={{fontSize: '8px'}}>
-                                                        VOL: {currentVol.toLocaleString()}kg ({volDiff >= 0 ? '+' : ''}{volDiff.toLocaleString()})
+                                                    {/* REPS BADGE */}
+                                                    <span className={`badge ${repsDiff >= 0 ? 'bg-info text-white' : 'bg-danger'}`} style={{fontSize: '8px'}}>
+                                                        {currentReps}R ({repsDiff >= 0 ? '+' : ''}{repsDiff})
                                                     </span>
+                                                    {/* VOLUME BADGE */}
+                                                    <span className={`badge ${volDiff >= 0 ? 'bg-success' : 'bg-danger'}`} style={{fontSize: '8px'}}>
+                                                        {currentVol.toLocaleString()}kg ({volDiff >= 0 ? '+' : ''}{volDiff.toLocaleString()})
+                                                    </span>
+                                                    {/* HISTORY BADGES (Volume-based) */}
                                                     {history.slice(0, 2).map((h, i) => (
-                                                        <span key={i} className="badge bg-white text-muted border" style={{fontSize: '7px'}}>W{i+1}: {h.sets.reduce((s, x) => s + (Number(x.reps)*Number(x.weight)), 0).toLocaleString()}</span>
+                                                        <span key={i} className="badge bg-white text-muted border" style={{fontSize: '7px'}}>W{i+1}: {h.sets.reduce((s, x) => s + (Number(x.reps)*Number(x.weight)), 0).toLocaleString()}kg</span>
                                                     ))}
                                                 </div>
                                             </div>
