@@ -558,7 +558,7 @@
                                 : currentHistory;
                             return { 
                                 ...ex, 
-                                history: updatedHistory.slice(0, 5),
+                                history: updatedHistory.slice(0, 6), // View 6 previous sessions
                                 sets: isNewSession 
                                     ? [{ id: Date.now(), reps: 0, weight: 0, rpe: 8, addedAt: timeStr }] 
                                     : [...ex.sets, { id: Date.now(), reps: 0, weight: 0, rpe: 8, addedAt: timeStr }] 
@@ -730,6 +730,19 @@
                                                     </div>
                                                 ))}
                                                 <button className="btn btn-sm w-100 fw-bold mb-3 py-2 border-0 shadow-sm" style={{ color: '#fff', backgroundColor: COLORS.secondaryBtn, borderRadius: '6px' }} onClick={() => addSet(day.id, ex.id)}>{t("+ ADD SET")}</button>
+                                                
+                                                {/* PREVIOUS SESSIONS VIEW */}
+                                                {history.length > 0 && (
+                                                    <div className="mt-2 p-2 rounded" style={{ backgroundColor: COLORS.bg, fontSize: '9px' }}>
+                                                        <div className="fw-800 text-uppercase mb-1 opacity-50">{t("Recent Sessions")}</div>
+                                                        {history.map((h, idx) => (
+                                                            <div key={idx} className="d-flex justify-content-between border-bottom py-1" style={{ borderColor: COLORS.border }}>
+                                                                <span className="fw-bold">{h.date}</span>
+                                                                <span>{h.sets.map(s => `${s.reps}x${s.weight}kg`).join(', ')}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
                                             </div>
                                         )}
                                     </div>
