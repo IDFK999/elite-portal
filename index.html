@@ -577,7 +577,6 @@
         timerRing: '#E3F2FD'
     };
 
-    // --- TIMER LOGIC ---
     useEffect(() => {
         let interval = null;
         if (timerActive && timeLeft > 0) {
@@ -598,7 +597,6 @@
     const percentage = (timeLeft / TOTAL_TIME) * 100;
     const progressColor = timeLeft === 0 ? COLORS.neutral : COLORS.timerBlue;
 
-    // --- SMART FETCH (Fixed for Cross-Device Sync) ---
     useEffect(() => {
         const fetchWorkouts = async () => {
             const cacheKey = `offline_workouts_${user.id}`;
@@ -620,7 +618,6 @@
 
                 if (data?.workout_data) {
                     const serverTime = new Date(data.updated_at).getTime();
-                    // Force update if server is newer or local is empty
                     if (serverTime > localTimestamp || !localCache) {
                         const migratedData = data.workout_data.map(day => ({
                             ...day,
@@ -649,7 +646,7 @@
 
     const saveAndSync = async (newData) => {
         const now = Date.now();
-        setDays(newData);
+        setDays(newData); // Update local state immediately
         localStorage.setItem(`offline_workouts_${user.id}`, JSON.stringify({
             last_updated: now,
             data: newData
@@ -704,7 +701,7 @@
                             };
                         }
                         return ex;
-                    } )
+                    })
                 };
             }
             return d;
@@ -716,7 +713,6 @@
 
     return (
         <div className="pb-5 px-2" style={{ backgroundColor: COLORS.bg, minHeight: '100vh' }}>
-            {/* Timer UI */}
             <div style={{
                 position: 'sticky', top: 'var(--header-height)', zIndex: 1100,
                 height: timerActive ? '180px' : '0px', opacity: timerActive ? 1 : 0,
@@ -765,11 +761,9 @@
                         <div className="d-grid gap-2">
                             {day.exercises.map(ex => {
                                 const history = Array.isArray(ex.history) ? ex.history : [];
-                                
                                 const currentReps = ex.sets.reduce((sum, s) => sum + (Number(s.reps) || 0), 0);
                                 const lastReps = history[0] ? history[0].sets.reduce((sum, s) => sum + (Number(s.reps) || 0), 0) : null;
                                 const repsDiff = lastReps !== null ? currentReps - lastReps : 0;
-
                                 const currentVol = ex.sets.reduce((sum, s) => sum + ((Number(s.reps) || 0) * (Number(s.weight) || 0)), 0);
                                 const lastVol = history[0] ? history[0].sets.reduce((sum, s) => sum + ((Number(s.reps) || 0) * (Number(s.weight) || 0)), 0) : null;
                                 const volDiff = lastVol !== null ? currentVol - lastVol : 0;
