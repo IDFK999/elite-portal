@@ -561,8 +561,8 @@
                                 ...ex, 
                                 history: updatedHistory.slice(0, 6),
                                 sets: isNewSession 
-                                    ? [{ id: Date.now(), reps: 0, weight: 0, rpe: 8, addedAt: timeStr }] 
-                                    : [...ex.sets, { id: Date.now(), reps: 0, weight: 0, rpe: 8, addedAt: timeStr }] 
+                                    ? [{ id: Date.now(), reps: 0, weight: 0, rpe: 8, addedAt: timeStr, logged: false }] 
+                                    : [...ex.sets, { id: Date.now(), reps: 0, weight: 0, rpe: 8, addedAt: timeStr, logged: false }] 
                             };
                         }
                         return ex;
@@ -578,7 +578,6 @@
     return (
         <div className="pb-5 px-2" style={{ backgroundColor: COLORS.bg, minHeight: '100vh' }}>
             
-            {/* STICKY CIRCULAR REST TIMER */}
             <div style={{
                 position: 'sticky',
                 top: 'var(--header-height)',
@@ -703,27 +702,33 @@
                                         {expandedEx[ex.id] && (
                                             <div className="mt-2 pt-2 border-top" style={{ borderColor: COLORS.border }}>
                                                 {ex.sets.map((s, i) => (
-                                                    <div key={s.id} className="d-flex align-items-center gap-1 p-1 rounded mb-2 border" style={{backgroundColor: '#fafafa'}}>
+                                                    <div key={s.id} className="d-flex align-items-center gap-1 p-1 rounded mb-2 border" style={{backgroundColor: s.logged ? '#f1f8f5' : '#fafafa', opacity: s.logged ? 0.8 : 1}}>
                                                         <div className="text-center" style={{minWidth: '28px'}}>
                                                             <div className="fw-800" style={{fontSize: '9px', color: COLORS.textMuted}}>{t("S")}{i+1}</div>
                                                             <div style={{fontSize: '7px', color: '#ccc'}}>{s.addedAt}</div>
                                                         </div>
-                                                        <input type="number" inputMode="numeric" className="form-control form-control-sm text-center fw-bold border-0" placeholder={t("R")} value={s.reps || ''} onChange={e => {
+                                                        <input type="number" inputMode="numeric" readOnly={s.logged} className="form-control form-control-sm text-center fw-bold border-0 bg-transparent" placeholder={t("R")} value={s.reps || ''} onChange={e => {
                                                             const val = parseInt(e.target.value) || 0;
                                                             saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(ei => ei.id === ex.id ? {...ei, sets: ei.sets.map(si => si.id === s.id ? {...si, reps: val} : si)} : ei)} : d));
                                                         }} />
-                                                        <input type="number" inputMode="decimal" className="form-control form-control-sm text-center fw-bold border-0" placeholder={t("KG")} value={s.weight || ''} onChange={e => {
+                                                        <input type="number" inputMode="decimal" readOnly={s.logged} className="form-control form-control-sm text-center fw-bold border-0 bg-transparent" placeholder={t("KG")} value={s.weight || ''} onChange={e => {
                                                             const val = parseFloat(e.target.value) || 0;
                                                             saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(ei => ei.id === ex.id ? {...ei, sets: ei.sets.map(si => si.id === s.id ? {...si, weight: val} : si)} : ei)} : d));
                                                         }} />
-                                                        <select className="form-select form-select-sm border-0 fw-bold" style={{width: '60px', fontSize: '10px'}} value={s.rpe || 8} onChange={e => {
+                                                        <select disabled={s.logged} className="form-select form-select-sm border-0 fw-bold bg-transparent" style={{width: '60px', fontSize: '10px'}} value={s.rpe || 8} onChange={e => {
                                                             const val = parseFloat(e.target.value);
                                                             saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(ei => ei.id === ex.id ? {...ei, sets: ei.sets.map(si => si.id === s.id ? {...si, rpe: val} : si)} : ei)} : d));
                                                         }}>
                                                             {[10, 9.5, 9, 8.5, 8, 7.5, 7].map(v => <option key={v} value={v}>@{v}</option>)}
                                                         </select>
-                                                        {/* TICK BUTTON TO LOG AND START TIMER */}
-                                                        <button className="btn btn-sm p-1 fw-bold" style={{color: COLORS.successMuted}} onClick={() => startTimer(TOTAL_TIME)}>✓</button>
+                                                        
+                                                        {!s.logged && (
+                                                            <button className="btn btn-sm p-1 fw-bold" style={{color: COLORS.successMuted}} onClick={() => {
+                                                                startTimer(TOTAL_TIME);
+                                                                saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(ei => ei.id === ex.id ? {...ei, sets: ei.sets.map(si => si.id === s.id ? {...si, logged: true} : si)} : ei)} : d));
+                                                            }}>✓</button>
+                                                        )}
+
                                                         <button className="btn btn-sm p-1" style={{color: COLORS.border}} onClick={() => saveAndSync(days.map(d => d.id === day.id ? {...d, exercises: d.exercises.map(ei => ei.id === ex.id ? {...ei, sets: ei.sets.filter(si => si.id !== s.id)} : ei)} : d))}>✕</button>
                                                     </div>
                                                 ))}
