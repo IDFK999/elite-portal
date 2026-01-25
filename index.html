@@ -378,10 +378,9 @@
             const [isBooting, setIsBooting] = useState(true);
             const [lang, setLang] = useState(() => localStorage.getItem('app_lang') || 'en');
             
-            // Connection State
+            // --- NEW: Connection State ---
             const [isOnline, setIsOnline] = useState(navigator.onLine);
 
-            // Translation Helper
             const t = (key) => (translations[lang] && translations[lang][key]) || key;
 
             // Auth State Management
@@ -402,7 +401,7 @@
                 localStorage.setItem('app_lang', lang);
             }, [lang]);
 
-            // AUTOMATIC SYNC MANAGER + CONNECTION LISTENERS
+            // --- UPDATED: SYNC MANAGER + ONLINE LISTENER ---
             useEffect(() => {
                 const handleOnline = () => {
                     setIsOnline(true);
@@ -412,59 +411,40 @@
 
                 const syncOfflineData = async () => {
                     if (!session?.user?.id) return;
-                    console.log("Internet restored. Checking for offline data to sync...");
+                    console.log("Syncing offline data...");
                     
                     for (let i = 0; i < localStorage.length; i++) {
                         const key = localStorage.key(i);
                         if (!key) continue;
 
-                        // 1. Sync Daily Logs
                         if (key.startsWith(`offline_log_${session.user.id}`)) {
                             try {
                                 const data = JSON.parse(localStorage.getItem(key));
-                                const { error } = await _supabase.from('daily_logs').upsert({
-                                    user_id: session.user.id, 
-                                    log_date: data.date, 
-                                    weight: parseFloat(data.weight),
-                                    protein: parseInt(data.p) || 0, 
-                                    carbs: parseInt(data.c) || 0, 
-                                    fats: parseInt(data.f) || 0,
-                                    steps: parseInt(data.steps), 
-                                    water_liters: parseFloat(data.water) || 0, 
-                                    sleep_hours: parseFloat(data.sleep) || 0
+                                await _supabase.from('daily_logs').upsert({
+                                    user_id: session.user.id, log_date: data.date, weight: parseFloat(data.weight),
+                                    protein: parseInt(data.p) || 0, carbs: parseInt(data.c) || 0, fats: parseInt(data.f) || 0,
+                                    steps: parseInt(data.steps), water_liters: parseFloat(data.water) || 0, sleep_hours: parseFloat(data.sleep) || 0
                                 }, { onConflict: 'user_id,log_date' });
-                                
-                                if (!error) console.log(`Synced Log: ${data.date}`);
-                            } catch (e) { console.error("Sync error", key); }
+                            } catch (e) { console.error(e); }
                         }
 
-                        // 2. Sync Weekly Metrics
                         if (key.startsWith(`offline_metrics_${session.user.id}`)) {
                             try {
                                 const data = JSON.parse(localStorage.getItem(key));
                                 const weekNum = parseInt(key.split('_w')[1]);
-                                const { error } = await _supabase.from('weekly_metrics').upsert({
-                                    user_id: session.user.id, 
-                                    week_number: weekNum,
-                                    chest: parseFloat(data.chest), 
-                                    waist: parseFloat(data.waist), 
-                                    glute: parseFloat(data.glute) || 0,
-                                    left_arm: parseFloat(data.larm) || 0, 
-                                    right_arm: parseFloat(data.rarm) || 0,
-                                    left_thigh: parseFloat(data.lthigh) || 0, 
-                                    right_thigh: parseFloat(data.rthigh) || 0
+                                await _supabase.from('weekly_metrics').upsert({
+                                    user_id: session.user.id, week_number: weekNum,
+                                    chest: parseFloat(data.chest), waist: parseFloat(data.waist), glute: parseFloat(data.glute) || 0,
+                                    left_arm: parseFloat(data.larm) || 0, right_arm: parseFloat(data.rarm) || 0,
+                                    left_thigh: parseFloat(data.lthigh) || 0, right_thigh: parseFloat(data.rthigh) || 0
                                 }, { onConflict: 'user_id,week_number' });
-
-                                if (!error) console.log(`Synced Metrics Week: ${weekNum}`);
-                            } catch (e) { console.error("Sync error", key); }
+                            } catch (e) { console.error(e); }
                         }
                     }
                 };
 
                 window.addEventListener('online', handleOnline);
                 window.addEventListener('offline', handleOffline);
-                
-                // Trigger sync on startup if online
                 if (navigator.onLine && session) syncOfflineData();
 
                 return () => {
@@ -487,14 +467,14 @@
                 <div className={`${lang === 'ar' ? 'rtl' : ''}`}>
                     <header className="app-header justify-content-between">
                         <div className="d-flex align-items-center gap-2">
-                            {/* Visual Status Dot */}
+                            {/* --- ONLINE/OFFLINE DOT --- */}
                             <div style={{
                                 width: '10px',
                                 height: '10px',
                                 borderRadius: '50%',
                                 backgroundColor: isOnline ? '#28a745' : '#dc3545',
                                 boxShadow: isOnline ? '0 0 8px #28a745' : '0 0 8px #dc3545',
-                                transition: 'background 0.3s ease'
+                                transition: '0.3s'
                             }}></div>
                             <h6 className="fw-800 m-0" style={{letterSpacing: '-0.5px', fontSize: '15px'}}>
                                 {t("ELITE PERFORMANCE")}
@@ -502,14 +482,8 @@
                         </div>
                         
                         <div className="d-flex align-items-center gap-2">
-                            {/* Translated Status Text */}
-                            <span style={{
-                                fontSize: '10px', 
-                                color: isOnline ? '#28a745' : '#dc3545', 
-                                fontWeight: 'bold',
-                                letterSpacing: '0.5px'
-                            }}>
-                                {isOnline ? t("ONLINE") : t("OFFLINE")}
+                            <span style={{fontSize: '10px', color: isOnline ? '#28a745' : '#dc3545', fontWeight: 'bold'}}>
+                                {isOnline ? 'ONLINE' : 'OFFLINE'}
                             </span>
                             <button className="lang-toggle" onClick={toggleLang}>{lang === 'en' ? '🇸🇦' : '🇬🇧'}</button>
                         </div>
@@ -526,33 +500,18 @@
                                 {view === 'stats' && <Stats user={session.user} t={t} goal_labels={{cut: t("Cut"), maintain: t("Maintain"), bulk: t("Bulk")}} />}
                                 
                                 <nav className="nav-bottom">
-                                    <div className={`nav-item ${view === 'workout' ? 'active' : ''}`} onClick={()=>setView('workout')}>
-                                        <div style={{height: '20px'}}></div>
-                                        {t("Workout")}
-                                    </div>
-                                    <div className={`nav-item ${view === 'log' ? 'active' : ''}`} onClick={()=>setView('log')}>
-                                        <div style={{height: '20px'}}></div>
-                                        {t("Log")}
-                                    </div>
-                                    <div className={`nav-item ${view === 'update' ? 'active' : ''}`} onClick={()=>setView('update')}>
-                                        <div style={{height: '20px'}}></div>
-                                        {t("Update")}
-                                    </div>
-                                    <div className={`nav-item ${view === 'stats' ? 'active' : ''}`} onClick={()=>setView('stats')}>
-                                        <div style={{height: '20px'}}></div>
-                                        {t("Stats")}
-                                    </div>
-                                    <div className="nav-item text-danger" onClick={handleSignOut}>
-                                        <div style={{height: '20px'}}></div>
-                                        {t("Exit")}
-                                    </div>
+                                    <div className={`nav-item ${view === 'workout' ? 'active' : ''}`} onClick={()=>setView('workout')}>Workout</div>
+                                    <div className={`nav-item ${view === 'log' ? 'active' : ''}`} onClick={()=>setView('log')}>Log</div>
+                                    <div className={`nav-item ${view === 'update' ? 'active' : ''}`} onClick={()=>setView('update')}>Update</div>
+                                    <div className={`nav-item ${view === 'stats' ? 'active' : ''}`} onClick={()=>setView('stats')}>Stats</div>
+                                    <div className="nav-item text-danger" onClick={handleSignOut}>Exit</div>
                                 </nav>
                             </>
                         )}
                     </main>
                 </div>
             );
-        } 
+        }
 
         function WorkoutManager({ user, t }) {
             const [days, setDays] = useState([]);
