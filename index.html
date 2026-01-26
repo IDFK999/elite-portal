@@ -1369,102 +1369,113 @@ function Stats({ user, t, goal_labels }) {
 
     // --- INTEGRATED ELITE RECOMMENDATION LOGIC ---
     const recommendation = (() => {
-        const CALORIE_FLOOR = 1500;
-        const STEP_GOAL = 7000;
-        const MIN_LOG_DAYS = 14;
+    const CALORIE_FLOOR = 1500;
+    const STEP_GOAL = 7000;
+    const MIN_LOG_DAYS = 14;
 
-        if (logs.length < MIN_LOG_DAYS) 
-            return <div className="p-3 text-center text-muted">{t("Log at least 14 days to enable trend analysis.")}</div>;
+    if (logs.length < MIN_LOG_DAYS) 
+        return <div className="p-3 text-center text-muted">{t("Log at least 14 days to enable trend analysis.")}</div>;
 
-        const cleanLogs = removeOutliers(logs);
-        const sortedLogs = cleanLogs.sort((a, b) => new Date(a.log_date) - new Date(b.log_date));
-        const dailyLogs = interpolateDaily(sortedLogs);
+    // 1. Remove outliers (Assumes helper function removeOutliers exists)
+    const cleanLogs = typeof removeOutliers === 'function' ? removeOutliers(logs) : [...logs];
 
-        // Multivariate adjustment (Corrects for water weight from salt/carbs/inactivity)
-        const adjustedWeights = dailyLogs.map(d => {
-            const kcal = (d.protein * 4 + d.carbs * 4 + d.fats * 9) || 2000;
-            const stepDiff = STEP_GOAL - (d.steps || STEP_GOAL);
-            const kcalDiff = 2000 - kcal;
-            return d.weight - (0.001 * stepDiff) - (0.0005 * kcalDiff);
-        });
+    // 2. Fill missing days
+    const sortedLogs = cleanLogs.sort((a, b) => new Date(a.log_date) - new Date(b.log_date));
+    const dailyLogs = interpolateDaily(sortedLogs);
 
-        const weightObjects = adjustedWeights.map((w, i) => ({ y: w, date: dailyLogs[i].log_date }));
-        const ewmaTrend = calculateAdaptiveEWMA(weightObjects);
+    // 3. Multivariate adjustment (Corrects for water weight from salt/carbs/inactivity)
+    const adjustedWeights = dailyLogs.map(d => {
+        const kcal = (d.protein * 4 + d.carbs * 4 + d.fats * 9) || 2000;
+        const stepDiff = STEP_GOAL - (d.steps || STEP_GOAL);
+        const kcalDiff = 2000 - kcal;
+        // Adjusts weight by 1g per 1 step missing and 0.5g per calorie over baseline
+        return d.weight - (0.001 * stepDiff) - (0.0005 * kcalDiff);
+    });
 
-        const weightsForRegression = dailyLogs.map((d, i) => {
-            if (i === 0) return 1;
-            const gap = (new Date(d.log_date) - new Date(dailyLogs[i - 1].log_date)) / 86400000;
-            return Math.min(1, 1 / gap); 
-        });
-        
-        const { slope, r2 } = weightedLinearRegression(ewmaTrend, weightsForRegression);
+    // 4. Adaptive EWMA smoothing
+    const weightObjects = adjustedWeights.map((w, i) => ({ y: w, date: dailyLogs[i].log_date }));
+    const ewmaTrend = typeof calculateAdaptiveEWMA === 'function' 
+        ? calculateAdaptiveEWMA(weightObjects) 
+        : calculateEWMA(dailyLogs, 0.15);
 
-        const trendKgPerWeek = slope * 7;
-        const currentTrendWeight = ewmaTrend[ewmaTrend.length - 1].y;
-        const trendPercentPerWeek = (trendKgPerWeek / currentTrendWeight) * 100;
+    // 5. Weighted regression for slope & R²
+    const weightsForRegression = dailyLogs.map((d, i) => {
+        if (i === 0) return 1;
+        const gap = (new Date(d.log_date) - new Date(dailyLogs[i - 1].log_date)) / 86400000;
+        return Math.min(1, 1 / gap); // Lower weight for interpolated gaps
+    });
+    
+    const { slope, r2 } = weightedLinearRegression(ewmaTrend, weightsForRegression);
 
-        // Dynamic thresholds
-        const cutThreshold = currentTrendWeight > 100 ? -0.3 : -0.25;
-        const maintainThreshold = currentTrendWeight < 60 ? 0.6 : 0.5;
-        const bulkThreshold = currentTrendWeight > 90 ? 0.2 : 0.15;
+    // 6. Trend metrics
+    const trendKgPerWeek = slope * 7;
+    const currentTrendWeight = ewmaTrend[ewmaTrend.length - 1].y;
+    const trendPercentPerWeek = (trendKgPerWeek / currentTrendWeight) * 100;
 
-        const last7 = dailyLogs.slice(-7);
-        const avgStepsRecent = last7.reduce((a, b) => a + (b.steps || 0), 0) / 7;
-        const recentKcal = last7.reduce((a, b) => a + ((b.protein * 4 + b.carbs * 4 + b.fats * 9) || 0), 0) / 7;
+    // 7. Dynamic thresholds based on body mass
+    const cutThreshold = currentTrendWeight > 100 ? -0.3 : -0.25;
+    const maintainThreshold = currentTrendWeight < 60 ? 0.6 : 0.5;
+    const bulkThreshold = currentTrendWeight > 90 ? 0.2 : 0.15;
 
-        let coachTitle = t("Progress on track — no adjustment needed.");
-        let coachDetails = null;
+    // 8. Average recent activity
+    const last7 = dailyLogs.slice(-7);
+    const avgStepsRecent = last7.reduce((a, b) => a + (b.steps || 0), 0) / 7;
+    const recentKcal = last7.reduce((a, b) => a + ((b.protein * 4 + b.carbs * 4 + b.fats * 9) || 0), 0) / 7;
 
-        if (r2 < 0.3) {
-            coachTitle = t("Trend uncertain");
-            coachDetails = t("Weight trend not yet stable. Keep logging daily.");
-        } else {
-            if (goal === "cut") {
-                if (trendPercentPerWeek > cutThreshold) {
-                    coachTitle = t("Plateau Detected");
-                    if (avgStepsRecent < STEP_GOAL) {
-                        coachDetails = t("Increase activity before adjusting calories.");
-                    } else if (recentKcal <= CALORIE_FLOOR) {
-                        coachDetails = t("At calorie safety floor. Increase activity by +2,500 steps/day.");
-                    } else {
-                        coachDetails = (
-                            <div>
-                                <p>{t("Resume progress by choosing one:")}</p>
-                                <ul className="text-start">
-                                    <li><b>{t("Option 1:")}</b> {t("Reduce food by 150 kcal (Target:")} {Math.round(recentKcal - 150)} {t("kcal)")}</li>
-                                    <li><b>{t("Option 2:")}</b> {t("Increase activity by +2,500 steps/day.")}</li>
-                                </ul>
-                            </div>
-                        );
-                    }
-                }
-            } else if (goal === "bulk" && trendPercentPerWeek < bulkThreshold) {
-                coachTitle = t("Progress Slow");
-                coachDetails = `${t("Increase calories by 150 kcal (Target:")} ${Math.round(recentKcal + 150)} ${t("kcal).")}`;
-            } else if (goal === "maintain") {
-                if (Math.abs(trendPercentPerWeek) > maintainThreshold) {
-                    coachTitle = t("Drifting from Maintenance");
-                    coachDetails = trendPercentPerWeek > 0 
-                        ? t("Weight is creeping up. Reduce intake slightly.") 
-                        : t("Weight is dropping. Increase intake slightly.");
+    // 9. Recommendation Logic
+    let coachTitle = t("Progress on track — no adjustment needed.");
+    let coachDetails = null;
+
+    if (r2 < 0.3) {
+        coachTitle = t("Trend uncertain");
+        coachDetails = t("Weight trend not yet stable. Keep logging daily.");
+    } else {
+        if (goal === "cut") {
+            if (trendPercentPerWeek > cutThreshold) {
+                coachTitle = t("Plateau Detected");
+                if (avgStepsRecent < STEP_GOAL) {
+                    coachDetails = t("Increase activity before adjusting calories.");
+                } else if (recentKcal <= CALORIE_FLOOR) {
+                    coachDetails = t("At calorie safety floor. Increase activity by +2,500 steps/day.");
+                } else {
+                    coachDetails = (
+                        <div>
+                            <p>{t("Resume progress by choosing one:")}</p>
+                            <ul className="text-start">
+                                <li><b>{t("Option 1:")}</b> {t("Reduce food by 150 kcal (Target:")} {Math.round(recentKcal - 150)} {t("kcal)")}</li>
+                                <li><b>{t("Option 2:")}</b> {t("Increase activity by +2,500 steps/day.")}</li>
+                            </ul>
+                        </div>
+                    );
                 }
             }
+        } else if (goal === "bulk" && trendPercentPerWeek < bulkThreshold) {
+            coachTitle = t("Progress Slow");
+            coachDetails = `${t("Increase calories by 150 kcal (Target:")} ${Math.round(recentKcal + 150)} ${t("kcal).")}`;
+        } else if (goal === "maintain") {
+            if (Math.abs(trendPercentPerWeek) > maintainThreshold) {
+                coachTitle = t("Drifting from Maintenance");
+                coachDetails = trendPercentPerWeek > 0 
+                    ? t("Weight is creeping up. Reduce intake slightly.") 
+                    : t("Weight is dropping. Increase intake slightly.");
+            }
         }
+    }
 
-        return (
-            <div className="card p-3 shadow-sm border-0 bg-white">
-                <h6 className="text-primary mb-1">{coachTitle}</h6>
-                <div className="text-muted mb-3" style={{ fontSize: '14px' }}>{coachDetails}</div>
-                <div className="pt-2 border-top">
-                    <div className="d-flex justify-content-between" style={{ fontSize: '11px', opacity: 0.8 }}>
-                        <span><b>{t("Trend:")}</b> {currentTrendWeight.toFixed(2)} kg</span>
-                        <span><b>{t("Rate:")}</b> {trendKgPerWeek.toFixed(2)} kg/wk ({trendPercentPerWeek.toFixed(2)}%)</span>
-                        <span><b>{t("R²:")}</b> {r2.toFixed(2)}</span>
-                    </div>
+    return (
+        <div className="card p-3 shadow-sm border-0 bg-white">
+            <h6 className="text-primary mb-1">{coachTitle}</h6>
+            <div className="text-muted mb-3" style={{ fontSize: '14px' }}>{coachDetails}</div>
+            <div className="pt-2 border-top">
+                <div className="d-flex justify-content-between" style={{ fontSize: '11px', opacity: 0.8 }}>
+                    <span><b>{t("Trend:")}</b> {currentTrendWeight.toFixed(2)} kg</span>
+                    <span><b>{t("Rate:")}</b> {trendKgPerWeek.toFixed(2)} kg/wk ({trendPercentPerWeek.toFixed(2)}%)</span>
+                    <span><b>{t("R²:")}</b> {r2.toFixed(2)}</span>
                 </div>
             </div>
-        );
-    })();
+        </div>
+    );
+})();
 
     const filteredMetrics = metrics.filter(m => m.week_number >= weekFrom && m.week_number <= weekTo);
 
