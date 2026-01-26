@@ -1383,7 +1383,7 @@ function Stats({ user, t, goal_labels }) {
         const STEP_GOAL = 7000;
         const REGRESSION_WINDOW = 20;
 
-        if (logs.length < 14) return <div>{t("Log at least 14 days to enable EWMA + Regression analysis.")}</div>;
+        if (logs.length < 14) return <div>{t("Log at least 14 days to enable the analysis.")}</div>;
 
         const sortedForAnalysis = [...logs].sort((a, b) => new Date(a.log_date) - new Date(b.log_date));
         const dailyLogs = interpolateDaily(sortedForAnalysis);
@@ -1447,7 +1447,7 @@ function Stats({ user, t, goal_labels }) {
                     <div className="d-flex justify-content-between" style={{ fontSize: '11px', opacity: 0.8 }}>
                         <span><b>{t("Trend:")}</b> {currentTrendWeight.toFixed(2)} kg</span>
                         <span><b>{t("Rate:")}</b> {trendKgPerWeek.toFixed(2)} kg/wk ({trendPercentPerWeek.toFixed(2)}%)</span>
-                        <span><b>{t("R²:")}</b> {r2.toFixed(2)}</span>
+                        <span><b>{t("R² (confidence):")}</b> {r2.toFixed(2)}</span>
                     </div>
                 </div>
             </div>
