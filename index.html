@@ -1252,91 +1252,46 @@ function Stats({ user, t, goal_labels }) {
     const canvasRef = useRef(null);
     const chartInstance = useRef(null);
 
-    // --- NEW HELPER FUNCTIONS FOR ELITE LOGIC ---
-    const removeOutliers = (data) => {
-        if (data.length < 4) return data;
-        const weights = data.map(d => d.weight);
-        const avg = weights.reduce((a, b) => a + b, 0) / weights.length;
-        const std = Math.sqrt(weights.map(x => Math.pow(x - avg, 2)).reduce((a, b) => a + b, 0) / weights.length);
-        return data.filter(d => Math.abs(d.weight - avg) <= std * 2.5); // 2.5 Sigma Outlier Detection
-    };
-
-    const calculateAdaptiveEWMA = (points) => {
-        const ewma = [];
-        if (points.length === 0) return ewma;
-        let last = points[0].y;
-        points.forEach((p, i) => {
-            // Adaptive Alpha: Reacts slower if current weight deviates heavily from last trend point
-            const diff = Math.abs(p.y - last);
-            const alpha = diff > 1 ? 0.08 : 0.15; 
-            const val = alpha * p.y + (1 - alpha) * last;
-            ewma.push({ x: i, y: val, date: p.date });
-            last = val;
-        });
-        return ewma;
-    };
-
-    const weightedLinearRegression = (points, weights) => {
-        const n = points.length;
-        let sW = 0, sWX = 0, sWY = 0, sWXX = 0, sWXY = 0;
-        points.forEach((p, i) => {
-            const w = weights[i];
-            sW += w; sWX += w * i; sWY += w * p.y;
-            sWXX += w * i * i; sWXY += w * i * p.y;
-        });
-        const slope = (sW * sWXY - sWX * sWY) / (sW * sWXX - sWX * sWX);
-        const intercept = (sWY - slope * sWX) / sW;
-        
-        let ssTot = 0, ssRes = 0, meanY = sWY / sW;
-        points.forEach((p, i) => {
-            const w = weights[i];
-            ssTot += w * Math.pow(p.y - meanY, 2);
-            ssRes += w * Math.pow(p.y - (slope * i + intercept), 2);
-        });
-        return { slope, r2: ssTot === 0 ? 0 : 1 - (ssRes / ssTot) };
-    };
-
-    const interpolateDaily = (sortedLogs) => {
-        const timeline = [];
-        if (sortedLogs.length === 0) return timeline;
-        for (let i = 0; i < sortedLogs.length - 1; i++) {
-            const cur = sortedLogs[i];
-            const next = sortedLogs[i + 1];
-            timeline.push(cur);
-            const dayDiff = Math.round((new Date(next.log_date) - new Date(cur.log_date)) / 86400000);
-            if (dayDiff > 1) {
-                const step = (next.weight - cur.weight) / dayDiff;
-                for (let j = 1; j < dayDiff; j++) {
-                    timeline.push({
-                        log_date: new Date(new Date(cur.log_date).getTime() + j * 86400000).toISOString().split("T")[0],
-                        weight: cur.weight + step * j,
-                        steps: 0, protein: 0, carbs: 0, fats: 0, isInterpolated: true
-                    });
-                }
-            }
-        }
-        timeline.push(sortedLogs[sortedLogs.length - 1]);
-        return timeline;
-    };
-
+    // --- LOCAL-FIRST LOADING LOGIC ---
     const loadData = async () => {
         const logsCacheKey = `cache_logs_${user.id}`;
         const metricsCacheKey = `cache_metrics_${user.id}`;
+
         const localLogs = localStorage.getItem(logsCacheKey);
         const localMetrics = localStorage.getItem(metricsCacheKey);
         if (localLogs) setLogs(JSON.parse(localLogs));
         if (localMetrics) setMetrics(JSON.parse(localMetrics));
+
         try {
-            const { data: logData } = await _supabase.from('daily_logs').select('*').eq('user_id', user.id).gte('log_date', dateFrom).lte('log_date', dateTo).order('log_date', { ascending: false });
-            const { data: metricData } = await _supabase.from('weekly_metrics').select('*').eq('user_id', user.id).order('week_number', { ascending: false });
-            if (logData) { setLogs(logData); localStorage.setItem(logsCacheKey, JSON.stringify(logData)); }
-            if (metricData) { setMetrics(metricData); localStorage.setItem(metricsCacheKey, JSON.stringify(metricData)); }
-        } catch (err) { console.log("Offline: Using cached stats."); }
+            const { data: logData } = await _supabase.from('daily_logs')
+                .select('*')
+                .eq('user_id', user.id)
+                .gte('log_date', dateFrom)
+                .lte('log_date', dateTo)
+                .order('log_date', { ascending: false });
+
+            const { data: metricData } = await _supabase.from('weekly_metrics')
+                .select('*')
+                .eq('user_id', user.id)
+                .order('week_number', { ascending: false });
+
+            if (logData) {
+                setLogs(logData);
+                localStorage.setItem(logsCacheKey, JSON.stringify(logData));
+            }
+            if (metricData) {
+                setMetrics(metricData);
+                localStorage.setItem(metricsCacheKey, JSON.stringify(metricData));
+            }
+        } catch (err) {
+            console.log("Offline: Using cached stats.");
+        }
     };
 
     useEffect(() => { loadData(); }, [dateFrom, dateTo, user.id]);
     useEffect(() => { localStorage.setItem('coach_goal', goal); }, [goal]);
 
+    // --- CHART LOGIC ---
     useEffect(() => {
         if (canvasRef.current && logs.length > 0) {
             const sorted = [...logs].sort((a, b) => new Date(a.log_date) - new Date(b.log_date));
@@ -1352,6 +1307,62 @@ function Stats({ user, t, goal_labels }) {
         }
     }, [logs, t]);
 
+    // --- MATH HELPERS ---
+    const interpolateDaily = (sortedLogs) => {
+        const timeline = [];
+        if (sortedLogs.length === 0) return timeline;
+        for (let i = 0; i < sortedLogs.length - 1; i++) {
+            const cur = sortedLogs[i];
+            const next = sortedLogs[i + 1];
+            timeline.push(cur);
+            const dayDiff = Math.round((new Date(next.log_date) - new Date(cur.log_date)) / 86400000);
+            if (dayDiff > 1) {
+                const step = (next.weight - cur.weight) / dayDiff;
+                for (let j = 1; j < dayDiff; j++) {
+                    timeline.push({
+                        log_date: new Date(new Date(cur.log_date).getTime() + j * 86400000).toISOString().split("T")[0],
+                        weight: cur.weight + step * j,
+                        steps: cur.steps || 0,
+                        protein: cur.protein || 0, carbs: cur.carbs || 0, fats: cur.fats || 0
+                    });
+                }
+            }
+        }
+        timeline.push(sortedLogs[sortedLogs.length - 1]);
+        return timeline;
+    };
+
+    const calculateEWMA = (weights, alpha = 0.15) => {
+        const ewma = [];
+        if (weights.length === 0) return ewma;
+        let last = weights[0].weight;
+        weights.forEach((log, i) => {
+            const val = alpha * log.weight + (1 - alpha) * last;
+            ewma.push({ x: i, y: val });
+            last = val;
+        });
+        return ewma;
+    };
+
+    const linearRegression = (points) => {
+        const n = points.length;
+        if (n < 2) return { slope: 0, r2: 0 };
+        let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+        points.forEach((p, i) => {
+            sumX += i; sumY += p.y; sumXY += i * p.y; sumX2 += i * i;
+        });
+        const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+        const intercept = (sumY - slope * sumX) / n;
+        const meanY = sumY / n;
+        let ssTot = 0, ssRes = 0;
+        points.forEach((p, i) => {
+            ssTot += (p.y - meanY) ** 2;
+            ssRes += (p.y - (slope * i + intercept)) ** 2;
+        });
+        return { slope, r2: ssTot === 0 ? 0 : 1 - (ssRes / ssTot) };
+    };
+
+    // --- MAIN STATS CALCULATION ---
     const stats = (() => {
         if (logs.length === 0) return { loss: 0, kcal: 0, steps: 0, color: '#1D1D1F', sign: '' };
         const sorted = [...logs].sort((a, b) => new Date(a.log_date) - new Date(b.log_date));
@@ -1367,115 +1378,81 @@ function Stats({ user, t, goal_labels }) {
         };
     })();
 
-    // --- INTEGRATED ELITE RECOMMENDATION LOGIC ---
     const recommendation = (() => {
-    const CALORIE_FLOOR = 1500;
-    const STEP_GOAL = 7000;
-    const MIN_LOG_DAYS = 14;
+        const CALORIE_FLOOR = 1500;
+        const STEP_GOAL = 7000;
+        const REGRESSION_WINDOW = 20;
 
-    if (logs.length < MIN_LOG_DAYS) 
-        return <div className="p-3 text-center text-muted">{t("Log at least 14 days to enable trend analysis.")}</div>;
+        if (logs.length < 14) return <div>{t("Log at least 14 days to enable EWMA + Regression analysis.")}</div>;
 
-    // 1. Remove outliers (Assumes helper function removeOutliers exists)
-    const cleanLogs = typeof removeOutliers === 'function' ? removeOutliers(logs) : [...logs];
+        const sortedForAnalysis = [...logs].sort((a, b) => new Date(a.log_date) - new Date(b.log_date));
+        const dailyLogs = interpolateDaily(sortedForAnalysis);
+        const ewmaTrend = calculateEWMA(dailyLogs, 0.15);
 
-    // 2. Fill missing days
-    const sortedLogs = cleanLogs.sort((a, b) => new Date(a.log_date) - new Date(b.log_date));
-    const dailyLogs = interpolateDaily(sortedLogs);
+        // Analyze the last 20 days of the smoothed trend for hormonal stability
+        const regressionWindow = ewmaTrend.slice(-REGRESSION_WINDOW);
+        const { slope, r2 } = linearRegression(regressionWindow);
 
-    // 3. Multivariate adjustment (Corrects for water weight from salt/carbs/inactivity)
-    const adjustedWeights = dailyLogs.map(d => {
-        const kcal = (d.protein * 4 + d.carbs * 4 + d.fats * 9) || 2000;
-        const stepDiff = STEP_GOAL - (d.steps || STEP_GOAL);
-        const kcalDiff = 2000 - kcal;
-        // Adjusts weight by 1g per 1 step missing and 0.5g per calorie over baseline
-        return d.weight - (0.001 * stepDiff) - (0.0005 * kcalDiff);
-    });
+        const trendKgPerWeek = slope * 7;
+        const currentTrendWeight = ewmaTrend[ewmaTrend.length - 1].y;
+        const trendPercentPerWeek = (trendKgPerWeek / currentTrendWeight) * 100;
 
-    // 4. Adaptive EWMA smoothing
-    const weightObjects = adjustedWeights.map((w, i) => ({ y: w, date: dailyLogs[i].log_date }));
-    const ewmaTrend = typeof calculateAdaptiveEWMA === 'function' 
-        ? calculateAdaptiveEWMA(weightObjects) 
-        : calculateEWMA(dailyLogs, 0.15);
+        const avgStepsRecent = dailyLogs.slice(-7).reduce((a, b) => a + (b.steps || 0), 0) / 7;
+        const recentKcal = dailyLogs.slice(-7).reduce((a, b) => a + (b.protein * 4 + b.carbs * 4 + b.fats * 9), 0) / 7;
 
-    // 5. Weighted regression for slope & R²
-    const weightsForRegression = dailyLogs.map((d, i) => {
-        if (i === 0) return 1;
-        const gap = (new Date(d.log_date) - new Date(dailyLogs[i - 1].log_date)) / 86400000;
-        return Math.min(1, 1 / gap); // Lower weight for interpolated gaps
-    });
-    
-    const { slope, r2 } = weightedLinearRegression(ewmaTrend, weightsForRegression);
+        let coachTitle = t("Progress on track — no adjustment needed.");
+        let coachDetails = null;
 
-    // 6. Trend metrics
-    const trendKgPerWeek = slope * 7;
-    const currentTrendWeight = ewmaTrend[ewmaTrend.length - 1].y;
-    const trendPercentPerWeek = (trendKgPerWeek / currentTrendWeight) * 100;
-
-    // 7. Dynamic thresholds based on body mass
-    const cutThreshold = currentTrendWeight > 100 ? -0.3 : -0.25;
-    const maintainThreshold = currentTrendWeight < 60 ? 0.6 : 0.5;
-    const bulkThreshold = currentTrendWeight > 90 ? 0.2 : 0.15;
-
-    // 8. Average recent activity
-    const last7 = dailyLogs.slice(-7);
-    const avgStepsRecent = last7.reduce((a, b) => a + (b.steps || 0), 0) / 7;
-    const recentKcal = last7.reduce((a, b) => a + ((b.protein * 4 + b.carbs * 4 + b.fats * 9) || 0), 0) / 7;
-
-    // 9. Recommendation Logic
-    let coachTitle = t("Progress on track — no adjustment needed.");
-    let coachDetails = null;
-
-    if (r2 < 0.3) {
-        coachTitle = t("Trend uncertain");
-        coachDetails = t("Weight trend not yet stable. Keep logging daily.");
-    } else {
-        if (goal === "cut") {
-            if (trendPercentPerWeek > cutThreshold) {
-                coachTitle = t("Plateau Detected");
-                if (avgStepsRecent < STEP_GOAL) {
-                    coachDetails = t("Increase activity before adjusting calories.");
-                } else if (recentKcal <= CALORIE_FLOOR) {
-                    coachDetails = t("At calorie safety floor. Increase activity by +2,500 steps/day.");
-                } else {
-                    coachDetails = (
-                        <div>
-                            <p>{t("Resume progress by choosing one:")}</p>
-                            <ul className="text-start">
-                                <li><b>{t("Option 1:")}</b> {t("Reduce food by 150 kcal (Target:")} {Math.round(recentKcal - 150)} {t("kcal)")}</li>
-                                <li><b>{t("Option 2:")}</b> {t("Increase activity by +2,500 steps/day.")}</li>
-                            </ul>
-                        </div>
-                    );
+        if (r2 < 0.3) {
+            coachTitle = t("Trend uncertain");
+            coachDetails = t("Weight trend not yet stable. Continue logging.");
+        } else {
+            if (goal === "cut") {
+                if (trendPercentPerWeek > -0.25) {
+                    coachTitle = t("Plateau Detected");
+                    if (avgStepsRecent < STEP_GOAL) {
+                        coachDetails = t("Increase activity before adjusting calories.");
+                    } else if (recentKcal <= CALORIE_FLOOR) {
+                        coachDetails = t("At calorie safety floor. Increase activity by +2,500 steps/day.");
+                    } else {
+                        coachDetails = (
+                            <div>
+                                <p>{t("Resume progress by choosing one:")}</p>
+                                <ul className="text-start">
+                                    <li><b>{t("Option 1:")}</b> {t("Reduce food by 150 kcal (Target:")} {Math.round(recentKcal - 150)} {t("kcal)")}</li>
+                                    <li><b>{t("Option 2:")}</b> {t("Increase activity by +2,500 steps/day.")}</li>
+                                </ul>
+                            </div>
+                        );
+                    }
+                }
+            } else if (goal === "bulk" && trendPercentPerWeek < 0.15) {
+                coachTitle = t("Progress Slow");
+                coachDetails = `${t("Increase calories by 150 kcal (Target:")} ${Math.round(recentKcal + 150)} ${t("kcal).")}`;
+            } else if (goal === "maintain") {
+                if (Math.abs(trendPercentPerWeek) > 0.5) {
+                    coachTitle = t("Drifting from Maintenance");
+                    coachDetails = trendPercentPerWeek > 0 
+                        ? t("Weight is creeping up. Reduce intake slightly.") 
+                        : t("Weight is dropping. Increase intake slightly.");
                 }
             }
-        } else if (goal === "bulk" && trendPercentPerWeek < bulkThreshold) {
-            coachTitle = t("Progress Slow");
-            coachDetails = `${t("Increase calories by 150 kcal (Target:")} ${Math.round(recentKcal + 150)} ${t("kcal).")}`;
-        } else if (goal === "maintain") {
-            if (Math.abs(trendPercentPerWeek) > maintainThreshold) {
-                coachTitle = t("Drifting from Maintenance");
-                coachDetails = trendPercentPerWeek > 0 
-                    ? t("Weight is creeping up. Reduce intake slightly.") 
-                    : t("Weight is dropping. Increase intake slightly.");
-            }
         }
-    }
 
-    return (
-        <div className="card p-3 shadow-sm border-0 bg-white">
-            <h6 className="text-primary mb-1">{coachTitle}</h6>
-            <div className="text-muted mb-3" style={{ fontSize: '14px' }}>{coachDetails}</div>
-            <div className="pt-2 border-top">
-                <div className="d-flex justify-content-between" style={{ fontSize: '11px', opacity: 0.8 }}>
-                    <span><b>{t("Trend:")}</b> {currentTrendWeight.toFixed(2)} kg</span>
-                    <span><b>{t("Rate:")}</b> {trendKgPerWeek.toFixed(2)} kg/wk ({trendPercentPerWeek.toFixed(2)}%)</span>
-                    <span><b>{t("R²:")}</b> {r2.toFixed(2)}</span>
+        return (
+            <div className="card p-3 shadow-sm border-0 bg-white">
+                <h6 className="text-primary mb-1">{coachTitle}</h6>
+                <div className="text-muted mb-3" style={{ fontSize: '14px' }}>{coachDetails}</div>
+                <div className="pt-2 border-top">
+                    <div className="d-flex justify-content-between" style={{ fontSize: '11px', opacity: 0.8 }}>
+                        <span><b>{t("Trend:")}</b> {currentTrendWeight.toFixed(2)} kg</span>
+                        <span><b>{t("Rate:")}</b> {trendKgPerWeek.toFixed(2)} kg/wk ({trendPercentPerWeek.toFixed(2)}%)</span>
+                        <span><b>{t("R²:")}</b> {r2.toFixed(2)}</span>
+                    </div>
                 </div>
             </div>
-        </div>
-    );
-})();
+        );
+    })();
 
     const filteredMetrics = metrics.filter(m => m.week_number >= weekFrom && m.week_number <= weekTo);
 
